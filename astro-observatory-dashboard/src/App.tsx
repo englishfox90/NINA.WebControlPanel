@@ -7,7 +7,15 @@ import { Theme } from '@radix-ui/themes';
 
 const App: React.FC = () => {
   return (
-    <Theme accentColor="red" grayColor="mauve" radius="medium" appearance="dark" data-has-background="false">
+    <Theme 
+      accentColor="red" 
+      grayColor="mauve" 
+      radius="medium" 
+      appearance="dark" 
+      hasBackground={false}
+      panelBackground="solid"
+      scaling="100%"
+    >
       <Dashboard />
     </Theme>
   );

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import NINAStatus from './NINAStatus';
 import RTSPViewer from './RTSPViewer';
-import ImageViewer from './ImageViewer';
+// import TargetSchedulerWidget from './TargetSchedulerWidget';
 import MobileLayout from './MobileLayout';
+import SystemStatusWidget from './SystemStatusWidget';
 // import Settings from './Settings'; // Temporarily disabled - module issues
 import { DashboardState } from '../types/dashboard';
 import { Button, Badge, Flex, Box, Heading, Text, Card } from '@radix-ui/themes';
@@ -185,28 +186,10 @@ const Dashboard: React.FC = () => {
               </Flex>
             </Card>
 
-            {/* Image Viewer Widget */}
-            <Card size="3">
-              <Flex direction="column" gap="3">
-                <Flex align="center" justify="between">
-                  <Flex align="center" gap="2">
-                    <ImageIcon width="20" height="20" />
-                    <Heading as="h3" size="4">
-                      Latest Captures
-                    </Heading>
-                  </Flex>
-                  <Badge color="gray" variant="soft">
-                    <DotFilledIcon width="8" height="8" />
-                    Standby
-                  </Badge>
-                </Flex>
-                <ImageViewer 
-                  images={[]}
-                  isLoading={loading}
-                  onRefresh={handleRefresh}
-                />
-              </Flex>
-            </Card>
+            {/* Target Scheduler Progress Widget - Temporarily disabled for debugging */}
+            {/* <Card size="3">
+              <TargetSchedulerWidget onRefresh={handleRefresh} />
+            </Card> */}
 
             {/* Equipment Status Widget */}
             <Card size="3">
@@ -247,6 +230,9 @@ const Dashboard: React.FC = () => {
                 </Flex>
               </Flex>
             </Card>
+
+            {/* System Status Widget */}
+            <SystemStatusWidget />
           </div>
         </Box>
       </MobileLayout>

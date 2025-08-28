@@ -47,6 +47,121 @@ body::before {
   background-repeat: no-repeat;
 }
 
+/* Enhanced cursor support for interactive elements */
+button,
+[role="button"],
+.rt-Button,
+.rt-IconButton,
+.rt-Checkbox,
+.rt-Switch,
+.rt-RadioItem,
+.rt-Slider,
+.rt-TabsTrigger,
+.rt-AccordionTrigger,
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+select {
+  cursor: pointer !important;
+}
+
+/* Hover states for buttons */
+.rt-Button:hover,
+.rt-IconButton:hover,
+button:hover {
+  cursor: pointer !important;
+  transition: transform 0.1s ease-in-out;
+}
+
+.rt-Button:active,
+.rt-IconButton:active,
+button:active {
+  transform: translateY(1px);
+}
+
+/* Disabled state cursors */
+button:disabled,
+.rt-Button[data-disabled],
+.rt-IconButton[data-disabled],
+input:disabled {
+  cursor: not-allowed !important;
+}
+
+/* Loading state */
+.rt-Button[data-loading="true"],
+.rt-IconButton[data-loading="true"] {
+  cursor: wait !important;
+}
+
+/* Link-style cursors */
+a,
+[role="link"] {
+  cursor: pointer !important;
+}
+
+/* Ensure text inputs have text cursor */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="url"],
+textarea {
+  cursor: text !important;
+}
+
+/* Video feed loading improvements */
+.video-container {
+  transition: all 0.3s ease-in-out;
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Enhanced dynamic video container transitions */
+.video-container-dynamic {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.video-container-allsky {
+  max-width: 400px;
+  margin: 0 auto;
+  aspect-ratio: 1;
+}
+
+.video-container-widescreen {
+  width: 100%;
+  aspect-ratio: 16/9;
+}
+
+/* Smooth container resizing */
+.video-feed-container {
+  transition: 
+    width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s ease-out,
+    opacity 0.3s ease-out !important;
+}
+
+.video-feed-switching {
+  transform: scale(0.98);
+  opacity: 0.8;
+}
+
+/* Better aspect ratio transitions */
+@supports (aspect-ratio: 1) {
+  .video-container-dynamic {
+    transition: aspect-ratio 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+}
+
 /* Ensure transparency for Radix components */
 #root {
   background: transparent;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Badge, Flex, Box, Text, AspectRatio } from '@radix-ui/themes';
 import { VideoIcon, ReloadIcon, ExclamationTriangleIcon } from '@radix-ui/react-icons';
 
@@ -17,48 +17,127 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, stats }) 
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connected');
   const [imgSrc, setImgSrc] = useState<string>(streams[0] || '');
   const [imgLoading, setImgLoading] = useState(true);
-  const [firstLoad, setFirstLoad] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [naturalDimensions, setNaturalDimensions] = useState<{width: number, height: number} | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // Determine optimal container sizing based on content
+  const getStreamType = (streamIndex: number) => {
+    if (streams[streamIndex]?.includes('allsky')) {
+      return 'allsky'; // Square/circular content
+    }
+    return 'widescreen'; // Rectangular content
+  };
+
+  const getContainerStyle = () => {
+    const streamType = getStreamType(activeStream);
+    
+    if (streamType === 'allsky') {
+      return {
+        width: '100%',
+        maxWidth: '380px', // Optimized size for allsky content
+        aspectRatio: '1',
+        margin: '0 auto', // Center the container
+        // Fallback for older browsers
+        '@supports not (aspect-ratio: 1)': {
+          height: '380px'
+        }
+      };
+    } else {
+      return {
+        width: '100%',
+        aspectRatio: '16/9',
+        // Fallback for older browsers  
+        '@supports not (aspect-ratio: 16/9)': {
+          paddingBottom: '56.25%', // 16:9 aspect ratio
+          height: 0,
+          position: 'relative' as const
+        }
+      };
+    }
+  };
+
+  const getImageStyle = (streamType: string) => {
+    const baseStyle = {
+      width: '100%', 
+      height: '100%', 
+      borderRadius: 'var(--radius-2)',
+      opacity: (imgLoading || isTransitioning) ? 0.3 : 1,
+      transition: 'opacity 0.5s ease-in-out',
+      display: 'block' as const
+    };
+
+    if (streamType === 'allsky') {
+      return {
+        ...baseStyle,
+        objectFit: 'contain' as const,
+        // Ensure the circular/square content is properly contained
+        maxWidth: '100%',
+        maxHeight: '100%'
+      };
+    } else {
+      return {
+        ...baseStyle,
+        objectFit: 'cover' as const
+      };
+    }
+  };
 
   // Refresh image every minute
   useEffect(() => {
     if (!streams.length) return;
-    // Only show loading animation on first load or when switching feeds
-    if (firstLoad) {
-      setImgLoading(true);
-      setFirstLoad(false);
-    }
+    
     const updateImg = () => {
-      // Do not show loading animation on periodic refresh
       setImgSrc(`${streams[activeStream]}?t=${Date.now()}`);
     };
+    
     updateImg();
     const interval = setInterval(updateImg, 60000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line
   }, [streams, activeStream]);
 
-  // Determine aspect ratio based on stream URL
-  let aspectRatio = 16 / 9;
-  if (streams[activeStream]?.includes('allsky')) {
-    aspectRatio = 1; // Square aspect for allsky
-  }
-
   const handleStreamChange = (index: number) => {
-    setActiveStream(index);
-    setConnectionStatus('connecting');
+    if (index === activeStream) return;
+    
+    // Start transition with improved timing
+    setIsTransitioning(true);
     setImgLoading(true);
-    setFirstLoad(false);
-    // Simulate connection delay
+    setConnectionStatus('connecting');
+    
+    // Quick transition start for responsive feel
     setTimeout(() => {
-      setConnectionStatus('connected');
-    }, 1000);
+      setActiveStream(index);
+      
+      // Extended time for the container to resize smoothly
+      setTimeout(() => {
+        setConnectionStatus('connected');
+        setIsTransitioning(false);
+      }, 450); // Slightly longer to allow container resize
+    }, 100); // Quicker start
   };
 
   const handleReconnect = () => {
     setConnectionStatus('connecting');
+    setImgLoading(true);
+    setImgSrc(`${streams[activeStream]}?t=${Date.now()}`);
     setTimeout(() => {
       setConnectionStatus('connected');
     }, 2000);
+  };
+
+  const handleImageLoad = () => {
+    setImgLoading(false);
+    
+    // Capture natural dimensions for responsive sizing
+    if (imgRef.current) {
+      const { naturalWidth, naturalHeight } = imgRef.current;
+      setNaturalDimensions({ width: naturalWidth, height: naturalHeight });
+    }
+  };
+
+  const handleImageError = () => {
+    setImgLoading(false);
+    setConnectionStatus('error');
   };
 
   if (!streams.length) {
@@ -95,6 +174,8 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, stats }) 
               variant={index === activeStream ? "solid" : "soft"}
               size="1"
               onClick={() => handleStreamChange(index)}
+              disabled={isTransitioning}
+              style={{ cursor: 'pointer' }}
             >
               Camera {index + 1}
             </Button>
@@ -102,69 +183,145 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, stats }) 
         </Flex>
       )}
 
-      {/* MJPEG Image Container */}
-      <AspectRatio ratio={aspectRatio}>
-        <Flex 
-          align="center" 
-          justify="center"
+      {/* Dynamic Video Container */}
+      <Box 
+        style={{ 
+          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          opacity: isTransitioning ? 0.8 : 1,
+          transform: isTransitioning ? 'scale(0.98)' : 'scale(1)',
+          ...getContainerStyle()
+        }}
+      >
+        <Box
           style={{ 
             backgroundColor: 'var(--color-surface-raised)', 
             borderRadius: 'var(--radius-2)',
             border: '1px solid var(--gray-6)',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            width: '100%',
+            height: '100%',
+            minHeight: getStreamType(activeStream) === 'allsky' ? '300px' : '200px'
           }}
         >
           {imgSrc ? (
             <>
-              {imgLoading && (
-                <Flex direction="column" align="center" justify="center" style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', minHeight: 240, zIndex: 2, background: 'rgba(0,0,0,0.2)' }}>
-                  <ReloadIcon width="32" height="32" className="animate-spin" />
-                  <Text size="2" color="gray">Loading stream...</Text>
+              {/* Loading Overlay */}
+              {(imgLoading || isTransitioning) && (
+                <Flex 
+                  direction="column" 
+                  align="center" 
+                  justify="center" 
+                  style={{ 
+                    position: 'absolute', 
+                    left: 0, 
+                    top: 0, 
+                    width: '100%', 
+                    height: '100%', 
+                    minHeight: 200, 
+                    zIndex: 2, 
+                    background: 'rgba(0,0,0,0.4)',
+                    backdropFilter: 'blur(2px)'
+                  }}
+                >
+                  <ReloadIcon 
+                    width="32" 
+                    height="32" 
+                    className="loading-spinner"
+                    style={{ color: 'var(--accent-9)', marginBottom: '8px' }}
+                  />
+                  <Text size="2" color="gray">
+                    {isTransitioning ? 'Switching camera...' : 'Loading stream...'}
+                  </Text>
                 </Flex>
               )}
+
+              {/* Video Image */}
               <img
+                ref={imgRef}
                 src={imgSrc}
                 alt={`Live Stream ${activeStream + 1}`}
-                style={{ width: '100%', height: '100%', objectFit: aspectRatio === 1 ? 'contain' : 'cover', borderRadius: 'var(--radius-2)', opacity: imgLoading ? 0 : 1, transition: 'opacity 0.3s' }}
-                onLoad={() => setImgLoading(false)}
-                onError={() => setImgLoading(false)}
+                style={getImageStyle(getStreamType(activeStream))}
+                onLoad={handleImageLoad}
+                onError={handleImageError}
               />
+
+              {/* Connection Error State */}
+              {connectionStatus === 'error' && (
+                <Flex 
+                  direction="column" 
+                  align="center" 
+                  justify="center" 
+                  gap="2"
+                  style={{ 
+                    position: 'absolute', 
+                    left: 0, 
+                    top: 0, 
+                    width: '100%', 
+                    height: '100%', 
+                    background: 'rgba(0,0,0,0.6)',
+                    zIndex: 3
+                  }}
+                >
+                  <ExclamationTriangleIcon width="32" height="32" color="var(--red-9)" />
+                  <Text size="2" color="red">Stream unavailable</Text>
+                  <Button 
+                    size="1" 
+                    variant="soft" 
+                    onClick={handleReconnect}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <ReloadIcon width="14" height="14" />
+                    Reconnect
+                  </Button>
+                </Flex>
+              )}
             </>
           ) : (
-            <Text size="2" color="gray">No stream available</Text>
+            <Flex align="center" justify="center" style={{ height: '100%' }}>
+              <Text size="2" color="gray">No stream available</Text>
+            </Flex>
           )}
-          <Badge color="red" size="1" style={{
-            position: 'absolute',
-            top: '8px',
-            right: '8px'
-          }}>
+
+          {/* Live Badge */}
+          <Badge 
+            color="red" 
+            size="1" 
+            style={{
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              zIndex: 1
+            }}
+          >
             LIVE
           </Badge>
-        </Flex>
-      </AspectRatio>
+        </Box>
+      </Box>
 
       {/* Stream Info */}
-      <Flex direction="column" gap="2">
-        {(stats && stats[activeStream]?.resolution && stats[activeStream].resolution !== 'Unknown') && (
-          <Flex justify="between">
-            <Text size="2" color="gray">Resolution</Text>
-            <Text size="2" weight="medium">{stats[activeStream].resolution}</Text>
-          </Flex>
-        )}
-        {(stats && stats[activeStream]?.frameRate && stats[activeStream].frameRate !== 'Unknown') && (
-          <Flex justify="between">
-            <Text size="2" color="gray">Frame Rate</Text>
-            <Text size="2" weight="medium">{stats[activeStream].frameRate}</Text>
-          </Flex>
-        )}
-        {(stats && stats[activeStream]?.bitrate && stats[activeStream].bitrate !== 'Unknown') && (
-          <Flex justify="between">
-            <Text size="2" color="gray">Bitrate</Text>
-            <Text size="2" weight="medium">{stats[activeStream].bitrate}</Text>
-          </Flex>
-        )}
-      </Flex>
+      {stats && stats[activeStream] && (
+        <Flex direction="column" gap="2">
+          {stats[activeStream]?.resolution && stats[activeStream].resolution !== 'Unknown' && (
+            <Flex justify="between">
+              <Text size="2" color="gray">Resolution</Text>
+              <Text size="2" weight="medium">{stats[activeStream].resolution}</Text>
+            </Flex>
+          )}
+          {stats[activeStream]?.frameRate && stats[activeStream].frameRate !== 'Unknown' && (
+            <Flex justify="between">
+              <Text size="2" color="gray">Frame Rate</Text>
+              <Text size="2" weight="medium">{stats[activeStream].frameRate}</Text>
+            </Flex>
+          )}
+          {stats[activeStream]?.bitrate && stats[activeStream].bitrate !== 'Unknown' && (
+            <Flex justify="between">
+              <Text size="2" color="gray">Bitrate</Text>
+              <Text size="2" weight="medium">{stats[activeStream].bitrate}</Text>
+            </Flex>
+          )}
+        </Flex>
+      )}
     </Flex>
   );
 };
