@@ -1,177 +1,45 @@
-/* Mobile-specific styles and overrides */
-.mobile-layout {
-  width: 100%;
-  min-height: 100vh;
-}
+/* Mobile Responsiveness - Handled by Radix UI Components */
 
-/* Mobile-first responsive breakpoints */
-@media (max-width: 480px) {
-  .dashboard-nav {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
-    gap: var(--spacing-sm);
-  }
-  
-  .dashboard-logo {
-    justify-content: center;
-    font-size: var(--font-size-lg);
-  }
-  
-  .dashboard-status {
-    flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-xs);
-    font-size: var(--font-size-xs);
-  }
-  
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-md);
-    padding: 0 var(--spacing-sm);
-  }
-  
-  .widget {
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-sm);
-  }
-  
-  .widget-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-xs);
-  }
-  
-  .widget-title {
-    font-size: var(--font-size-base);
-  }
-  
-  .data-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-xs) 0;
-  }
-  
-  .data-label {
-    font-size: var(--font-size-xs);
-  }
-  
-  .data-value {
-    font-size: var(--font-size-sm);
-  }
-  
-  .action-buttons {
-    flex-direction: column;
-    gap: var(--spacing-sm);
-  }
-  
-  .action-button {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .btn {
-    padding: var(--spacing-md) var(--spacing-lg);
-    font-size: var(--font-size-base);
-  }
-  
-  .stream-selector {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-  }
-  
-  .stream-selector .btn {
-    width: 100%;
-  }
-}
+/* 
+ * NOTE: Mobile responsiveness is now primarily handled by Radix UI's built-in responsive components.
+ * The Dashboard uses Radix UI Flex, Grid, and responsive props for automatic mobile optimization.
+ * 
+ * This file contains only supplementary mobile-specific overrides if needed.
+ */
 
-/* Tablet responsive adjustments */
-@media (max-width: 768px) and (min-width: 481px) {
-  .dashboard-grid {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--spacing-lg);
-    padding: 0 var(--spacing-md);
-  }
-  
-  .widget {
-    padding: var(--spacing-lg);
-  }
-  
-  .data-row {
-    flex-direction: row;
-    justify-content: space-between;
-  }
-}
-
-/* Touch-friendly interactions */
+/* Touch-friendly interactions for mobile devices */
 @media (hover: none) and (pointer: coarse) {
-  .btn {
+  /* Ensure minimum touch target size */
+  button, .rt-Button, [role="button"] {
     min-height: 44px;
-    padding: var(--spacing-md) var(--spacing-lg);
+    min-width: 44px;
   }
   
-  .widget:hover {
+  /* Remove hover effects on touch devices */
+  .rt-Card:hover,
+  .rt-Button:hover {
     transform: none;
-    box-shadow: 0 4px 6px var(--shadow-light);
-  }
-  
-  .card:hover {
-    transform: none;
-  }
-  
-  .image-thumbnail {
-    min-height: 44px;
   }
 }
 
-/* Landscape orientation adjustments */
-@media (max-width: 768px) and (orientation: landscape) {
-  .dashboard-nav {
-    flex-direction: row;
-    padding: var(--spacing-sm) var(--spacing-md);
+/* Small screen adjustments */
+@media (max-width: 768px) {
+  /* Ensure proper spacing on mobile */
+  .rt-Box[data-p="4"] {
+    padding: var(--space-2) !important;
   }
   
-  .dashboard-logo {
-    font-size: var(--font-size-base);
-  }
-  
-  .dashboard-grid {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  /* Adjust grid gap for mobile */
+  [style*="grid-template-columns"] {
+    gap: var(--space-2) !important;
   }
 }
 
-/* High DPI / Retina display adjustments */
+/* High DPI display adjustments */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-  .loading {
-    border-width: 1px;
+  /* Ensure crisp borders on retina displays */
+  .rt-Card, 
+  .rt-Button {
+    border-width: 0.5px;
   }
-  
-  .status-dot {
-    width: 6px;
-    height: 6px;
-  }
-}
-
-.video-feed {
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    margin: 10px 0;
-}
-
-.image-viewer {
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    margin: 10px 0;
-}
-
-.footer {
-    width: 100%;
-    text-align: center;
-    padding: 10px;
-    background-color: #4CAF50;
-    color: white;
 }

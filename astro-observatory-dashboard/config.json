@@ -1,7 +1,7 @@
 {
   "nina": {
     "apiPort": 1888,
-    "baseUrl": "http://localhost",
+    "baseUrl": "http://172.26.81.152/",
     "timeout": 5000,
     "retryAttempts": 3
   },

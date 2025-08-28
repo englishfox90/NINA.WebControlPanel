@@ -1,226 +1,54 @@
-/* Modern CSS Reset & Variables for Astro Observatory Dashboard with Radix UI */
-:root {
-  /* Override Radix theme colors for dark mode */
-  --color-background: #0a0e1a;
-  --color-surface: #1a1f2e;
-  --color-surface-raised: #2a2f3e;
-  
-  /* Observatory-specific colors */
-  --primary-bg: #0a0e1a;
-  --secondary-bg: #1a1f2e;
-  --tertiary-bg: #2a2f3e;
-  --accent-blue: #3b82f6;
-  --accent-green: #10b981;
-  --accent-orange: #f59e0b;
-  --accent-red: #ef4444;
-  --text-primary: #ffffff;
-  --text-secondary: #d1d5db;
-  --text-muted: #9ca3af;
-  --border-color: #374151;
-  --shadow-light: rgba(0, 0, 0, 0.1);
-  --shadow-medium: rgba(0, 0, 0, 0.3);
-  
-  /* Spacing - kept for compatibility */
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
-  --spacing-2xl: 3rem;
-  
-  /* Typography - updated for Space Grotesk */
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  --font-size-3xl: 2rem;
-  
-  /* Borders */
-  --border-radius-sm: 0.375rem;
-  --border-radius-md: 0.5rem;
-  --border-radius-lg: 0.75rem;
-  --border-radius-xl: 1rem;
-  
-  /* Transitions */
-  --transition-fast: 150ms ease-in-out;
-  --transition-medium: 300ms ease-in-out;
-  --transition-slow: 500ms ease-in-out;
-}
-
-/* Reset */
+/* Minimal CSS Reset for Radix UI */
 *, *::before, *::after {
   box-sizing: border-box;
+}
+
+html, body, #root {
   margin: 0;
   padding: 0;
+  height: 100%;
 }
 
-html {
-  line-height: 1.5;
-  -webkit-text-size-adjust: 100%;
-  font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+/* Radix UI Theme Font Override - Prioritize Space Grotesk */
+.radix-themes {
+  --default-font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --heading-font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --code-font-family: 'Menlo', 'Consolas (Custom)', 'Bitstream Vera Sans Mono', monospace, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --strong-font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --em-font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --quote-font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 }
 
+/* Radix UI authentic SVG background - exact copy from their website */
 body {
-  background-color: var(--primary-bg);
-  color: var(--text-primary);
-  font-size: var(--font-size-base);
-  line-height: 1.6;
-  overflow-x: hidden;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  background: 
+    /* Base dark gradient exactly like Radix */
+    linear-gradient(180deg, hsl(222 47% 4%) 0%, hsl(222 47% 2%) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  position: relative;
 }
 
-/* Typography */
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
-  line-height: 1.25;
-  margin-bottom: var(--spacing-md);
+/* Create the authentic Radix SVG background as a pseudo-element */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: -1;
+  background-image: url("data:image/svg+xml,%3Csvg width='2560' height='1920' viewBox='0 0 2560 1920' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cg%3E%3Cpath d='M3020.93 134.455C3124.79 173.824 3164.97 266.778 3110.66 342.074C2627.55 1011.9 1866.31 2517.63 1361.75 2752.01C-681.389 3429.21 -4156.79 2571.47 -2138.3 1425.38C-119.809 279.282 -1553.39 -218.348 -406.211 -990.94C930.008 -1890.85 2560.5 -40.0647 3020.93 134.455Z' fill='url(%23paint0_radial_37_453-1)'/%3E%3Cpath d='M885.9 -99.2149L1864.74 271.797C1921.14 293.178 1961.34 331.784 1974.23 376.971L2135.2 941.153L2866.18 715.05C2924.72 696.941 2991.39 698.838 3047.8 720.218L4026.64 1091.23C4130.5 1130.6 4170.68 1223.55 4116.37 1298.85L3855.77 1660.16C3833.07 1691.63 3796.05 1716.44 3750.99 1730.38L2473.16 2125.63L2754.29 3110.94C2764.38 3146.29 2756.99 3183.09 2733.43 3214.9L2367.46 3708.79L1208.97 3269.68C1152.56 3248.3 1112.37 3209.7 1099.48 3164.51C816.824 2173.87 718.627 2080.16 290.681 580.294C250.811 440.558 316.198 358.62 338.898 327.148L599.499 -34.1638C653.807 -109.46 782.033 -138.584 885.9 -99.2149Z' fill='url(%23paint1_radial_37_453-1)'/%3E%3Cpath d='M1597.13 169.785L2575.97 540.797C2632.38 562.177 2672.57 600.783 2685.46 645.97L2846.44 1210.15L3577.41 984.05C3635.96 965.94 3702.63 967.838 3759.03 989.218L4737.87 1360.23C4841.74 1399.6 4881.91 1492.55 4827.6 1567.85L4567 1929.16C4544.3 1960.63 4507.28 1985.44 4462.22 1999.38L3184.4 2394.63L3465.53 3379.94C3475.61 3415.29 3468.23 3452.09 3444.66 3483.9L3078.69 3977.79L1920.2 3538.68C1863.79 3517.3 1823.6 3478.7 1810.71 3433.51L1649.74 2869.33L918.759 3095.43C860.213 3113.54 793.545 3111.64 737.138 3090.26C737.138 3090.26 -278.857 2706.76 -70.6873 2151.46C137.482 1596.17 725.315 1866.25 1311.78 1684.85L1030.38 698.594C1020.45 663.816 1027.43 627.62 1050.13 596.148L1310.73 234.836C1365.04 159.54 1493.27 130.416 1597.13 169.785Z' fill='url(%23paint2_radial_37_453-1)'/%3E%3Cellipse cx='2396.98' cy='275.232' rx='1699.15' ry='1558.77' fill='url(%23paint5_radial_114_43-1)'/%3E%3C/g%3E%3Cdefs%3E%3CradialGradient id='paint0_radial_37_453-1' cx='0' cy='0' r='1' gradientUnits='userSpaceOnUse' gradientTransform='translate(-804.109 -2036.8) rotate(64.9401) scale(6436.87 6304.81)'%3E%3Cstop stop-color='%23222222'/%3E%3Cstop offset='0.0833333' stop-color='%236366f1' stop-opacity='0.1'/%3E%3Cstop offset='0.364583' stop-color='%238b5cf6'/%3E%3Cstop offset='0.658041' stop-color='%23222222'/%3E%3Cstop offset='0.798521' stop-color='%239333ea'/%3E%3Cstop offset='0.942708' stop-color='%23222222'/%3E%3Cstop offset='1' stop-color='%23222222'/%3E%3C/radialGradient%3E%3CradialGradient id='paint1_radial_37_453-1' cx='0' cy='0' r='1' gradientUnits='userSpaceOnUse' gradientTransform='translate(201.6 -1080.02) rotate(64.9401) scale(6436.87 6304.81)'%3E%3Cstop stop-color='%23222222'/%3E%3Cstop offset='0.0833333' stop-color='%233b82f6'/%3E%3Cstop offset='0.333803' stop-color='%2364748b'/%3E%3Cstop offset='0.658041' stop-color='%23222222'/%3E%3Cstop offset='0.798521' stop-color='%239333ea'/%3E%3Cstop offset='0.942708' stop-color='%23222222'/%3E%3Cstop offset='1' stop-color='%23222222'/%3E%3C/radialGradient%3E%3CradialGradient id='paint2_radial_37_453-1' cx='0' cy='0' r='1' gradientUnits='userSpaceOnUse' gradientTransform='translate(912.834 -811.021) rotate(64.9401) scale(6436.87 6304.81)'%3E%3Cstop stop-color='%23222222'/%3E%3Cstop offset='0.140625' stop-color='%23dc2626' stop-opacity='0'/%3E%3Cstop offset='0.333803' stop-color='%236366f1'/%3E%3Cstop offset='0.658041' stop-color='%23222222'/%3E%3Cstop offset='0.798521' stop-color='%239333ea'/%3E%3Cstop offset='0.942708' stop-color='%23222222'/%3E%3Cstop offset='1' stop-color='%23222222'/%3E%3C/radialGradient%3E%3CradialGradient id='paint5_radial_114_43-1' cx='0' cy='0' r='1' gradientUnits='userSpaceOnUse' gradientTransform='translate(2994.87 275.232) rotate(118.839) scale(1779.46 2065.6)'%3E%3Cstop offset='0.328125' stop-color='%236366f1' stop-opacity='0.2'/%3E%3Cstop offset='1' stop-color='white' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3C/svg%3E");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
-h1 { font-size: var(--font-size-3xl); }
-h2 { font-size: var(--font-size-2xl); }
-h3 { font-size: var(--font-size-xl); }
-h4 { font-size: var(--font-size-lg); }
-h5 { font-size: var(--font-size-base); }
-h6 { font-size: var(--font-size-sm); }
-
-p {
-  margin-bottom: var(--spacing-md);
-  color: var(--text-secondary);
-}
-
-/* Links */
-a {
-  color: var(--accent-blue);
-  text-decoration: none;
-  transition: color var(--transition-fast);
-}
-
-a:hover {
-  opacity: 0.8;
-}
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--border-radius-md);
-  border: none;
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  text-decoration: none;
-}
-
-.btn-primary {
-  background-color: var(--accent-blue);
-  color: var(--text-primary);
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background-color: var(--secondary-bg);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-}
-
-.btn-secondary:hover {
-  background-color: var(--tertiary-bg);
-  border-color: var(--accent-blue);
-}
-
-/* Cards */
-.card {
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-lg);
-  box-shadow: 0 4px 6px var(--shadow-light);
-  transition: all var(--transition-medium);
-}
-
-.card:hover {
-  border-color: var(--accent-blue);
-  box-shadow: 0 8px 25px var(--shadow-medium);
-  transform: translateY(-2px);
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--spacing-md);
-  padding-bottom: var(--spacing-sm);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.card-title {
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  margin: 0;
-}
-
-/* Status Indicators */
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: var(--spacing-sm);
-}
-
-.status-online { background-color: var(--accent-green); }
-.status-offline { background-color: var(--accent-red); }
-.status-warning { background-color: var(--accent-orange); }
-.status-idle { background-color: var(--text-muted); }
-
-/* Loading States */
-.loading {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border-color);
-  border-radius: 50%;
-  border-top-color: var(--accent-blue);
-  animation: spin 1s ease-in-out infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Utility Classes */
-.flex { display: flex; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
-.gap-2 { gap: var(--spacing-md); }
-.hidden { display: none; }
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: var(--spacing-lg);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  :root {
-    --font-size-3xl: 1.5rem;
-    --font-size-2xl: 1.25rem;
-  }
-  
-  .container {
-    padding: var(--spacing-md);
-  }
-  
-  .card {
-    padding: var(--spacing-md);
-  }
+/* Ensure transparency for Radix components */
+#root {
+  background: transparent;
+  min-height: 100vh;
 }

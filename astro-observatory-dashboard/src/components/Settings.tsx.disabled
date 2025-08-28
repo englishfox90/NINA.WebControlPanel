@@ -1,0 +1,486 @@
+import React, { useState, useEffect } from 'react';
+import configService from '../services/configService';
+import { AppConfig } from '../types/config';
+
+interface SettingsProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
+  const [config, setConfig] = useState<AppConfig>(configService.getConfig());
+  const [activeTab, setActiveTab] = useState<string>('connection');
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setConfig(configService.getConfig());
+      setHasChanges(false);
+    }
+  }, [isOpen]);
+
+  const handleSave = () => {
+    configService.updateConfig(config);
+    setHasChanges(false);
+    onClose();
+    // Force a page reload to apply new settings
+    window.location.reload();
+  };
+
+  const handleReset = () => {
+    const defaultConfig = configService.getConfig();
+    setConfig(defaultConfig);
+    setHasChanges(true);
+  };
+
+  const handleResetToDefaults = () => {
+    if (window.confirm('Reset all settings to defaults? This cannot be undone.')) {
+      configService.resetToDefaults();
+      setConfig(configService.getConfig());
+      setHasChanges(false);
+    }
+  };
+
+  const updateConfig = (section: keyof AppConfig, key: string, value: any) => {
+    const newConfig = {
+      ...config,
+      [section]: {
+        ...config[section],
+        [key]: value
+      }
+    };
+    setConfig(newConfig);
+    setHasChanges(true);
+  };
+
+  const updateNestedConfig = (section: keyof AppConfig, nestedSection: string, key: string, value: any) => {
+    const newConfig = {
+      ...config,
+      [section]: {
+        ...config[section],
+        [nestedSection]: {
+          ...(config[section] as any)[nestedSection],
+          [key]: value
+        }
+      }
+    };
+    setConfig(newConfig);
+    setHasChanges(true);
+  };
+
+  const exportConfig = () => {
+    const configJson = configService.exportConfig();
+    const blob = new Blob([configJson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'observatory-config.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importConfig = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        if (configService.importConfig(content)) {
+          setConfig(configService.getConfig());
+          setHasChanges(false);
+          alert('Configuration imported successfully!');
+        } else {
+          alert('Error importing configuration file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const tabs = [
+    { id: 'connection', label: '🔌 Connection', icon: '📡' },
+    { id: 'streams', label: '📹 Video Streams', icon: '🎥' },
+    { id: 'directories', label: '📁 Directories', icon: '💾' },
+    { id: 'dashboard', label: '🎛️ Dashboard', icon: '⚙️' },
+    { id: 'notifications', label: '🔔 Notifications', icon: '📢' },
+    { id: 'observatory', label: '🏢 Observatory', icon: '🔭' },
+    { id: 'advanced', label: '⚙️ Advanced', icon: '🛠️' }
+  ];
+
+  return (
+    <div className="settings-overlay">
+      <div className="settings-modal">
+        {/* Header */}
+        <div className="settings-header">
+          <h2>⚙️ Observatory Settings</h2>
+          <button className="btn btn-secondary" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="settings-tabs">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <span className="tab-icon">{tab.icon}</span>
+              <span className="tab-label">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="settings-content">
+          {activeTab === 'connection' && (
+            <div className="settings-section">
+              <h3>🔌 NINA Connection Settings</h3>
+              <div className="form-group">
+                <label>API Port</label>
+                <input
+                  type="number"
+                  value={config.nina.apiPort}
+                  onChange={(e) => updateConfig('nina', 'apiPort', parseInt(e.target.value))}
+                  placeholder="1888"
+                />
+                <small>Port where NINA API is running (default: 1888)</small>
+              </div>
+              <div className="form-group">
+                <label>Base URL</label>
+                <input
+                  type="text"
+                  value={config.nina.baseUrl}
+                  onChange={(e) => updateConfig('nina', 'baseUrl', e.target.value)}
+                  placeholder="http://localhost"
+                />
+                <small>Base URL for NINA API connection</small>
+              </div>
+              <div className="form-group">
+                <label>Connection Timeout (ms)</label>
+                <input
+                  type="number"
+                  value={config.nina.timeout}
+                  onChange={(e) => updateConfig('nina', 'timeout', parseInt(e.target.value))}
+                  placeholder="5000"
+                />
+                <small>Timeout for API requests in milliseconds</small>
+              </div>
+              <div className="form-group">
+                <label>Retry Attempts</label>
+                <input
+                  type="number"
+                  value={config.nina.retryAttempts}
+                  onChange={(e) => updateConfig('nina', 'retryAttempts', parseInt(e.target.value))}
+                  min="1"
+                  max="10"
+                />
+                <small>Number of retry attempts for failed API calls</small>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'streams' && (
+            <div className="settings-section">
+              <h3>📹 RTSP Video Stream Settings</h3>
+              <div className="form-group">
+                <label>Live Feed 1 URL</label>
+                <input
+                  type="text"
+                  value={config.streams.liveFeed1}
+                  onChange={(e) => updateConfig('streams', 'liveFeed1', e.target.value)}
+                  placeholder="rtsp://192.168.1.100:554/stream1"
+                />
+                <small>RTSP URL for primary camera feed</small>
+              </div>
+              <div className="form-group">
+                <label>Live Feed 2 URL</label>
+                <input
+                  type="text"
+                  value={config.streams.liveFeed2}
+                  onChange={(e) => updateConfig('streams', 'liveFeed2', e.target.value)}
+                  placeholder="rtsp://192.168.1.101:554/stream2"
+                />
+                <small>RTSP URL for secondary camera feed</small>
+              </div>
+              <div className="form-group">
+                <label>Live Feed 3 URL</label>
+                <input
+                  type="text"
+                  value={config.streams.liveFeed3}
+                  onChange={(e) => updateConfig('streams', 'liveFeed3', e.target.value)}
+                  placeholder="rtsp://192.168.1.102:554/stream3"
+                />
+                <small>RTSP URL for tertiary camera feed</small>
+              </div>
+              <div className="form-group">
+                <label>Default Stream</label>
+                <select
+                  value={config.streams.defaultStream}
+                  onChange={(e) => updateConfig('streams', 'defaultStream', parseInt(e.target.value))}
+                >
+                  <option value={1}>Feed 1</option>
+                  <option value={2}>Feed 2</option>
+                  <option value={3}>Feed 3</option>
+                </select>
+                <small>Which stream to show by default</small>
+              </div>
+              <div className="form-group">
+                <label>Connection Timeout (ms)</label>
+                <input
+                  type="number"
+                  value={config.streams.connectionTimeout}
+                  onChange={(e) => updateConfig('streams', 'connectionTimeout', parseInt(e.target.value))}
+                  placeholder="10000"
+                />
+                <small>Timeout for RTSP stream connections</small>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'directories' && (
+            <div className="settings-section">
+              <h3>📁 Directory Settings</h3>
+              <div className="form-group">
+                <label>Live Stack Directory</label>
+                <input
+                  type="text"
+                  value={config.directories.liveStackDirectory}
+                  onChange={(e) => updateConfig('directories', 'liveStackDirectory', e.target.value)}
+                  placeholder="D:/Observatory/LiveStacks"
+                />
+                <small>Directory where live stacked images are saved</small>
+              </div>
+              <div className="form-group">
+                <label>Captured Images Directory</label>
+                <input
+                  type="text"
+                  value={config.directories.capturedImagesDirectory}
+                  onChange={(e) => updateConfig('directories', 'capturedImagesDirectory', e.target.value)}
+                  placeholder="D:/Observatory/Captured"
+                />
+                <small>Directory where individual captures are stored</small>
+              </div>
+              <div className="form-group">
+                <label>Target Scheduler Database</label>
+                <input
+                  type="text"
+                  value={config.database.targetSchedulerPath}
+                  onChange={(e) => updateConfig('database', 'targetSchedulerPath', e.target.value)}
+                  placeholder="./schedulerdb.sqlite"
+                />
+                <small>Path to the scheduler SQLite database</small>
+              </div>
+              <div className="form-group">
+                <label>Logs Directory</label>
+                <input
+                  type="text"
+                  value={config.directories.logsDirectory}
+                  onChange={(e) => updateConfig('directories', 'logsDirectory', e.target.value)}
+                  placeholder="./logs"
+                />
+                <small>Directory for application logs</small>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'dashboard' && (
+            <div className="settings-section">
+              <h3>🎛️ Dashboard Settings</h3>
+              <div className="form-group">
+                <label>Refresh Interval (ms)</label>
+                <input
+                  type="number"
+                  value={config.dashboard.refreshInterval}
+                  onChange={(e) => updateConfig('dashboard', 'refreshInterval', parseInt(e.target.value))}
+                  min="1000"
+                  max="60000"
+                />
+                <small>How often to refresh dashboard data (1-60 seconds)</small>
+              </div>
+              <div className="form-group">
+                <label>Theme</label>
+                <select
+                  value={config.dashboard.theme}
+                  onChange={(e) => updateConfig('dashboard', 'theme', e.target.value)}
+                >
+                  <option value="dark">Dark (Recommended for observatory)</option>
+                  <option value="light">Light</option>
+                </select>
+                <small>Dashboard color scheme</small>
+              </div>
+              <div className="form-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.dashboard.autoRefresh}
+                    onChange={(e) => updateConfig('dashboard', 'autoRefresh', e.target.checked)}
+                  />
+                  Auto Refresh
+                </label>
+                <small>Automatically refresh data at set intervals</small>
+              </div>
+              <div className="form-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.dashboard.mobileOptimized}
+                    onChange={(e) => updateConfig('dashboard', 'mobileOptimized', e.target.checked)}
+                  />
+                  Mobile Optimized
+                </label>
+                <small>Enable mobile-specific optimizations</small>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'observatory' && (
+            <div className="settings-section">
+              <h3>🔭 Observatory Information</h3>
+              <div className="form-group">
+                <label>Observatory Name</label>
+                <input
+                  type="text"
+                  value={config.observatory.name}
+                  onChange={(e) => updateConfig('observatory', 'name', e.target.value)}
+                  placeholder="My Remote Observatory"
+                />
+                <small>Name of your observatory</small>
+              </div>
+              <div className="form-group">
+                <label>Latitude</label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={config.observatory.location.latitude}
+                  onChange={(e) => updateNestedConfig('observatory', 'location', 'latitude', parseFloat(e.target.value))}
+                  placeholder="40.7128"
+                />
+                <small>Observatory latitude in decimal degrees</small>
+              </div>
+              <div className="form-group">
+                <label>Longitude</label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={config.observatory.location.longitude}
+                  onChange={(e) => updateNestedConfig('observatory', 'location', 'longitude', parseFloat(e.target.value))}
+                  placeholder="-74.0060"
+                />
+                <small>Observatory longitude in decimal degrees</small>
+              </div>
+              <div className="form-group">
+                <label>Elevation (meters)</label>
+                <input
+                  type="number"
+                  value={config.observatory.location.elevation}
+                  onChange={(e) => updateNestedConfig('observatory', 'location', 'elevation', parseInt(e.target.value))}
+                  placeholder="100"
+                />
+                <small>Observatory elevation above sea level</small>
+              </div>
+              <div className="form-group">
+                <label>Timezone</label>
+                <input
+                  type="text"
+                  value={config.observatory.location.timezone}
+                  onChange={(e) => updateNestedConfig('observatory', 'location', 'timezone', e.target.value)}
+                  placeholder="America/New_York"
+                />
+                <small>Observatory timezone (e.g., America/New_York)</small>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'advanced' && (
+            <div className="settings-section">
+              <h3>⚙️ Advanced Settings</h3>
+              <div className="form-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.advanced.enableMockData}
+                    onChange={(e) => updateConfig('advanced', 'enableMockData', e.target.checked)}
+                  />
+                  Enable Mock Data
+                </label>
+                <small>Use mock data when NINA API is not available</small>
+              </div>
+              <div className="form-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.advanced.debugMode}
+                    onChange={(e) => updateConfig('advanced', 'debugMode', e.target.checked)}
+                  />
+                  Debug Mode
+                </label>
+                <small>Enable detailed logging and debug information</small>
+              </div>
+              <div className="form-group">
+                <label>Log Level</label>
+                <select
+                  value={config.advanced.logLevel}
+                  onChange={(e) => updateConfig('advanced', 'logLevel', e.target.value)}
+                >
+                  <option value="debug">Debug (Verbose)</option>
+                  <option value="info">Info (Normal)</option>
+                  <option value="warn">Warning (Important only)</option>
+                  <option value="error">Error (Critical only)</option>
+                </select>
+                <small>Amount of logging detail to capture</small>
+              </div>
+              <div className="form-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.advanced.corsEnabled}
+                    onChange={(e) => updateConfig('advanced', 'corsEnabled', e.target.checked)}
+                  />
+                  Enable CORS
+                </label>
+                <small>Allow cross-origin requests (needed for remote NINA API)</small>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="settings-footer">
+          <div className="settings-actions-left">
+            <button className="btn btn-secondary" onClick={exportConfig}>
+              📤 Export Config
+            </button>
+            <label className="btn btn-secondary file-input-label">
+              📥 Import Config
+              <input
+                type="file"
+                accept=".json"
+                onChange={importConfig}
+                style={{ display: 'none' }}
+              />
+            </label>
+            <button className="btn btn-warning" onClick={handleResetToDefaults}>
+              🔄 Reset to Defaults
+            </button>
+          </div>
+          <div className="settings-actions-right">
+            <button className="btn btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button 
+              className={`btn btn-primary ${hasChanges ? 'pulse' : ''}`}
+              onClick={handleSave}
+              disabled={!hasChanges}
+            >
+              💾 Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Settings;

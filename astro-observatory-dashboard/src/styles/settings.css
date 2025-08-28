@@ -1,299 +1,37 @@
-/* Settings Modal Styles */
-.settings-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: var(--spacing-md);
+@import "@radix-ui/colors/black-alpha.css";
+
+/* reset */
+input {
+	all: unset;
 }
 
-.settings-modal {
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-lg);
-  width: 100%;
-  max-width: 900px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+.LabelRoot {
+	font-size: 15px;
+	font-weight: 500;
+	line-height: 35px;
+	color: white;
 }
 
-.settings-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--border-color);
-  background-color: var(--tertiary-bg);
-  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+.Input {
+	width: 200px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 4px;
+	padding: 0 10px;
+	height: 35px;
+	font-size: 15px;
+	line-height: 1;
+	color: white;
+	background-color: var(--black-a2);
+	box-shadow: 0 0 0 1px var(--black-a6);
 }
 
-.settings-header h2 {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: var(--font-size-xl);
-  font-weight: 600;
+.Input:focus {
+	box-shadow: 0 0 0 2px black;
 }
 
-.settings-tabs {
-  display: flex;
-  background-color: var(--tertiary-bg);
-  border-bottom: 1px solid var(--border-color);
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.settings-tab {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-md) var(--spacing-lg);
-  border: none;
-  background: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  white-space: nowrap;
-  font-size: var(--font-size-sm);
-  border-bottom: 3px solid transparent;
-}
-
-.settings-tab:hover {
-  background-color: var(--secondary-bg);
-  color: var(--text-primary);
-}
-
-.settings-tab.active {
-  background-color: var(--secondary-bg);
-  color: var(--text-primary);
-  border-bottom-color: var(--accent-blue);
-}
-
-.tab-icon {
-  font-size: var(--font-size-base);
-}
-
-.tab-label {
-  font-weight: 500;
-}
-
-.settings-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--spacing-lg);
-  min-height: 400px;
-}
-
-.settings-section {
-  max-width: 600px;
-}
-
-.settings-section h3 {
-  color: var(--text-primary);
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  margin-bottom: var(--spacing-lg);
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.form-group {
-  margin-bottom: var(--spacing-lg);
-}
-
-.form-group label {
-  display: block;
-  color: var(--text-primary);
-  font-weight: 500;
-  margin-bottom: var(--spacing-sm);
-  font-size: var(--font-size-sm);
-}
-
-.form-group input,
-.form-group select {
-  width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
-  background-color: var(--primary-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-md);
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
-  transition: all var(--transition-fast);
-}
-
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-.form-group small {
-  display: block;
-  color: var(--text-muted);
-  font-size: var(--font-size-xs);
-  margin-top: var(--spacing-xs);
-  font-style: italic;
-}
-
-.checkbox-group {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-sm);
-}
-
-.checkbox-group input[type="checkbox"] {
-  width: auto;
-  margin: 0;
-  accent-color: var(--accent-blue);
-}
-
-.checkbox-group label {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  cursor: pointer;
-  margin: 0;
-}
-
-.settings-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-lg);
-  border-top: 1px solid var(--border-color);
-  background-color: var(--tertiary-bg);
-  border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
-}
-
-.settings-actions-left,
-.settings-actions-right {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.file-input-label {
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.btn.pulse {
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
-  }
-  50% {
-    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
-  }
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .settings-overlay {
-    padding: var(--spacing-sm);
-  }
-
-  .settings-modal {
-    max-height: 95vh;
-  }
-
-  .settings-header {
-    padding: var(--spacing-md);
-  }
-
-  .settings-header h2 {
-    font-size: var(--font-size-lg);
-  }
-
-  .settings-tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-  }
-
-  .settings-tab {
-    padding: var(--spacing-sm) var(--spacing-md);
-    flex-shrink: 0;
-  }
-
-  .tab-label {
-    display: none;
-  }
-
-  .tab-icon {
-    font-size: var(--font-size-lg);
-  }
-
-  .settings-content {
-    padding: var(--spacing-md);
-  }
-
-  .settings-footer {
-    flex-direction: column;
-    gap: var(--spacing-md);
-    padding: var(--spacing-md);
-  }
-
-  .settings-actions-left,
-  .settings-actions-right {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .settings-actions-left {
-    flex-wrap: wrap;
-  }
-}
-
-@media (max-width: 480px) {
-  .settings-section {
-    max-width: none;
-  }
-
-  .form-group input,
-  .form-group select {
-    padding: var(--spacing-md);
-    font-size: var(--font-size-base);
-  }
-
-  .checkbox-group {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .settings-actions-left .btn,
-  .settings-actions-right .btn {
-    flex: 1;
-    min-width: 0;
-    font-size: var(--font-size-xs);
-    padding: var(--spacing-sm);
-  }
-}
-
-/* Settings button in dashboard header */
-.settings-button {
-  position: relative;
-}
-
-.settings-button .btn {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  font-size: var(--font-size-sm);
-}
-
-.settings-button .btn:hover {
-  transform: rotate(45deg);
+.Input::selection {
+	background-color: var(--black-a6);
+	color: white;
 }

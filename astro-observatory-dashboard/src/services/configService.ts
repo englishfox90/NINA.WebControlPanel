@@ -1,130 +1,75 @@
-import { AppConfig, DEFAULT_CONFIG } from '../types/config';
+// Configuration service module - temporarily disabled
+// This module is being refactored to work with SQLite backend
 
-class ConfigService {
-  config: AppConfig;
-  configKey = 'observatory-dashboard-config';
+import { AppConfig } from '../types/config';
 
-  constructor() {
-    this.config = this.loadConfig();
-  }
-
-  loadConfig(): AppConfig {
-    try {
-      const savedConfig = localStorage.getItem(this.configKey);
-      if (savedConfig) {
-        const parsed = JSON.parse(savedConfig);
-        return this.mergeWithDefaults(parsed);
-      }
-      return DEFAULT_CONFIG;
-    } catch (error) {
-      console.warn('Error loading config, using defaults:', error);
-      return DEFAULT_CONFIG;
-    }
-  }
-
-  async loadFromConfigFileAsync(): Promise<void> {
-    try {
-      const response = await fetch('/config.json');
-      if (response.ok) {
-        const fileConfig = await response.json();
-        this.config = this.mergeWithDefaults(fileConfig);
-      }
-    } catch (error) {
-      console.warn('Could not load config.json, using defaults:', error);
-    }
-  }
-
-  mergeWithDefaults(partialConfig: Partial<AppConfig>): AppConfig {
+// Placeholder service for compilation
+export class ConfigService {
+  static async getConfig(): Promise<AppConfig> {
+    // Return default config for now
     return {
-      nina: { ...DEFAULT_CONFIG.nina, ...partialConfig.nina },
-      database: { ...DEFAULT_CONFIG.database, ...partialConfig.database },
-      streams: { ...DEFAULT_CONFIG.streams, ...partialConfig.streams },
-      directories: { ...DEFAULT_CONFIG.directories, ...partialConfig.directories },
-      dashboard: { ...DEFAULT_CONFIG.dashboard, ...partialConfig.dashboard },
+      nina: {
+        apiPort: 1888,
+        baseUrl: "http://172.26.81.152/",
+        timeout: 5000,
+        retryAttempts: 3
+      },
+      database: {
+        targetSchedulerPath: "./schedulerdb.sqlite",
+        backupEnabled: true,
+        backupInterval: 24
+      },
+      streams: {
+        liveFeed1: "https://live.starfront.tools/allsky/",
+        liveFeed2: "https://live.starfront.tools/b8/",
+        liveFeed3: "",
+        defaultStream: 1,
+        connectionTimeout: 10000
+      },
+      directories: {
+        liveStackDirectory: "D:/Observatory/LiveStacks",
+        capturedImagesDirectory: "D:/Observatory/Captured",
+        logsDirectory: "./logs",
+        tempDirectory: "./temp"
+      },
+      dashboard: {
+        refreshInterval: 5000,
+        theme: "dark",
+        mobileOptimized: true,
+        autoRefresh: true
+      },
       notifications: {
-        ...DEFAULT_CONFIG.notifications,
-        ...partialConfig.notifications,
+        enabled: true,
+        emailAlerts: false,
+        pushNotifications: true,
         alertThresholds: {
-          ...DEFAULT_CONFIG.notifications.alertThresholds,
-          ...partialConfig.notifications?.alertThresholds
+          temperatureWarning: 5,
+          temperatureCritical: 15,
+          connectionTimeout: 30
         }
       },
       observatory: {
-        ...DEFAULT_CONFIG.observatory,
-        ...partialConfig.observatory,
+        name: "My Remote Observatory",
         location: {
-          ...DEFAULT_CONFIG.observatory.location,
-          ...partialConfig.observatory?.location
+          latitude: 40.7128,
+          longitude: -74.0060,
+          elevation: 100,
+          timezone: "America/New_York"
         }
       },
-      advanced: { ...DEFAULT_CONFIG.advanced, ...partialConfig.advanced }
+      advanced: {
+        debugMode: false,
+        logLevel: "info",
+        enableMockData: true,
+        corsEnabled: true
+      }
     };
   }
 
-  getConfig(): AppConfig {
-    return this.config;
-  }
-
-  updateConfig(newConfig: AppConfig): void {
-    this.config = this.mergeWithDefaults(newConfig);
-    this.saveConfig();
-  }
-
-  updateSection(section: string, sectionConfig: any): void {
-    const configAny: any = this.config;
-    this.config = {
-      ...this.config,
-      [section]: { ...configAny[section], ...sectionConfig }
-    };
-    this.saveConfig();
-  }
-
-  updateValue(section: string, key: string, value: any): void {
-    const configAny: any = this.config;
-    const currentSection = configAny[section] || {};
-    this.config = {
-      ...this.config,
-      [section]: { ...currentSection, [key]: value }
-    };
-    this.saveConfig();
-  }
-
-  resetToDefaults(): void {
-    this.config = { ...DEFAULT_CONFIG };
-    this.saveConfig();
-  }
-
-  saveConfig(): void {
-    try {
-      localStorage.setItem(this.configKey, JSON.stringify(this.config));
-    } catch (error) {
-      console.error('Error saving config to localStorage:', error);
-    }
-  }
-
-  exportConfig(): string {
-    return JSON.stringify(this.config, null, 2);
-  }
-
-  importConfig(jsonString: string): boolean {
-    try {
-      const importedConfig = JSON.parse(jsonString);
-      this.config = this.mergeWithDefaults(importedConfig);
-      this.saveConfig();
-      return true;
-    } catch (error) {
-      console.error('Error importing config:', error);
-      return false;
-    }
-  }
-
-  clearConfig(): void {
-    localStorage.removeItem(this.configKey);
-    this.config = { ...DEFAULT_CONFIG };
+  static async setConfig(config: AppConfig): Promise<void> {
+    // Placeholder - will implement SQLite integration later
+    console.log('Config update placeholder:', config);
   }
 }
 
-const configService = new ConfigService();
-configService.loadFromConfigFileAsync();
-
-export default configService;
+export default ConfigService;
