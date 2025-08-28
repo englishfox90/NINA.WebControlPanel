@@ -49,6 +49,10 @@ import { NINAStatus, DashboardConfig } from '../types';
 ### ✅ Completed Components (DON'T MODIFY UNLESS REQUESTED)
 - `SystemStatusWidget.tsx` - Real-time cross-platform monitoring ✅ WORKING
 - `TargetSchedulerWidget.tsx` - Live project progress from SQLite database ✅ WORKING
+  - Integrated directly into Dashboard.tsx (no separate component file)
+  - Features: Interactive hover cards, integration time calculations, manual refresh only
+  - Database: Direct connection to schedulerdb.sqlite with 4 API endpoints
+  - UI: Professional progress bars, priority badges, filter breakdowns
 - `RTSPViewer.tsx` - Live video streams with enhanced UX ✅ WORKING  
 - `Dashboard.tsx` - Main layout with API integration ✅ WORKING
 - `Settings.tsx` - Database-backed configuration ✅ WORKING
@@ -201,10 +205,11 @@ systemMonitor.js        # Cross-platform monitoring
 ## Priority Tasks for NINA Integration
 1. Connect NINAStatus.tsx to live API (http://172.26.81.152:1888)
 2. Implement live image directory scanning in ImageViewer.tsx  
-3. **NEW: Target Scheduler Integration** - Connect to `../schedulerdb.sqlite` for observatory automation monitoring
-   - 382 acquired images across 6 active projects (Barnard 160, SH2-124, etc.)
-   - Real-time project progress, scheduler status, completion analytics
-   - See `../TARGET_SCHEDULER_DATABASE.md` for complete schema documentation
+3. ✅ **Target Scheduler Integration COMPLETE** - Production-ready observatory automation monitoring
+   - Real-time project progress from SQLite database with 4 API endpoints
+   - Professional hover cards with filter breakdowns and integration time tracking
+   - Fixed data accuracy issues (excluded deleted exposure templates)
+   - Widget integrated directly into Dashboard.tsx with manual refresh only
 4. Add advanced NINA equipment controls
 
 When implementing these, follow the established patterns and maintain the production-ready architecture.
@@ -227,4 +232,4 @@ When implementing these, follow the established patterns and maintain the produc
 - New API endpoints or patterns
 - Development rule changes
 
-*Last Synced: August 28, 2025 at 12:55
+*Last Synced: August 29, 2025 at 11:35

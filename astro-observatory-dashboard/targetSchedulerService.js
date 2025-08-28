@@ -46,13 +46,12 @@ class TargetSchedulerService {
           COUNT(DISTINCT t.Id) as target_count,
           SUM(ep.acquired) as total_acquired,
           SUM(ep.accepted) as total_accepted,
-          SUM(ep.desired) as total_desired,
-          MAX(ai.acquireddate) as last_activity_timestamp
+          SUM(ep.desired) as total_desired
         FROM project p
         LEFT JOIN target t ON p.Id = t.projectid AND t.active = 1
         LEFT JOIN exposureplan ep ON t.Id = ep.targetid AND ep.enabled = 1
-        LEFT JOIN acquiredimage ai ON p.Id = ai.projectId
-        WHERE p.state = 1
+        LEFT JOIN exposuretemplate et ON ep.exposureTemplateId = et.Id
+        WHERE p.state = 1 AND (ep.id IS NULL OR et.Id IS NOT NULL)
         GROUP BY p.Id
         ORDER BY p.priority DESC, p.name
       `;
@@ -61,6 +60,14 @@ class TargetSchedulerService {
 
       return projects.map(project => {
         const targets = this.getProjectTargets(project.id);
+        
+        // Get last activity timestamp separately to avoid JOIN issues
+        const lastActivityQuery = `
+          SELECT MAX(ai.acquireddate) as last_activity_timestamp
+          FROM acquiredimage ai
+          WHERE ai.projectId = ?
+        `;
+        const lastActivityResult = this.db.prepare(lastActivityQuery).get(project.id);
         
         // Calculate overall completion
         const totalCompletion = project.total_desired > 0 
@@ -76,7 +83,7 @@ class TargetSchedulerService {
           targets: targets,
           totalImages: project.total_acquired || 0,
           totalCompletion: totalCompletion,
-          lastActivity: project.last_activity_timestamp ? new Date(project.last_activity_timestamp * 1000).toISOString() : null
+          lastActivity: lastActivityResult?.last_activity_timestamp ? new Date(lastActivityResult.last_activity_timestamp * 1000).toISOString() : null
         };
       });
     } catch (error) {
@@ -153,16 +160,30 @@ class TargetSchedulerService {
 
       const filters = this.db.prepare(filterQuery).all(targetId);
 
-      return filters.map(filter => ({
-        filtername: filter.filtername,
-        desired: filter.desired || 0,
-        acquired: filter.acquired || 0,
-        accepted: filter.accepted || 0,
-        completion: filter.desired > 0 ? Math.round((filter.accepted / filter.desired) * 100) : 0,
-        exposureTime: filter.exposure !== -1 ? filter.exposure : filter.defaultexposure,
-        moonAvoidance: filter.moonavoidanceseparation,
-        humidityLimit: filter.maximumhumidity
-      }));
+      return filters.map(filter => {
+        const exposureTime = filter.exposure !== -1 ? filter.exposure : filter.defaultexposure;
+        const desiredIntegrationTime = (filter.desired || 0) * exposureTime;
+        const acquiredIntegrationTime = (filter.acquired || 0) * exposureTime;
+        const acceptedIntegrationTime = (filter.accepted || 0) * exposureTime;
+        const remainingImages = Math.max(0, (filter.desired || 0) - (filter.accepted || 0));
+        const remainingIntegrationTime = remainingImages * exposureTime;
+        
+        return {
+          filtername: filter.filtername,
+          desired: filter.desired || 0,
+          acquired: filter.acquired || 0,
+          accepted: filter.accepted || 0,
+          completion: filter.desired > 0 ? Math.round((filter.accepted / filter.desired) * 100) : 0,
+          exposureTime: exposureTime,
+          desiredIntegrationTime: desiredIntegrationTime,
+          acquiredIntegrationTime: acquiredIntegrationTime,
+          acceptedIntegrationTime: acceptedIntegrationTime,
+          remainingImages: remainingImages,
+          remainingIntegrationTime: remainingIntegrationTime,
+          moonAvoidance: filter.moonavoidanceseparation,
+          humidityLimit: filter.maximumhumidity
+        };
+      });
     } catch (error) {
       console.error('Error getting target filters:', error);
       return [];
