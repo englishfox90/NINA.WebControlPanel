@@ -62,11 +62,12 @@ A responsive web dashboard for monitoring remote astrophotography equipment runn
 - 🆘 **Broken** - Not functional, needs immediate attention
 
 ### **BUILD & TEST STATUS:**
-- **Last Build**: ✅ Successful
-- **Dev Server**: ✅ Running at http://localhost:3000
+- **Last Build**: ⚠️ Hanging (Node.js v22 compatibility issue)
+- **Dev Server**: 🚧 Requires `NODE_OPTIONS="--openssl-legacy-provider"`
 - **All Components**: ✅ No compilation errors
 - **Mobile Responsive**: ✅ Tested and working
 - **Dependencies**: ✅ All packages installed
+- **GitHub Repository**: ✅ Successfully pushed to https://github.com/englishfox90/NINA.WebControlPanel.git
 
 ---
 
@@ -516,6 +517,34 @@ open http://localhost:3000  # Should load dashboard
 5. **Use Radix icons** instead of emojis for professional appearance
 6. **Create custom hooks** if needed in `/hooks`
 7. **Test on mobile browsers** with Radix responsive components
+
+### **🔗 GitHub Repository Setup**
+- **Repository**: https://github.com/englishfox90/NINA.WebControlPanel.git
+- **Branch**: `main` (default)
+- **Status**: ✅ Successfully pushed
+- **Files Committed**: 32 files, 22,950+ lines of code
+- **License**: MIT License included
+
+### **📋 Git Workflow for AI Agents:**
+```bash
+# Clone repository
+git clone https://github.com/englishfox90/NINA.WebControlPanel.git
+
+# Make changes and commit
+git add .
+git commit -m "feat: describe your changes"
+git push origin main
+
+# Start development server (with Node.js v22 fix)
+export NODE_OPTIONS="--openssl-legacy-provider"
+npm install
+npm start
+```
+
+### **🐛 Known Issues:**
+- **React Scripts 4.0.3 + Node v22**: Requires `NODE_OPTIONS="--openssl-legacy-provider"`
+- **Dev Server**: May hang during compilation, use kill process and restart
+- **Font Loading**: Space Grotesk temporarily disabled to resolve build issues
 
 ## 📝 **MODERNIZATION CHANGELOG**
 

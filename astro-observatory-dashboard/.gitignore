@@ -115,3 +115,4 @@ temp-images/
 
 # Local configuration overrides
 config.local.json
+.DS_Store
