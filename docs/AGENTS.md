@@ -7,6 +7,7 @@
 | `RTSPViewer.tsx` | ✅ Complete | **Live video feeds** | ✅ Working streams | Enhanced controls | 🟢 Low |
 | `TargetSchedulerWidget.tsx` | ✅ Complete | **Live project progress** | ✅ SQLite integration | None needed | ✅ Done |
 | `TimeAstronomicalWidget.tsx` | ✅ Complete | **Live astronomical data** | ✅ Astronomical API | None needed | ✅ Done |
+| `SessionWidget.tsx` | ✅ Complete | **NINA session monitoring** | ✅ WebSocket integration | None needed | ✅ Done |
 | `NINAStatus.tsx` | ✅ Complete | **Live equipment status** | ✅ NINA API integration | None needed | ✅ Done |
 | `ImageViewer.tsx` | ✅ UI Ready | Mock gallery display | 🚧 Ready for files | **Live directory scan** | 🔴 High |
 | `Settings.tsx` | ✅ Complete | Database persistence | ✅ Full CRUD | None needed | ✅ Done |g any changes to the} else {

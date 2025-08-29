@@ -414,8 +414,8 @@ class NINAService {
     } catch (error) {
       return { 
         connected: false, 
-        message: error.message,
-        mockMode: true
+        message: error.message
+        // Note: No mockMode flag here - this is just a connection failure
       };
     }
   }
