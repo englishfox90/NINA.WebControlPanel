@@ -16,7 +16,17 @@ html, body, #root {
   --code-font-family: 'Menlo', 'Consolas (Custom)', 'Bitstream Vera Sans Mono', monospace, 'Apple Color Emoji', 'Segoe UI Emoji';
   --strong-font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
   --em-font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
-  --quote-font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --quote-font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segone UI Emoji';
+}
+
+/* Remove borders from widget Cards specifically */
+.widget-content .rt-Card,
+.widget-content [data-radix-card],
+.mobile-only .rt-Card,
+.mobile-only [data-radix-card] {
+  border: none !important;
+  box-shadow: none !important;
+  --card-border-width: 0px;
 }
 
 /* Radix UI authentic SVG background - exact copy from their website */
