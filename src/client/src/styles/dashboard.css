@@ -1,0 +1,179 @@
+/* Dashboard styles managed by Radix UI components */
+/* All styling is handled through Radix UI component props */
+
+/* Loading styles */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+  width: 16px;
+  height: 16px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* React Grid Layout Styles */
+.react-grid-layout {
+  position: relative;
+}
+
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px var(--black-a4);
+}
+
+.react-grid-item.cssTransforms {
+  transition-property: transform;
+}
+
+.react-grid-item.react-draggable-dragging {
+  box-shadow: 0 8px 25px var(--black-a7);
+  z-index: 1000;
+}
+
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+  z-index: 10;
+  opacity: 0.4;
+  transition: opacity 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-11);
+}
+
+.react-grid-item > .react-resizable-handle svg {
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+.react-grid-item:hover > .react-resizable-handle {
+  opacity: 0.8;
+  color: var(--gray-12);
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: var(--accent-3);
+  opacity: 0.3;
+  transition-duration: 100ms;
+  z-index: 2;
+  user-select: none;
+  border-radius: 8px;
+  border: 2px dashed var(--accent-8);
+}
+
+/* Widget container styles */
+.widget-container {
+  background: var(--color-surface);
+  border-radius: 8px;
+  border: 1px solid var(--gray-6);
+  overflow: hidden;
+  height: 100%;
+  position: relative;
+}
+
+.widget-container:hover {
+  border-color: var(--gray-7);
+}
+
+.widget-container:hover .drag-handle {
+  background: var(--gray-4);
+  color: var(--gray-12);
+}
+
+/* Drag handle styling */
+.drag-handle {
+  height: 35px;
+  background: var(--gray-2);
+  cursor: move;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-11);
+  border-radius: 7px 7px 0 0;
+  border-bottom: 1px solid var(--gray-6);
+  user-select: none;
+  transition: all 150ms ease;
+  position: relative;
+  z-index: 1;
+}
+
+.drag-handle:hover {
+  background: var(--gray-3);
+  color: var(--gray-12);
+}
+
+.drag-handle:active {
+  background: var(--accent-3);
+  color: var(--accent-11);
+}
+
+/* Widget content area */
+.widget-content {
+  height: calc(100% - 35px);
+  overflow: hidden;
+  border-radius: 0 0 7px 7px;
+  position: relative;
+  pointer-events: auto; /* Ensure content is interactive */
+}
+
+/* Ensure the drag handle is the only draggable area */
+.widget-container > *:not(.drag-handle) {
+  pointer-events: auto;
+}
+
+.react-grid-item.react-draggable-dragging .widget-content {
+  pointer-events: none; /* Disable content interaction during drag */
+}
+
+/* Desktop only class for responsive behavior */
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none !important;
+  }
+  
+  /* Hide drag handles on mobile since they don't make sense there */
+  .drag-handle {
+    display: flex;
+  }
+}
+
+/* Dark theme adjustments */
+@media (prefers-color-scheme: dark) {
+  .widget-container {
+    border-color: var(--gray-7);
+    background: var(--gray-2);
+  }
+  
+  .drag-handle {
+    background: var(--gray-4);
+    color: var(--gray-11);
+    border-bottom-color: var(--gray-7);
+  }
+  
+  .drag-handle:hover {
+    background: var(--gray-5);
+    color: var(--gray-12);
+  }
+}

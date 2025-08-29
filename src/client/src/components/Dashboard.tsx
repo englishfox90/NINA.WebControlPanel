@@ -1,0 +1,270 @@
+import React, { useState, useCallback, useEffect } from 'react';
+import { Flex, Box, Button, Badge, Heading, Text } from '@radix-ui/themes';
+import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
+import NINAStatus from './NINAStatus';
+import SystemStatusWidget from './SystemStatusWidget';
+import SchedulerWidget from './SchedulerWidget';
+import RTSPViewer from './RTSPViewer';
+import SessionWidget from './SessionWidget';
+import MobileLayout from './MobileLayout';
+import WidgetService, { WidgetConfig } from '../services/widgetService';
+import { 
+  ReloadIcon, 
+  DotFilledIcon,
+  CornerBottomRightIcon,
+  DragHandleDots2Icon
+} from '@radix-ui/react-icons';
+
+// Import react-grid-layout CSS
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
+// Grid layout configuration
+const gridLayoutProps = {
+  className: "layout",
+  cols: { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 },
+  rowHeight: 30,
+  width: 1200
+};
+
+const responsiveProps = {
+  breakpoints: { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 },
+  cols: { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }
+};
+
+// Convert widget config to grid layout format
+const getGridLayout = (widgets: WidgetConfig[]): Layout[] => {
+  return widgets.map(widget => ({
+    i: widget.id,
+    x: widget.layout.x,
+    y: widget.layout.y,
+    w: widget.layout.w,
+    h: widget.layout.h,
+    minW: widget.layout.minW,
+    minH: widget.layout.minH
+  }));
+};
+
+const Dashboard: React.FC = () => {
+  const [widgetConfig, setWidgetConfig] = useState<WidgetConfig[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [layoutLoading, setLayoutLoading] = useState(true);
+  const [rtspFeeds, setRtspFeeds] = useState<string[]>([]);
+
+  // Load widgets from database
+  const loadWidgets = async () => {
+    try {
+      setLayoutLoading(true);
+      const savedWidgets = await WidgetService.loadWidgets();
+      if (savedWidgets && savedWidgets.length > 0) {
+        setWidgetConfig(savedWidgets);
+      } else {
+        console.warn('No widgets found in database');
+        setWidgetConfig([]);
+      }
+    } catch (error) {
+      console.error('Failed to load widgets, using empty array:', error);
+      setWidgetConfig([]);
+    } finally {
+      setLayoutLoading(false);
+    }
+  };
+
+  // Fetch config from backend API
+  const fetchConfig = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/config');
+      const config = await response.json();
+      const feeds = [
+        config.streams?.liveFeed1 || '',
+        config.streams?.liveFeed2 || '',
+        config.streams?.liveFeed3 || ''
+      ].filter(Boolean); // Remove empty strings
+      setRtspFeeds(feeds);
+    } catch (error) {
+      console.error('Failed to fetch config:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadWidgets();
+    fetchConfig();
+  }, []);
+
+  // Handle layout changes and save to database
+  const handleLayoutChange = useCallback((layout: Layout[], layouts: { [key: string]: Layout[] }) => {
+    if (layoutLoading) return; // Don't save during initial load
+    
+    // Update the widget config with new layout positions
+    const updatedConfig = widgetConfig.map(widget => {
+      const layoutItem = layout.find(item => item.i === widget.id);
+      if (layoutItem) {
+        return {
+          ...widget,
+          layout: {
+            ...widget.layout,
+            x: layoutItem.x,
+            y: layoutItem.y,
+            w: layoutItem.w,
+            h: layoutItem.h
+          }
+        };
+      }
+      return widget;
+    });
+    
+    setWidgetConfig(updatedConfig);
+    
+    // Debounced save to avoid excessive API calls
+    WidgetService.debouncedSave(updatedConfig, 1500);
+  }, [widgetConfig, layoutLoading]);
+
+  const handleRefresh = () => {
+    setLoading(true);
+    // Refresh config along with other data
+    fetchConfig();
+    setTimeout(() => setLoading(false), 1000);
+  };
+
+  const handleResetLayout = async () => {
+    try {
+      setLoading(true);
+      // For now, just reload the current widgets from the database
+      // In the future, we could add a reset functionality to the API
+      await loadWidgets();
+    } catch (error) {
+      console.error('Failed to reset layout:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Render the appropriate widget component based on config
+  const renderWidget = (config: WidgetConfig) => {
+    switch (config.component) {
+      case 'NINAStatus':
+        return <NINAStatus key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
+      case 'SystemStatusWidget':
+        return <SystemStatusWidget key={config.id} hideHeader={true} />;
+      case 'SchedulerWidget':
+        return <SchedulerWidget key={config.id} hideHeader={true} />;
+      case 'RTSPViewer':
+        return <RTSPViewer key={config.id} streams={rtspFeeds} isConnected={true} hideHeader={true} />;
+      case 'SessionWidget':
+        return <SessionWidget key={config.id} hideHeader={true} />;
+      default:
+        return <div key={config.id}>Unknown widget: {config.component}</div>;
+    }
+  };
+
+  return (
+    <Box style={{ minHeight: '100vh' }}>
+      {/* Header */}
+      <Flex 
+        justify="between" 
+        align="center" 
+        p="4" 
+        style={{ 
+          borderBottom: '1px solid var(--gray-6)',
+          background: 'var(--color-background)'
+        }}
+      >
+        <Flex align="center" gap="4">
+          <Heading as="h1" size="6">
+            NINA Observatory Dashboard
+          </Heading>
+          <Flex align="center" gap="2">
+            <Badge 
+              color="green" 
+              variant="soft"
+            >
+              <DotFilledIcon width="8" height="8" />
+              ONLINE
+            </Badge>
+            <Text size="2" color="gray">
+              Last Update: {new Date().toLocaleTimeString()}
+            </Text>
+          </Flex>
+        </Flex>
+        
+        <Flex gap="2">
+          <Button 
+            variant="soft"
+            onClick={handleRefresh}
+            disabled={loading}
+          >
+            <ReloadIcon width="16" height="16" />
+            Refresh
+          </Button>
+          <Button 
+            variant="soft"
+            onClick={handleResetLayout}
+            disabled={loading || layoutLoading}
+          >
+            Reset Layout
+          </Button>
+        </Flex>
+      </Flex>
+
+      {/* Mobile Layout */}
+      <div className="mobile-only">
+        <Flex direction="column" gap="4" p="4">
+          <SystemStatusWidget />
+          <RTSPViewer streams={rtspFeeds} isConnected={true} />
+          <NINAStatus onRefresh={handleRefresh} />
+          <SchedulerWidget />
+        </Flex>
+      </div>
+
+      {/* Desktop Layout - React Grid Layout */}
+      <Box className="desktop-only" style={{ padding: '1.5rem' }}>
+        {layoutLoading ? (
+          <Flex align="center" justify="center" style={{ minHeight: '400px' }}>
+            <ReloadIcon className="loading-spinner" />
+            <Text ml="2">Loading layout...</Text>
+          </Flex>
+        ) : (
+          <ResponsiveGridLayout
+            {...gridLayoutProps}
+            {...responsiveProps}
+            layouts={{
+              lg: getGridLayout(widgetConfig),
+              md: getGridLayout(widgetConfig),
+              sm: getGridLayout(widgetConfig),
+              xs: getGridLayout(widgetConfig),
+              xxs: getGridLayout(widgetConfig)
+            }}
+            onLayoutChange={handleLayoutChange}
+            isDraggable={true}
+            isResizable={true}
+            draggableHandle=".drag-handle"
+            // {...({ dragHandleClass: "drag-handle" } as any)}
+            margin={[24, 24]}
+            containerPadding={[0, 0]}
+          >
+            {widgetConfig.map((config) => (
+              <div key={config.layout.i} className="widget-container">
+                <div className="drag-handle">
+                  <Flex align="center" gap="2">
+                    <DragHandleDots2Icon width="14" height="14" />
+                    <Text size="2" weight="medium">{config.title}</Text>
+                  </Flex>
+                </div>
+                <div className="widget-content">
+                  {renderWidget(config)}
+                </div>
+                <div className="react-resizable-handle react-resizable-handle-se">
+                  <CornerBottomRightIcon />
+                </div>
+              </div>
+            ))}
+          </ResponsiveGridLayout>
+        )}
+      </Box>
+    </Box>
+  );
+};
+
+export default Dashboard;
