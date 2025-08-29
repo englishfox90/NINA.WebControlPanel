@@ -14,7 +14,7 @@ import {
 } from '@radix-ui/themes';
 import { 
   CameraIcon, 
-  ReloadIcon, 
+  ReloadIcon,
   ExclamationTriangleIcon,
   InfoCircledIcon
 } from '@radix-ui/react-icons';

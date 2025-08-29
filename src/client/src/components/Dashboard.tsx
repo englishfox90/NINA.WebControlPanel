@@ -8,6 +8,7 @@ import RTSPViewer from './RTSPViewer';
 import SessionWidget from './SessionWidget';
 import TimeAstronomicalWidget from './TimeAstronomicalWidget';
 import ImageViewerWidget from './ImageViewer';
+import { SettingsModal } from './SettingsModal';
 import WidgetService, { WidgetConfig } from '../services/widgetService';
 import { useResponsive } from '../hooks/useResponsive';
 import { 
@@ -16,7 +17,8 @@ import {
   CornerBottomRightIcon,
   DragHandleDots2Icon,
   Pencil1Icon,
-  CheckIcon
+  CheckIcon,
+  GearIcon
 } from '@radix-ui/react-icons';
 
 // Import react-grid-layout CSS
@@ -68,6 +70,7 @@ const Dashboard: React.FC = () => {
     message: 'Checking connection...'
   });
   const [isEditMode, setIsEditMode] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   
   // Get responsive state
   const { isMobile } = useResponsive();
@@ -244,11 +247,10 @@ const Dashboard: React.FC = () => {
         <Flex gap="2">
           <Button 
             variant="soft"
-            onClick={handleRefresh}
-            disabled={loading}
+            onClick={() => setSettingsOpen(true)}
           >
-            <ReloadIcon width="16" height="16" />
-            Refresh
+            <GearIcon width="16" height="16" />
+            Settings
           </Button>
           {!isMobile && (
             <Button 
@@ -336,6 +338,12 @@ const Dashboard: React.FC = () => {
           </ResponsiveGridLayout>
         )}
       </Box>
+      
+      {/* Settings Modal */}
+      <SettingsModal 
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </Box>
   );
 };
