@@ -7,13 +7,15 @@ import SchedulerWidget from './SchedulerWidget';
 import RTSPViewer from './RTSPViewer';
 import SessionWidget from './SessionWidget';
 import TimeAstronomicalWidget from './TimeAstronomicalWidget';
-import MobileLayout from './MobileLayout';
 import WidgetService, { WidgetConfig } from '../services/widgetService';
+import { useResponsive } from '../hooks/useResponsive';
 import { 
   ReloadIcon, 
   DotFilledIcon,
   CornerBottomRightIcon,
-  DragHandleDots2Icon
+  DragHandleDots2Icon,
+  Pencil1Icon,
+  CheckIcon
 } from '@radix-ui/react-icons';
 
 // Import react-grid-layout CSS
@@ -64,6 +66,10 @@ const Dashboard: React.FC = () => {
     connected: false,
     message: 'Checking connection...'
   });
+  const [isEditMode, setIsEditMode] = useState(false);
+  
+  // Get responsive state
+  const { isMobile } = useResponsive();
 
   // Load widgets from database
   const loadWidgets = async () => {
@@ -130,7 +136,7 @@ const Dashboard: React.FC = () => {
 
   // Handle layout changes and save to database
   const handleLayoutChange = useCallback((layout: Layout[], layouts: { [key: string]: Layout[] }) => {
-    if (layoutLoading) return; // Don't save during initial load
+    if (layoutLoading || !isEditMode) return; // Only save in edit mode
     
     // Update the widget config with new layout positions
     const updatedConfig = widgetConfig.map(widget => {
@@ -151,10 +157,7 @@ const Dashboard: React.FC = () => {
     });
     
     setWidgetConfig(updatedConfig);
-    
-    // Debounced save to avoid excessive API calls
-    WidgetService.debouncedSave(updatedConfig, 1500);
-  }, [widgetConfig, layoutLoading]);
+  }, [widgetConfig, layoutLoading, isEditMode]);
 
   const handleRefresh = () => {
     setLoading(true);
@@ -164,14 +167,21 @@ const Dashboard: React.FC = () => {
     setTimeout(() => setLoading(false), 1000);
   };
 
-  const handleResetLayout = async () => {
+  const handleEditToggle = () => {
+    if (isEditMode) {
+      // Save layout when exiting edit mode
+      handleSaveLayout();
+    }
+    setIsEditMode(!isEditMode);
+  };
+
+  const handleSaveLayout = async () => {
     try {
       setLoading(true);
-      // For now, just reload the current widgets from the database
-      // In the future, we could add a reset functionality to the API
-      await loadWidgets();
+      await WidgetService.saveWidgetLayout(widgetConfig);
+      console.log('Layout saved successfully');
     } catch (error) {
-      console.error('Failed to reset layout:', error);
+      console.error('Failed to save layout:', error);
     } finally {
       setLoading(false);
     }
@@ -237,23 +247,36 @@ const Dashboard: React.FC = () => {
             <ReloadIcon width="16" height="16" />
             Refresh
           </Button>
-          <Button 
-            variant="soft"
-            onClick={handleResetLayout}
-            disabled={loading || layoutLoading}
-          >
-            Reset Layout
-          </Button>
+          {!isMobile && (
+            <Button 
+              variant="soft"
+              onClick={handleEditToggle}
+              disabled={loading || layoutLoading}
+            >
+              {isEditMode ? (
+                <>
+                  <CheckIcon width="16" height="16" />
+                  Save Layout
+                </>
+              ) : (
+                <>
+                  <Pencil1Icon width="16" height="16" />
+                  Edit Layout
+                </>
+              )}
+            </Button>
+          )}
         </Flex>
       </Flex>
 
-      {/* Mobile Layout */}
+      {/* Mobile Layout - Dynamic widget rendering */}
       <div className="mobile-only">
         <Flex direction="column" gap="4" p="4">
-          <SystemStatusWidget />
-          <RTSPViewer streams={rtspFeeds} isConnected={true} />
-          <NINAStatus onRefresh={handleRefresh} />
-          <SchedulerWidget />
+          {widgetConfig.map((config) => (
+            <div key={config.id}>
+              {renderWidget(config)}
+            </div>
+          ))}
         </Flex>
       </div>
 
@@ -276,27 +299,35 @@ const Dashboard: React.FC = () => {
               xxs: getGridLayout(widgetConfig)
             }}
             onLayoutChange={handleLayoutChange}
-            isDraggable={true}
-            isResizable={true}
-            draggableHandle=".drag-handle"
-            // {...({ dragHandleClass: "drag-handle" } as any)}
+            isDraggable={isEditMode}
+            isResizable={isEditMode}
+            draggableHandle={isEditMode ? ".drag-handle" : ".disabled-drag-handle"}
             margin={[24, 24]}
             containerPadding={[0, 0]}
           >
             {widgetConfig.map((config) => (
-              <div key={config.layout.i} className="widget-container">
-                <div className="drag-handle">
-                  <Flex align="center" gap="2">
-                    <DragHandleDots2Icon width="14" height="14" />
-                    <Text size="2" weight="medium">{config.title}</Text>
-                  </Flex>
-                </div>
-                <div className="widget-content">
+              <div key={config.layout.i} className={`widget-container ${isEditMode ? 'edit-mode' : 'view-mode'}`}>
+                {isEditMode && (
+                  <div className="drag-handle">
+                    <Flex align="center" gap="2">
+                      <DragHandleDots2Icon width="14" height="14" />
+                      <Text size="2" weight="medium">{config.title}</Text>
+                    </Flex>
+                  </div>
+                )}
+                {!isEditMode && (
+                  <div className="widget-header">
+                    <Text size="2" weight="medium" style={{ padding: '8px 12px' }}>{config.title}</Text>
+                  </div>
+                )}
+                <div className={`widget-content ${isEditMode ? 'with-header' : 'with-header'}`}>
                   {renderWidget(config)}
                 </div>
-                <div className="react-resizable-handle react-resizable-handle-se">
-                  <CornerBottomRightIcon />
-                </div>
+                {isEditMode && (
+                  <div className="react-resizable-handle react-resizable-handle-se">
+                    <CornerBottomRightIcon />
+                  </div>
+                )}
               </div>
             ))}
           </ResponsiveGridLayout>

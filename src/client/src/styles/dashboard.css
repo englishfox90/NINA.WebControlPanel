@@ -89,9 +89,45 @@
   border-color: var(--gray-7);
 }
 
-.widget-container:hover .drag-handle {
+/* Edit mode specific styles */
+.widget-container.edit-mode:hover {
+  border-color: var(--accent-8);
+  box-shadow: 0 4px 12px var(--black-a5);
+}
+
+.widget-container.view-mode {
+  cursor: default;
+}
+
+.widget-container.edit-mode:hover .drag-handle {
   background: var(--gray-4);
   color: var(--gray-12);
+}
+
+/* View mode - no drag cursor */
+.widget-container.view-mode {
+  cursor: default;
+}
+
+/* Edit mode - show drag cursor on drag handle */
+.widget-container.edit-mode .drag-handle {
+  cursor: move;
+}
+
+/* Widget header for view mode (non-draggable) */
+.widget-header {
+  height: 35px;
+  background: var(--gray-2);
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-11);
+  border-radius: 7px 7px 0 0;
+  border-bottom: 1px solid var(--gray-6);
+  user-select: none;
+  position: relative;
+  z-index: 1;
 }
 
 /* Drag handle styling */
@@ -132,13 +168,18 @@
   pointer-events: auto; /* Ensure content is interactive */
 }
 
-/* Ensure the drag handle is the only draggable area */
-.widget-container > *:not(.drag-handle) {
+/* Ensure the drag handle is the only draggable area in edit mode */
+.widget-container.edit-mode > *:not(.drag-handle) {
   pointer-events: auto;
 }
 
 .react-grid-item.react-draggable-dragging .widget-content {
   pointer-events: none; /* Disable content interaction during drag */
+}
+
+/* Hide resize handle in view mode */
+.widget-container.view-mode .react-resizable-handle {
+  display: none !important;
 }
 
 /* Desktop only class for responsive behavior */
@@ -176,4 +217,25 @@
     background: var(--gray-5);
     color: var(--gray-12);
   }
+  
+  .widget-header {
+    background: var(--gray-3);
+    color: var(--gray-11);
+    border-bottom-color: var(--gray-7);
+  }
+}
+
+/* Hide resize handles in view mode */
+.widget-container.view-mode .react-resizable-handle {
+  display: none !important;
+}
+
+/* Disable dragging in view mode by hiding drag handles */
+.widget-container.view-mode .drag-handle {
+  display: none;
+}
+
+/* Show widget header only in view mode */
+.widget-container.edit-mode .widget-header {
+  display: none;
 }
