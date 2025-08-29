@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ImageData } from '../types/dashboard';
 import { NINAEvent, NINATargetEvent, NINAFilterEvent, NINASafetyEvent } from '../types/nina';
 import { fetchNINAEventHistory, createNINAWebSocket } from '../services/ninaApi';
+import { useNINAEvent } from '../services/ninaWebSocket';
 import { 
   Button, 
   Flex, 
@@ -72,7 +73,44 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, isLoading = false, on
     events: []
   });
   const [wsConnected, setWsConnected] = useState(false);
+  const [lastImageSave, setLastImageSave] = useState<string>('');
   const wsRef = useRef<WebSocket | null>(null);
+
+  // Fetch latest image data
+  const fetchLatestImage = useCallback(async () => {
+    try {
+      console.log('Fetching latest NINA images...');
+      // This would call your NINA image endpoint
+      const response = await fetch('http://localhost:3001/api/nina/latest-image');
+      if (!response.ok) throw new Error('Failed to fetch latest image');
+      
+      const latestImage = await response.json();
+      console.log('Latest image fetched:', latestImage);
+      
+      // Trigger parent component refresh if available
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error) {
+      console.error('Error fetching latest image:', error);
+    }
+  }, [onRefresh]);
+
+  // WebSocket event handler for image saves
+  const handleImageSaveEvent = useCallback((event: any) => {
+    console.log('Image save event received in ImageViewer:', event.Type, event.Data);
+    setLastImageSave(event.Timestamp);
+    
+    // Refresh latest image when new image is saved
+    if (event.Type === 'IMAGE_SAVE' || event.Type === 'IMAGE-SAVE') {
+      console.log('New image saved, fetching latest...');
+      fetchLatestImage();
+    }
+  }, [fetchLatestImage]);
+
+  // Subscribe to image save WebSocket events
+  useNINAEvent('IMAGE_SAVE', handleImageSaveEvent);
+  useNINAEvent('IMAGE-SAVE', handleImageSaveEvent);
   
   // WebSocket connection and event handling
   useEffect(() => {

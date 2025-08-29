@@ -4,8 +4,8 @@ const path = require('path');
 
 class ConfigDatabase {
   constructor(dbPath) {
-    // Use provided path or default to project root
-    this.dbPath = dbPath || path.join(process.cwd(), 'dashboard-config.sqlite');
+    // Use provided path or default to server directory
+    this.dbPath = dbPath || path.join(__dirname, 'dashboard-config.sqlite');
     this.db = new Database(this.dbPath);
     this.initializeDatabase();
   }
@@ -72,7 +72,9 @@ class ConfigDatabase {
       { id: 'nina-status', component: 'NINAStatus', title: 'NINA Status', x: 0, y: 0, w: 4, h: 8, minW: 3, minH: 6 },
       { id: 'system-monitor', component: 'SystemStatusWidget', title: 'System Monitor', x: 4, y: 0, w: 4, h: 6, minW: 3, minH: 4 },
       { id: 'scheduler', component: 'SchedulerWidget', title: 'Target Scheduler', x: 8, y: 0, w: 4, h: 8, minW: 3, minH: 6 },
+      { id: 'time-astronomical', component: 'TimeAstronomicalWidget', title: 'Time & Astronomy', x: 8, y: 8, w: 4, h: 6, minW: 3, minH: 4 },
       { id: 'rtsp-viewer', component: 'RTSPViewer', title: 'Live View', x: 0, y: 8, w: 8, h: 6, minW: 4, minH: 4 },
+      { id: 'image-viewer', component: 'ImageViewer', title: 'Recent Images', x: 0, y: 14, w: 8, h: 6, minW: 4, minH: 4 },
       { id: 'session-widget', component: 'SessionWidget', title: 'Current Session', x: 12, y: 0, w: 4, h: 15, minW: 3, minH: 10 }
     ];
 
@@ -162,10 +164,22 @@ class ConfigDatabase {
             layout: { i: "scheduler", x: 8, y: 0, w: 4, h: 8, minW: 3, minH: 6 }
           },
           {
+            id: "time-astronomical",
+            component: "TimeAstronomicalWidget",
+            title: "Time & Astronomy",
+            layout: { i: "time-astronomical", x: 8, y: 8, w: 4, h: 6, minW: 3, minH: 4 }
+          },
+          {
             id: "rtsp-viewer",
             component: "RTSPViewer",
             title: "Live View",
             layout: { i: "rtsp-viewer", x: 0, y: 8, w: 8, h: 6, minW: 4, minH: 4 }
+          },
+          {
+            id: "image-viewer",
+            component: "ImageViewer",
+            title: "Recent Images",
+            layout: { i: "image-viewer", x: 0, y: 14, w: 8, h: 6, minW: 4, minH: 4 }
           }
         ]
       },

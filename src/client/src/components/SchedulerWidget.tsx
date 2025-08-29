@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Flex, Box, Text, Badge, Progress, Button, HoverCard, Separator, Heading } from '@radix-ui/themes';
 import { 
   TargetIcon, 
@@ -9,6 +9,7 @@ import {
   ImageIcon,
   ClockIcon
 } from '@radix-ui/react-icons';
+import { useNINAEvent } from '../services/ninaWebSocket';
 
 interface TargetSchedulerProps {
   onRefresh?: () => void;
@@ -19,8 +20,9 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastImageSave, setLastImageSave] = useState<string>('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -35,11 +37,28 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // WebSocket event handler for image saves
+  const handleImageSaveEvent = useCallback((event: any) => {
+    console.log('Image save event received:', event.Type, event.Data);
+    setLastImageSave(event.Timestamp);
+    
+    // Refresh project progress when new image is saved
+    if (event.Type === 'IMAGE_SAVE' || event.Type === 'IMAGE-SAVE') {
+      console.log('New image saved, refreshing scheduler progress...');
+      fetchData();
+    }
+  }, [fetchData]);
+
+  // Subscribe to image save WebSocket events
+  useNINAEvent('IMAGE_SAVE', handleImageSaveEvent);
+  useNINAEvent('IMAGE-SAVE', handleImageSaveEvent);
+  useNINAEvent('EXPOSURE_FINISHED', handleImageSaveEvent); // Also listen for exposure finished
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   // Global refresh integration
   useEffect(() => {
@@ -47,7 +66,7 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
       const handleGlobalRefresh = () => fetchData();
       // Listen for global refresh events if needed
     }
-  }, [onRefresh]);
+  }, [onRefresh, fetchData]);
 
   if (loading) {
     return (
@@ -100,6 +119,11 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
             <Flex align="center" gap="2">
               <TargetIcon />
               <Text size="3" weight="medium">Target Scheduler</Text>
+              {lastImageSave && (
+                <Badge variant="soft" color="green" size="1">
+                  Live Updates
+                </Badge>
+              )}
             </Flex>
             <Badge color="green" size="2">
               <CheckCircledIcon width="12" height="12" />

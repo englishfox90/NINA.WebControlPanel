@@ -235,7 +235,11 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
 
   // Utility functions
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString();
+    return new Date(timestamp).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   const formatDuration = (startTime: string) => {
@@ -441,8 +445,7 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
           <Flex direction="column" gap="1">
             <Text size="2" color="gray">Last Equipment Change</Text>
             <Text size="1" color="gray">
-              {sessionData.lastEquipmentChange.device} {sessionData.lastEquipmentChange.event.toLowerCase()} 
-              at {formatTime(sessionData.lastEquipmentChange.time)}
+              {sessionData.lastEquipmentChange.device} {sessionData.lastEquipmentChange.event.toLowerCase()} at {formatTime(sessionData.lastEquipmentChange.time)}
             </Text>
           </Flex>
         )}

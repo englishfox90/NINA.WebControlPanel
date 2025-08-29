@@ -111,6 +111,24 @@ class SessionStateManager extends EventEmitter {
             console.log('📡 NINA WebSocket Event:', event.Event, 'at', event.Time);
             console.log('🔍 Full event object:', JSON.stringify(event, null, 2));
             
+            // Check for equipment events and emit them immediately
+            if (event.Event.endsWith('-CONNECTED') || event.Event.endsWith('-DISCONNECTED')) {
+              const device = event.Event.split('-')[0];
+              const eventType = event.Event.endsWith('-CONNECTED') ? 'CONNECTED' : 'DISCONNECTED';
+              
+              console.log('⚙️ Real-time equipment event detected:', event.Event);
+              
+              const equipmentEvent = {
+                device,
+                event: eventType,
+                time: event.Time || new Date().toISOString(),
+                originalEvent: event.Event
+              };
+              
+              // Emit equipment event immediately for real-time updates
+              this.emit('equipmentChange', equipmentEvent);
+            }
+            
             // Add event to our events array
             this.events.unshift(event);
             console.log('📚 Event added to array. Total events:', this.events.length);
@@ -176,6 +194,15 @@ class SessionStateManager extends EventEmitter {
     // Update session state if changed - ALWAYS update for real-time events
     const stateChanged = JSON.stringify(processedState) !== JSON.stringify(this.sessionState);
     console.log('📊 State changed?', stateChanged);
+    
+    // Check if equipment state has changed and emit equipment change event
+    const equipmentChanged = processedState.lastEquipmentChange && 
+      JSON.stringify(processedState.lastEquipmentChange) !== JSON.stringify(this.sessionState.lastEquipmentChange);
+    
+    if (equipmentChanged && this.isInitialized) {
+      console.log('⚙️ Equipment state changed, emitting equipmentChange event:', processedState.lastEquipmentChange);
+      this.emit('equipmentChange', processedState.lastEquipmentChange);
+    }
     
     // Force update with new timestamp for real-time events
     this.sessionState = {

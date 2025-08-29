@@ -409,8 +409,19 @@ class NINAService {
 
   async getConnectionStatus() {
     try {
-      await this.makeRequest('/equipment/info');
-      return { connected: true, message: 'NINA API accessible' };
+      const response = await this.makeRequest('/application-start');
+      if (response && response.Success) {
+        return { 
+          connected: true, 
+          message: 'NINA API accessible',
+          applicationStart: response.Response
+        };
+      } else {
+        return { 
+          connected: false, 
+          message: 'NINA API returned invalid response'
+        };
+      }
     } catch (error) {
       return { 
         connected: false, 

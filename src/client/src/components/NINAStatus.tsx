@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Flex, Text, Badge } from '@radix-ui/themes';
 import { 
   GearIcon, 
@@ -7,6 +7,7 @@ import {
   CrossCircledIcon,
   ExclamationTriangleIcon
 } from '@radix-ui/react-icons';
+import { useNINAEvent } from '../services/ninaWebSocket';
 
 interface Equipment {
   name: string;
@@ -36,8 +37,9 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
   const [data, setData] = useState<EquipmentResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastWebSocketUpdate, setLastWebSocketUpdate] = useState<string>('');
 
-  const fetchEquipmentStatus = async () => {
+  const fetchEquipmentStatus = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -55,11 +57,26 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // WebSocket event handler for equipment changes
+  const handleEquipmentEvent = useCallback((event: any) => {
+    console.log('Equipment event received:', event.Type, event.Data);
+    setLastWebSocketUpdate(event.Timestamp);
+    
+    // Refresh equipment status when equipment connects/disconnects
+    if (event.Type === 'EQUIPMENT_CHANGE') {
+      console.log('Equipment status changed, refreshing...', event.Data);
+      fetchEquipmentStatus();
+    }
+  }, [fetchEquipmentStatus]);
+
+  // Subscribe to equipment change WebSocket events
+  useNINAEvent('EQUIPMENT_CHANGE', handleEquipmentEvent);
 
   useEffect(() => {
     fetchEquipmentStatus();
-  }, []);
+  }, [fetchEquipmentStatus]);
 
   // Global refresh integration
   useEffect(() => {
@@ -67,7 +84,7 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
       const handleGlobalRefresh = () => fetchEquipmentStatus();
       // Listen for global refresh events if needed
     }
-  }, [onRefresh]);
+  }, [onRefresh, fetchEquipmentStatus]);
 
   // Loading state
   if (loading) {
@@ -125,6 +142,11 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
             <Flex align="center" gap="2">
               <GearIcon />
               <Text size="3" weight="medium">Equipment Status</Text>
+              {lastWebSocketUpdate && (
+                <Badge variant="soft" color="blue" size="1">
+                  WebSocket Live
+                </Badge>
+              )}
             </Flex>
             <Badge 
               color={data.summary.allConnected ? 'green' : 'orange'} 

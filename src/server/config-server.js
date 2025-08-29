@@ -39,11 +39,20 @@ sessionStateManager.on('sessionUpdate', (sessionState) => {
     }
   });
 });
+
+// Listen for equipment events and broadcast to NINA clients
+console.log('[DEBUG] Setting up equipment event listener');
+sessionStateManager.on('equipmentChange', (equipmentEvent) => {
+  console.log('[BACKEND] ⚙️  Broadcasting equipment event to', ninaClients.size, 'clients:', equipmentEvent);
+  broadcastNINAEvent('EQUIPMENT_CHANGE', equipmentEvent);
+});
+
 console.log('[DEBUG] Event listener setup complete');
 
 // WebSocket server for session state updates
 const wss = new WebSocket.Server({ server });
 const sessionClients = new Set();
+const ninaClients = new Set();
 
 // Handle WebSocket connections from frontend
 wss.on('connection', (ws, req) => {
@@ -68,6 +77,26 @@ wss.on('connection', (ws, req) => {
       console.error('❌ Frontend session WebSocket error:', error);
       sessionClients.delete(ws);
     });
+  } else if (url.pathname === '/ws/nina') {
+    console.log('🔌 Frontend NINA client connected');
+    ninaClients.add(ws);
+    
+    // Send initial connection confirmation
+    ws.send(JSON.stringify({
+      type: 'connection',
+      message: 'Connected to NINA event stream',
+      timestamp: new Date().toISOString()
+    }));
+    
+    ws.on('close', () => {
+      console.log('❌ Frontend NINA client disconnected');
+      ninaClients.delete(ws);
+    });
+    
+    ws.on('error', (error) => {
+      console.error('❌ Frontend NINA WebSocket error:', error);
+      ninaClients.delete(ws);
+    });
   }
 });
 
@@ -86,6 +115,29 @@ sessionStateManager.on('sessionUpdate', (sessionState) => {
     }
   });
 });
+
+// Broadcast NINA events to all connected frontend clients
+const broadcastNINAEvent = (eventType, eventData) => {
+  const message = JSON.stringify({
+    type: 'nina-event',
+    data: {
+      Type: eventType,
+      Timestamp: new Date().toISOString(),
+      Source: 'NINA',
+      Data: eventData
+    }
+  });
+  
+  console.log('📡 Broadcasting NINA event to', ninaClients.size, 'clients:', eventType);
+  
+  ninaClients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    } else {
+      ninaClients.delete(client);
+    }
+  });
+};
 
 // Middleware
 app.use(cors());
@@ -383,6 +435,30 @@ app.get('/api/nina/image-history', async (req, res) => {
     console.error('Error getting NINA image history:', error);
     res.status(500).json({ 
       error: 'Failed to get NINA image history',
+      details: error.message 
+    });
+  }
+});
+
+// Get latest NINA image
+app.get('/api/nina/latest-image', async (req, res) => {
+  try {
+    const imageType = req.query.imageType || 'LIGHT';
+    const history = await ninaService.getImageHistory(false, imageType);
+    
+    // Get the most recent image
+    const latestImage = history && history.length > 0 ? history[0] : null;
+    
+    res.json({
+      latestImage,
+      timestamp: new Date().toISOString(),
+      success: !!latestImage,
+      message: latestImage ? 'Latest image retrieved' : 'No recent images found'
+    });
+  } catch (error) {
+    console.error('Error getting latest NINA image:', error);
+    res.status(500).json({ 
+      error: 'Failed to get latest NINA image',
       details: error.message 
     });
   }
