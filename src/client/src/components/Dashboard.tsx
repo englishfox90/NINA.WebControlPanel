@@ -7,6 +7,7 @@ import SchedulerWidget from './SchedulerWidget';
 import RTSPViewer from './RTSPViewer';
 import SessionWidget from './SessionWidget';
 import TimeAstronomicalWidget from './TimeAstronomicalWidget';
+import ImageViewerWidget from './ImageViewer';
 import WidgetService, { WidgetConfig } from '../services/widgetService';
 import { useResponsive } from '../hooks/useResponsive';
 import { 
@@ -202,6 +203,8 @@ const Dashboard: React.FC = () => {
         return <SessionWidget key={config.id} hideHeader={true} />;
       case 'TimeAstronomicalWidget':
         return <TimeAstronomicalWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
+      case 'ImageViewer':
+        return <ImageViewerWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       default:
         return <div key={config.id}>Unknown widget: {config.component}</div>;
     }

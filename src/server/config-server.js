@@ -464,6 +464,29 @@ app.get('/api/nina/latest-image', async (req, res) => {
   }
 });
 
+// Get NINA image by index
+app.get('/api/nina/image/:index', async (req, res) => {
+  try {
+    const index = parseInt(req.params.index) || 0;
+    const options = {
+      annotate: req.query.annotate === 'true',
+      stretch: req.query.stretch === 'true',
+      scale: req.query.scale ? parseFloat(req.query.scale) : undefined,
+      format: req.query.format || 'jpeg',
+      quality: req.query.quality ? parseInt(req.query.quality) : undefined
+    };
+    
+    const imageData = await ninaService.getImageByIndex(index, options);
+    res.json(imageData);
+  } catch (error) {
+    console.error(`Error getting NINA image ${req.params.index}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to get NINA image',
+      details: error.message 
+    });
+  }
+});
+
 // Get NINA camera info
 app.get('/api/nina/camera', async (req, res) => {
   try {

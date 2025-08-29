@@ -1,582 +1,378 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ImageData } from '../types/dashboard';
-import { NINAEvent, NINATargetEvent, NINAFilterEvent, NINASafetyEvent } from '../types/nina';
-import { fetchNINAEventHistory, createNINAWebSocket } from '../services/ninaApi';
-import { useNINAEvent } from '../services/ninaWebSocket';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Button, 
-  Flex, 
+  Card, 
   Box, 
+  Flex, 
   Text, 
-  Grid, 
-  Dialog, 
-  Heading, 
+  Button, 
+  Badge, 
+  Strong,
   Spinner,
-  Badge,
-  Card,
-  Separator,
-  Progress,
-  Strong
+  Callout,
+  Grid,
+  Separator
 } from '@radix-ui/themes';
 import { 
+  CameraIcon, 
   ReloadIcon, 
-  ImageIcon, 
-  ArchiveIcon, 
-  Cross2Icon,
-  CalendarIcon,
-  CameraIcon,
-  TargetIcon,
-  ActivityLogIcon,
-  TimerIcon,
-  MixerHorizontalIcon,
-  UpdateIcon,
-  PlayIcon,
-  StopIcon,
-  PauseIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  InfoCircledIcon
 } from '@radix-ui/react-icons';
-
-// Session State interface
-interface SessionState {
-  isActive: boolean;
-  currentTarget: string | null;
-  currentProject: string | null;
-  currentFilter: string | null;
-  targetEndTime: string | null;
-  rotation: number | null;
-  coordinates: any | null;
-  isSafe: boolean;
-  lastImageTime: string | null;
-  sequenceStatus: 'idle' | 'running' | 'paused' | 'finished' | 'waiting';
-  events: NINAEvent[];
-}
+import { useNINAEvent } from '../services/ninaWebSocket';
 
 interface ImageViewerProps {
-  images: ImageData[];
-  isLoading?: boolean;
   onRefresh?: () => void;
+  hideHeader?: boolean;
 }
 
-const ImageViewer: React.FC<ImageViewerProps> = ({ images, isLoading = false, onRefresh }) => {
-  const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
-  const [sessionState, setSessionState] = useState<SessionState>({
-    isActive: false,
-    currentTarget: null,
-    currentProject: null,
-    currentFilter: null,
-    targetEndTime: null,
-    rotation: null,
-    coordinates: null,
-    isSafe: true,
-    lastImageTime: null,
-    sequenceStatus: 'idle',
-    events: []
-  });
-  const [wsConnected, setWsConnected] = useState(false);
-  const [lastImageSave, setLastImageSave] = useState<string>('');
-  const wsRef = useRef<WebSocket | null>(null);
+interface ImageHistoryItem {
+  Date: string;
+  Filter: string;
+  ExposureTime: number;
+  ImageType: string;
+  CameraName: string;
+  Temperature: number;
+  Gain: number;
+  Offset: number;
+  Mean?: number;
+  StDev?: number;
+  HFR?: number;
+  Stars?: number;
+  Median?: number;
+  TelescopeName?: string;
+  FocalLength?: number;
+  IsBayered?: boolean;
+  RmsText?: string;
+}
 
-  // Fetch latest image data
-  const fetchLatestImage = useCallback(async () => {
+interface ImageData {
+  Success: boolean;
+  Response: string; // Base64 encoded image
+  StatusCode: number;
+  Error: string | null;
+}
+
+export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideHeader = false }) => {
+  const [images, setImages] = useState<ImageHistoryItem[]>([]);
+  const [latestImage, setLatestImage] = useState<string | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastImageSave, setLastImageSave] = useState<string>('');
+
+  const fetchImageHistory = useCallback(async () => {
     try {
-      console.log('Fetching latest NINA images...');
-      // This would call your NINA image endpoint
-      const response = await fetch('http://localhost:3001/api/nina/latest-image');
-      if (!response.ok) throw new Error('Failed to fetch latest image');
+      setError(null);
+      setLoading(true);
+
+      const response = await fetch('http://localhost:3001/api/nina/image-history');
       
-      const latestImage = await response.json();
-      console.log('Latest image fetched:', latestImage);
-      
-      // Trigger parent component refresh if available
-      if (onRefresh) {
-        onRefresh();
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image history: ${response.status}`);
       }
-    } catch (error) {
-      console.error('Error fetching latest image:', error);
+
+      const result = await response.json();
+      
+      if (!result.Success || result.Error) {
+        throw new Error(result.Error || 'Failed to fetch image history');
+      }
+
+      // Sort images by creation date (newest first) and take first 10
+      const sortedImages = (result.Response || [])
+        .sort((a: ImageHistoryItem, b: ImageHistoryItem) => 
+          new Date(b.Date).getTime() - new Date(a.Date).getTime()
+        )
+        .slice(0, 10);
+
+      setImages(sortedImages);
+      
+      // Automatically load the most recent image if available (using first image's Date as index)
+      if (sortedImages.length > 0) {
+        // For now, we'll use index 0 since we don't have individual image indices from this API
+        // This endpoint seems to be for image history metadata, not individual image loading
+        console.log('Most recent image:', sortedImages[0]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      console.error('Error fetching image history:', err);
+    } finally {
+      setLoading(false);
     }
-  }, [onRefresh]);
+  }, []);
+
+  const fetchLatestImage = useCallback(async (imageIndex: number = 0) => {
+    try {
+      setImageLoading(true);
+      setCurrentImageIndex(imageIndex);
+      
+      // Fetch image by index with web optimization
+      const response = await fetch(`http://localhost:3001/api/nina/image/${imageIndex}?resize=true&size=medium&quality=85`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
+
+      const data: ImageData = await response.json();
+      
+      if (data.Success && data.Response) {
+        // Convert base64 to data URL for display
+        setLatestImage(`data:image/jpeg;base64,${data.Response}`);
+        console.log(`📸 Image ${imageIndex} loaded successfully`);
+      } else {
+        console.warn(`⚠️ No image available at index ${imageIndex} or API error:`, data.Error);
+        setLatestImage(null);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load image';
+      console.error(`❌ Image fetch error (index ${imageIndex}):`, errorMessage);
+      setLatestImage(null);
+    } finally {
+      setImageLoading(false);
+    }
+  }, []);
 
   // WebSocket event handler for image saves
   const handleImageSaveEvent = useCallback((event: any) => {
-    console.log('Image save event received in ImageViewer:', event.Type, event.Data);
+    console.log('Image save event received:', event.Type, event.Data);
     setLastImageSave(event.Timestamp);
     
-    // Refresh latest image when new image is saved
+    // Refresh image history and latest image when new image is saved
     if (event.Type === 'IMAGE_SAVE' || event.Type === 'IMAGE-SAVE') {
-      console.log('New image saved, fetching latest...');
-      fetchLatestImage();
+      console.log('New image saved, refreshing image history and latest image...');
+      
+      // Extract image index from WebSocket event if available
+      let imageIndex = 0; // Default to latest image
+      if (event.Response?.ImageStatistics?.Index !== undefined) {
+        imageIndex = Math.floor(event.Response.ImageStatistics.Index);
+        console.log(`📸 Using image index from WebSocket event: ${imageIndex}`);
+      } else if (event.Data?.ImageStatistics?.Index !== undefined) {
+        imageIndex = Math.floor(event.Data.ImageStatistics.Index);
+        console.log(`📸 Using image index from WebSocket event data: ${imageIndex}`);
+      } else {
+        console.log('📸 No index in WebSocket event, using latest image (index 0)');
+      }
+      
+      fetchImageHistory();
+      fetchLatestImage(imageIndex);
     }
-  }, [fetchLatestImage]);
+  }, [fetchImageHistory, fetchLatestImage]);
 
   // Subscribe to image save WebSocket events
   useNINAEvent('IMAGE_SAVE', handleImageSaveEvent);
   useNINAEvent('IMAGE-SAVE', handleImageSaveEvent);
-  
-  // WebSocket connection and event handling
+  useNINAEvent('EXPOSURE_FINISHED', handleImageSaveEvent); // Also listen for exposure finished
+
   useEffect(() => {
-    // Initialize with event history
-    const loadEventHistory = async () => {
-      try {
-        const events = await fetchNINAEventHistory();
-        if (events.length > 0) {
-          // Events might be in reverse order, so reverse them if needed
-          const sortedEvents = events.sort((a, b) => 
-            new Date(a.Time).getTime() - new Date(b.Time).getTime()
-          );
-          updateSessionFromEvents(sortedEvents);
-        }
-      } catch (error) {
-        console.warn('Failed to load event history:', error);
-      }
-    };
+    fetchImageHistory();
+    fetchLatestImage(0); // Load most recent image initially
+  }, [fetchImageHistory, fetchLatestImage]);
 
-    // Setup WebSocket connection
-    const connectWebSocket = () => {
-      try {
-        const ws = createNINAWebSocket(handleNINAEvent);
-        
-        if (ws) {
-          ws.onopen = () => {
-            console.log('NINA WebSocket connected');
-            setWsConnected(true);
-          };
-          
-          ws.onclose = () => {
-            console.log('NINA WebSocket disconnected');
-            setWsConnected(false);
-            // Attempt to reconnect after 5 seconds
-            setTimeout(connectWebSocket, 5000);
-          };
-          
-          ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            setWsConnected(false);
-          };
-          
-          wsRef.current = ws;
-        }
-      } catch (error) {
-        console.error('Failed to connect WebSocket:', error);
-        setTimeout(connectWebSocket, 5000);
-      }
-    };
-
-    loadEventHistory();
-    connectWebSocket();
-    
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, []);
-
-  const updateSessionFromEvents = (events: NINAEvent[]) => {
-    let newState: SessionState = {
-      isActive: false,
-      currentTarget: null,
-      currentProject: null,
-      currentFilter: null,
-      targetEndTime: null,
-      rotation: null,
-      coordinates: null,
-      isSafe: true,
-      lastImageTime: null,
-      sequenceStatus: 'idle',
-      events: events.slice(-10) // Keep last 10 events
-    };
-
-    // Process events to build current state
-    for (const event of events) {
-      switch (event.Event) {
-        case 'SEQUENCE-STARTING':
-          newState.sequenceStatus = 'running';
-          newState.isActive = true;
-          break;
-        case 'SEQUENCE-FINISHED':
-          newState.sequenceStatus = 'finished';
-          newState.isActive = false;
-          break;
-        case 'TS-WAITSTART':
-          newState.sequenceStatus = 'waiting';
-          break;
-        case 'TS-TARGETSTART':
-        case 'TS-NEWTARGETSTART':
-          const targetEvent = event as NINATargetEvent;
-          newState.currentTarget = targetEvent.TargetName;
-          newState.currentProject = targetEvent.ProjectName;
-          newState.targetEndTime = targetEvent.TargetEndTime;
-          newState.rotation = targetEvent.Rotation;
-          newState.coordinates = targetEvent.Coordinates;
-          newState.isActive = true;
-          newState.sequenceStatus = 'running';
-          break;
-        case 'FILTERWHEEL-CHANGED':
-          const filterEvent = event as NINAFilterEvent;
-          newState.currentFilter = filterEvent.New.Name;
-          break;
-        case 'SAFETY-CHANGED':
-          const safetyEvent = event as NINASafetyEvent;
-          newState.isSafe = safetyEvent.IsSafe;
-          break;
-        case 'IMAGE-SAVE':
-          newState.lastImageTime = event.Time;
-          break;
-      }
+  // Global refresh integration
+  useEffect(() => {
+    if (onRefresh) {
+      const handleGlobalRefresh = () => {
+        fetchImageHistory();
+        fetchLatestImage(0); // Load most recent image on manual refresh
+      };
+      // Listen for global refresh events if needed
     }
+  }, [onRefresh, fetchImageHistory, fetchLatestImage]);
 
-    setSessionState(newState);
-  };
-
-  const handleNINAEvent = (event: NINAEvent) => {
-    setSessionState(prevState => {
-      const newEvents = [...prevState.events, event].slice(-10); // Keep last 10 events
-      const newState = { ...prevState, events: newEvents };
-
-      // Update state based on event type
-      switch (event.Event) {
-        case 'SEQUENCE-STARTING':
-          newState.sequenceStatus = 'running';
-          newState.isActive = true;
-          break;
-        case 'SEQUENCE-FINISHED':
-          newState.sequenceStatus = 'finished';
-          newState.isActive = false;
-          break;
-        case 'TS-WAITSTART':
-          newState.sequenceStatus = 'waiting';
-          break;
-        case 'TS-TARGETSTART':
-        case 'TS-NEWTARGETSTART':
-          const targetEvent = event as NINATargetEvent;
-          newState.currentTarget = targetEvent.TargetName;
-          newState.currentProject = targetEvent.ProjectName;
-          newState.targetEndTime = targetEvent.TargetEndTime;
-          newState.rotation = targetEvent.Rotation;
-          newState.coordinates = targetEvent.Coordinates;
-          newState.isActive = true;
-          newState.sequenceStatus = 'running';
-          break;
-        case 'FILTERWHEEL-CHANGED':
-          const filterEvent = event as NINAFilterEvent;
-          newState.currentFilter = filterEvent.New.Name;
-          break;
-        case 'SAFETY-CHANGED':
-          const safetyEvent = event as NINASafetyEvent;
-          newState.isSafe = safetyEvent.IsSafe;
-          break;
-        case 'IMAGE-SAVE':
-          newState.lastImageTime = event.Time;
-          break;
-      }
-
-      return newState;
-    });
-  };
-
-  const getStatusColor = () => {
-    if (!sessionState.isSafe) return 'red';
-    switch (sessionState.sequenceStatus) {
-      case 'running': return 'green';
-      case 'waiting': return 'yellow';
-      case 'paused': return 'orange';
-      case 'finished': return 'blue';
-      default: return 'gray';
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleString();
+    } catch {
+      return dateString;
     }
   };
 
-  const getStatusIcon = () => {
-    if (!sessionState.isSafe) return <ExclamationTriangleIcon />;
-    switch (sessionState.sequenceStatus) {
-      case 'running': return <PlayIcon />;
-      case 'waiting': return <PauseIcon />;
-      case 'finished': return <StopIcon />;
-      default: return <ActivityLogIcon />;
-    }
+  const formatNumber = (num: number | undefined) => {
+    return num?.toFixed(2) || 'N/A';
   };
 
-  const getStatusText = () => {
-    if (!sessionState.isSafe) return 'UNSAFE - Observatory Safety Triggered';
-    switch (sessionState.sequenceStatus) {
-      case 'running': return 'Active Imaging Session';
-      case 'waiting': return 'Waiting for Target Start Time';
-      case 'finished': return 'Session Complete';
-      case 'paused': return 'Session Paused';
-      default: return 'No Active Session';
-    }
-  };
-
-  const formatTimeRemaining = (endTime: string | null): string => {
-    if (!endTime) return 'Unknown';
-    const end = new Date(endTime);
-    const now = new Date();
-    const diffMs = end.getTime() - now.getTime();
-    
-    if (diffMs <= 0) return 'Complete';
-    
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return `${hours}h ${minutes}m remaining`;
-  };
-
-  const mockImages: ImageData[] = [
-    {
-      id: '1',
-      url: 'https://via.placeholder.com/800x600/1a1f2e/ffffff?text=Live+Preview',
-      thumbnail: 'https://via.placeholder.com/200x150/1a1f2e/ffffff?text=Preview',
-      timestamp: sessionState.lastImageTime || new Date().toISOString(),
-      metadata: {
-        exposure: '300s',
-        filter: sessionState.currentFilter || 'L',
-        temperature: -10.2,
-        target: sessionState.currentTarget || 'Live Session'
-      }
-    }
-  ];
-
-  const displayImages = images.length > 0 ? images : (sessionState.isActive ? mockImages : []);
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <Flex 
-        align="center" 
-        justify="center" 
-        direction="column" 
-        gap="3"
-        style={{ minHeight: '200px' }}
-      >
-        <Spinner size="3" />
-        <Text size="2" color="gray">Connecting to NINA...</Text>
-      </Flex>
+      <Card>
+        <Flex direction="column" gap="3" p="4">
+          {!hideHeader && (
+            <Flex align="center" gap="2">
+              <CameraIcon />
+              <Text size="3" weight="medium">Latest NINA Images</Text>
+            </Flex>
+          )}
+          <Flex align="center" justify="center" style={{ minHeight: hideHeader ? '150px' : '200px' }}>
+            <Flex direction="column" align="center" gap="2">
+              <ReloadIcon className="loading-spinner" />
+              <Text size="2" color="gray">Loading images...</Text>
+            </Flex>
+          </Flex>
+        </Flex>
+      </Card>
+    );
+  }
+
+  if (error && images.length === 0) {
+    return (
+      <Card>
+        <Flex direction="column" gap="3" p="4">
+          {!hideHeader && (
+            <Flex align="center" gap="2">
+              <CameraIcon />
+              <Text size="3" weight="medium">Latest NINA Images</Text>
+            </Flex>
+          )}
+          <Flex align="center" justify="center" style={{ minHeight: hideHeader ? '150px' : '200px' }}>
+            <Flex direction="column" align="center" gap="2">
+              <ExclamationTriangleIcon color="red" width="24" height="24" />
+              <Text size="2" color="red">Failed to load images</Text>
+              <Text size="1" color="gray">{error}</Text>
+            </Flex>
+          </Flex>
+        </Flex>
+      </Card>
     );
   }
 
   return (
-    <Flex direction="column" gap="4">
-      {/* Real-time Session Status */}
-      <Card>
-        <Flex direction="column" gap="3">
+    <Card>
+      <Flex direction="column" gap="4" p="4">
+        {/* Header */}
+        {!hideHeader && (
           <Flex justify="between" align="center">
             <Flex align="center" gap="2">
-              {getStatusIcon()}
-              <Strong>{getStatusText()}</Strong>
+              <CameraIcon />
+              <Text size="3" weight="medium">Latest NINA Images</Text>
+              {lastImageSave && (
+                <Badge variant="soft" color="green" size="1">
+                  Live Updates
+                </Badge>
+              )}
             </Flex>
-            <Flex align="center" gap="2">
-              <Badge 
-                color={wsConnected ? 'green' : 'red'} 
-                variant={wsConnected ? 'solid' : 'soft'}
-              >
-                {wsConnected ? 'Connected' : 'Disconnected'}
-              </Badge>
-              <Badge color={getStatusColor()} variant="soft">
-                {sessionState.sequenceStatus.toUpperCase()}
-              </Badge>
-            </Flex>
-          </Flex>
-
-          {sessionState.currentTarget && (
-            <>
-              <Separator />
-              <Flex direction="column" gap="2">
-                <Heading as="h4" size="3">Current Target</Heading>
-                <Grid columns="2" gap="3">
-                  <Flex direction="column" gap="1">
-                    <Flex align="center" gap="1">
-                      <TargetIcon width="14" height="14" />
-                      <Text size="2" color="gray">Target</Text>
-                    </Flex>
-                    <Strong>{sessionState.currentTarget}</Strong>
-                  </Flex>
-                  
-                  <Flex direction="column" gap="1">
-                    <Text size="2" color="gray">Project</Text>
-                    <Strong>{sessionState.currentProject || 'N/A'}</Strong>
-                  </Flex>
-
-                  <Flex direction="column" gap="1">
-                    <Flex align="center" gap="1">
-                      <MixerHorizontalIcon width="14" height="14" />
-                      <Text size="2" color="gray">Filter</Text>
-                    </Flex>
-                    <Strong>{sessionState.currentFilter || 'N/A'}</Strong>
-                  </Flex>
-
-                  <Flex direction="column" gap="1">
-                    <Flex align="center" gap="1">
-                      <TimerIcon width="14" height="14" />
-                      <Text size="2" color="gray">Time Remaining</Text>
-                    </Flex>
-                    <Strong>{formatTimeRemaining(sessionState.targetEndTime)}</Strong>
-                  </Flex>
-
-                  {sessionState.coordinates && (
-                    <>
-                      <Flex direction="column" gap="1">
-                        <Text size="2" color="gray">RA</Text>
-                        <Strong>{sessionState.coordinates.RAString}</Strong>
-                      </Flex>
-
-                      <Flex direction="column" gap="1">
-                        <Text size="2" color="gray">Dec</Text>
-                        <Strong>{sessionState.coordinates.DecString}</Strong>
-                      </Flex>
-                    </>
-                  )}
-                </Grid>
-              </Flex>
-            </>
-          )}
-        </Flex>
-      </Card>
-
-      {/* Latest Image/Live Preview */}
-      {displayImages.length > 0 && (
-        <Card>
-          <Flex direction="column" gap="3">
-            <Heading as="h4" size="3">
-              {sessionState.isActive ? 'Live Preview' : 'Latest Capture'}
-            </Heading>
-            
-            <Box 
-              style={{
-                borderRadius: 'var(--radius-2)',
-                overflow: 'hidden',
-                border: '1px solid var(--gray-6)',
-                aspectRatio: '4/3',
-                cursor: 'pointer'
+            <Button 
+              onClick={() => {
+                fetchImageHistory();
+                fetchLatestImage(0); // Load most recent image on manual refresh
               }}
-              onClick={() => setSelectedImage(displayImages[0])}
+              variant="outline" 
+              size="2"
+              disabled={loading || imageLoading}
             >
-              <img 
-                src={displayImages[0].thumbnail || displayImages[0].url} 
-                alt={`${displayImages[0].metadata?.target || 'Preview'}`}
-                style={{ 
-                  width: '100%', 
-                  height: '100%', 
-                  objectFit: 'cover',
-                  display: 'block' 
-                }}
-              />
-            </Box>
-
-            <Grid columns="2" gap="3">
-              <Flex justify="between">
-                <Text size="2" color="gray">Exposure</Text>
-                <Strong>{displayImages[0].metadata?.exposure || 'N/A'}</Strong>
-              </Flex>
-              <Flex justify="between">
-                <Text size="2" color="gray">Filter</Text>
-                <Strong>{displayImages[0].metadata?.filter || 'N/A'}</Strong>
-              </Flex>
-              <Flex justify="between">
-                <Text size="2" color="gray">Temperature</Text>
-                <Strong>{displayImages[0].metadata?.temperature || 'N/A'}°C</Strong>
-              </Flex>
-              <Flex justify="between">
-                <Text size="2" color="gray">Captured</Text>
-                <Strong>
-                  {sessionState.lastImageTime 
-                    ? new Date(sessionState.lastImageTime).toLocaleTimeString()
-                    : 'N/A'
-                  }
-                </Strong>
-              </Flex>
-            </Grid>
+              <ReloadIcon />
+              Refresh
+            </Button>
           </Flex>
-        </Card>
-      )}
-
-      {/* Recent Events */}
-      {sessionState.events.length > 0 && (
-        <Card>
-          <Flex direction="column" gap="3">
-            <Heading as="h4" size="3">Recent Activity</Heading>
-            <Flex direction="column" gap="2">
-              {sessionState.events.slice(-5).reverse().map((event, index) => (
-                <Flex key={index} justify="between" align="center">
-                  <Flex align="center" gap="2">
-                    <ActivityLogIcon width="12" height="12" color="var(--gray-9)" />
-                    <Text size="2">{event.Event.replace(/-/g, ' ')}</Text>
-                  </Flex>
-                  <Text size="1" color="gray">
-                    {new Date(event.Time).toLocaleTimeString()}
-                  </Text>
-                </Flex>
-              ))}
-            </Flex>
-          </Flex>
-        </Card>
-      )}
-
-      {/* No Session State */}
-      {!sessionState.isActive && displayImages.length === 0 && (
-        <Flex 
-          align="center" 
-          justify="center" 
-          direction="column" 
-          gap="3"
-          style={{ minHeight: '200px', textAlign: 'center' }}
-        >
-          <ImageIcon width="32" height="32" color="var(--gray-9)" />
-          <Text size="2" color="gray">No active imaging session</Text>
-          <Text size="1" color="gray">Start a sequence in NINA to see live updates</Text>
-        </Flex>
-      )}
-
-      {/* Action Buttons */}
-      <Flex gap="2" wrap="wrap">
-        {onRefresh && (
-          <Button variant="soft" size="2" onClick={onRefresh}>
-            <ReloadIcon width="14" height="14" />
-            Refresh
-          </Button>
         )}
-        <Button variant="soft" size="2">
-          <ArchiveIcon width="14" height="14" />
-          Browse All Images
-        </Button>
-        {sessionState.isActive && (
-          <Button variant="soft" size="2" color="blue">
-            <UpdateIcon width="14" height="14" />
-            Session Details
-          </Button>
+
+        {/* Status badge for grid layout */}
+        {hideHeader && (
+          <Flex justify="center">
+            <Badge color="blue" size="2">
+              <CameraIcon width="12" height="12" />
+              {images.length} Images
+            </Badge>
+          </Flex>
+        )}
+
+        {error && (
+          <Callout.Root color="orange">
+            <Callout.Icon>
+              <InfoCircledIcon />
+            </Callout.Icon>
+            <Callout.Text>{error}</Callout.Text>
+          </Callout.Root>
+        )}
+
+        {images.length === 0 ? (
+          <Flex direction="column" align="center" gap="3" py="6">
+            <CameraIcon width="24" height="24" />
+            <Text color="gray">No images available</Text>
+            <Text size="2" color="gray">
+              Images will appear here when NINA captures new photos
+            </Text>
+          </Flex>
+        ) : (
+          <Flex direction="column" gap="4">
+            {/* Latest Image Display */}
+            {latestImage && (
+              <Box>
+                <Flex justify="between" align="center" mb="3">
+                  <Text size="2" weight="medium">Latest Captured Image:</Text>
+                  <Badge variant="soft" color="blue" size="1">
+                    Index {currentImageIndex}
+                  </Badge>
+                </Flex>
+                <Card>
+                  <Box p="3">
+                    {imageLoading ? (
+                      <Flex justify="center" align="center" style={{ minHeight: '200px' }}>
+                        <Spinner size="3" />
+                      </Flex>
+                    ) : (
+                      <Box style={{ textAlign: 'center' }}>
+                        <img 
+                          src={latestImage}
+                          alt="Latest NINA capture"
+                          style={{ 
+                            maxWidth: '100%', 
+                            height: 'auto',
+                            borderRadius: '8px',
+                            boxShadow: 'var(--shadow-3)'
+                          }}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+                </Card>
+                <Separator size="4" my="4" />
+              </Box>
+            )}
+
+            {/* Image Metadata List */}
+            <Box>
+              <Text size="2" weight="medium" mb="3">Recent Images:</Text>
+              <Flex direction="column" gap="2">
+                {images.map((image, index) => (
+                  <Card key={`${image.Date}-${index}`} variant="surface">
+                    <Flex 
+                      justify="between" 
+                      align="center" 
+                      p="3"
+                    >
+                      <Flex direction="column" gap="1">
+                        <Text size="2" weight="medium">
+                          {image.Filter} - {image.ExposureTime}s {image.ImageType}
+                        </Text>
+                        <Text size="1" color="gray">
+                          {formatDate(image.Date)}
+                        </Text>
+                        <Text size="1" color="gray">
+                          {image.CameraName} • {image.TelescopeName}
+                        </Text>
+                      </Flex>
+                      <Flex direction="column" gap="1" align="end">
+                        <Badge color="blue">{image.Filter}</Badge>
+                        {image.HFR && (
+                          <Text size="1" color="gray">
+                            HFR: {formatNumber(image.HFR)}
+                          </Text>
+                        )}
+                        {image.Stars && (
+                          <Text size="1" color="gray">
+                            Stars: {image.Stars}
+                          </Text>
+                        )}
+                      </Flex>
+                    </Flex>
+                  </Card>
+                ))}
+              </Flex>
+            </Box>
+          </Flex>
         )}
       </Flex>
-
-      {/* Modal for selected image */}
-      <Dialog.Root open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-        <Dialog.Content maxWidth="90vw" maxHeight="90vh">
-          <Dialog.Title>
-            {selectedImage?.metadata?.target || 'Astrophoto'}
-          </Dialog.Title>
-          <Dialog.Description size="2" mb="4">
-            Captured: {selectedImage && new Date(selectedImage.timestamp).toLocaleString()}
-            {sessionState.isActive && " (Live Session)"}
-          </Dialog.Description>
-          
-          <Box mb="4">
-            <img 
-              src={selectedImage?.url} 
-              alt={`Full size: ${selectedImage?.metadata?.target || 'Astrophoto'}`}
-              style={{ 
-                width: '100%', 
-                height: 'auto',
-                borderRadius: 'var(--radius-2)' 
-              }}
-            />
-          </Box>
-
-          <Dialog.Close>
-            <Button variant="soft" color="gray">
-              <Cross2Icon width="14" height="14" />
-              Close
-            </Button>
-          </Dialog.Close>
-        </Dialog.Content>
-      </Dialog.Root>
-    </Flex>
+    </Card>
   );
 };
 
-export default ImageViewer;
+export default ImageViewerWidget;
