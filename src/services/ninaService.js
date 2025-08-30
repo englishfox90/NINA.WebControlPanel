@@ -442,6 +442,46 @@ class NINAService {
     }
   }
 
+  async getWeatherStatus() {
+    try {
+      const response = await this.makeRequest('/equipment/weather/info');
+      return response;
+    } catch (error) {
+      console.warn('⚠️ Weather station not available, returning safe defaults:', error.message);
+      // Return safe defaults when weather station is not available
+      return {
+        Response: {
+          AveragePeriod: 0,
+          CloudCover: 0,
+          DewPoint: 0.0,
+          Humidity: 0,
+          Pressure: 1013,
+          RainRate: "0",
+          SkyBrightness: "Unknown",
+          SkyQuality: "Unknown", 
+          SkyTemperature: "Unknown",
+          StarFWHM: "Unknown",
+          Temperature: 0.0,
+          WindDirection: 0,
+          WindGust: "0",
+          WindSpeed: 0.0,
+          SupportedActions: [],
+          Connected: false,
+          Name: "Weather Station",
+          DisplayName: "NINA Weather Station",
+          Description: "ASCOM Weather Station Device",
+          DriverInfo: "Not Connected",
+          DriverVersion: "N/A",
+          DeviceId: "weather"
+        },
+        Error: null,
+        StatusCode: 200,
+        Success: true,
+        Type: "WeatherResponse"
+      };
+    }
+  }
+
   async getConnectionStatus() {
     try {
       const response = await this.makeRequest('/application-start');

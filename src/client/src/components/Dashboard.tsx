@@ -8,6 +8,7 @@ import RTSPViewer from './RTSPViewer';
 import SessionWidget from './SessionWidget';
 import TimeAstronomicalWidget from './TimeAstronomicalWidget';
 import ImageViewerWidget from './ImageViewer';
+import WeatherWidget from './WeatherWidget';
 import SafetyBanner from './SafetyBanner';
 import { SettingsModal } from './SettingsModal';
 import WidgetService, { WidgetConfig } from '../services/widgetService';
@@ -210,6 +211,8 @@ const Dashboard: React.FC = () => {
         return <TimeAstronomicalWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       case 'ImageViewer':
         return <ImageViewerWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
+      case 'WeatherWidget':
+        return <WeatherWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       default:
         return <div key={config.id}>Unknown widget: {config.component}</div>;
     }

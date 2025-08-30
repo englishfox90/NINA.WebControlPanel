@@ -457,6 +457,46 @@ app.get('/api/nina/flat-panel', async (req, res) => {
   }
 });
 
+// Get NINA weather station status
+app.get('/api/nina/weather', async (req, res) => {
+  try {
+    const weatherStatus = await ninaService.getWeatherStatus();
+    res.json(weatherStatus);
+  } catch (error) {
+    console.error('Error getting weather status:', error);
+    res.status(500).json({ 
+      error: 'Failed to get weather status',
+      details: error.message,
+      Success: false,
+      StatusCode: 500,
+      Response: {
+        Connected: false,
+        Temperature: null,
+        Humidity: null,
+        Pressure: null,
+        WindSpeed: null,
+        WindDirection: null,
+        CloudCover: null,
+        DewPoint: null,
+        RainRate: "0",
+        SkyBrightness: "Unknown",
+        SkyQuality: "Unknown",
+        SkyTemperature: "Unknown",
+        StarFWHM: "Unknown",
+        WindGust: "0",
+        AveragePeriod: 0,
+        SupportedActions: [],
+        Name: "Weather Station",
+        DisplayName: "Weather Station",
+        Description: "Weather station unavailable",
+        DriverInfo: "N/A",
+        DriverVersion: "N/A",
+        DeviceId: "unknown"
+      }
+    });
+  }
+});
+
 // Get NINA session data (image history + camera info + optional image)
 app.get('/api/nina/session', async (req, res) => {
   try {

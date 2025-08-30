@@ -64,19 +64,56 @@ class ConfigDatabase {
     const widgetCount = this.db.prepare('SELECT COUNT(*) as count FROM dashboard_widgets').get();
     if (widgetCount.count === 0) {
       this.initializeDefaultWidgets();
+    } else {
+      // For existing databases, check for missing default widgets and add them
+      this.ensureDefaultWidgets();
     }
   }
 
-  initializeDefaultWidgets() {
-    const defaultWidgets = [
+  getDefaultWidgets() {
+    return [
       { id: 'nina-status', component: 'NINAStatus', title: 'NINA Status', x: 0, y: 0, w: 4, h: 8, minW: 3, minH: 6 },
       { id: 'system-monitor', component: 'SystemStatusWidget', title: 'System Monitor', x: 4, y: 0, w: 4, h: 6, minW: 3, minH: 4 },
       { id: 'scheduler', component: 'SchedulerWidget', title: 'Target Scheduler', x: 8, y: 0, w: 4, h: 8, minW: 3, minH: 6 },
+      { id: 'weather-widget', component: 'WeatherWidget', title: 'Weather Station', x: 4, y: 6, w: 4, h: 6, minW: 3, minH: 4 },
       { id: 'time-astronomical', component: 'TimeAstronomicalWidget', title: 'Time & Astronomy', x: 8, y: 8, w: 4, h: 6, minW: 3, minH: 4 },
       { id: 'rtsp-viewer', component: 'RTSPViewer', title: 'Live View', x: 0, y: 8, w: 8, h: 6, minW: 4, minH: 4 },
       { id: 'image-viewer', component: 'ImageViewer', title: 'Recent Images', x: 0, y: 14, w: 8, h: 6, minW: 4, minH: 4 },
       { id: 'session-widget', component: 'SessionWidget', title: 'Current Session', x: 12, y: 0, w: 4, h: 15, minW: 3, minH: 10 }
     ];
+  }
+
+  ensureDefaultWidgets() {
+    const defaultWidgets = this.getDefaultWidgets();
+
+    // Get existing widget IDs
+    const existingWidgets = this.db.prepare('SELECT id FROM dashboard_widgets').all();
+    const existingIds = new Set(existingWidgets.map(w => w.id));
+
+    // Find missing widgets
+    const missingWidgets = defaultWidgets.filter(widget => !existingIds.has(widget.id));
+
+    // Add missing widgets
+    if (missingWidgets.length > 0) {
+      console.log(`🔧 Adding ${missingWidgets.length} missing default widgets:`, missingWidgets.map(w => w.id));
+      
+      const stmt = this.db.prepare(`
+        INSERT INTO dashboard_widgets (id, component, title, x, y, w, h, minW, minH)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      const transaction = this.db.transaction((widgets) => {
+        for (const widget of widgets) {
+          stmt.run(widget.id, widget.component, widget.title, widget.x, widget.y, widget.w, widget.h, widget.minW, widget.minH);
+        }
+      });
+
+      transaction(missingWidgets);
+    }
+  }
+
+  initializeDefaultWidgets() {
+    const defaultWidgets = this.getDefaultWidgets();
 
     const stmt = this.db.prepare(`
       INSERT INTO dashboard_widgets (id, component, title, x, y, w, h, minW, minH)
