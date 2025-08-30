@@ -291,30 +291,6 @@ const Dashboard: React.FC = () => {
         </Flex>
       </Flex>
 
-      {/* Mobile Edit Layout Button - Show below header */}
-      {isMobile && (
-        <Flex p="3" justify="center" style={{ borderBottom: '1px solid var(--gray-6)' }}>
-          <Button 
-            variant="soft"
-            onClick={handleEditToggle}
-            disabled={loading || layoutLoading}
-            size="2"
-          >
-            {isEditMode ? (
-              <>
-                <CheckIcon width="16" height="16" />
-                Save Layout
-              </>
-            ) : (
-              <>
-                <Pencil1Icon width="16" height="16" />
-                Edit Layout
-              </>
-            )}
-          </Button>
-        </Flex>
-      )}
-
       {/* Mobile Layout - Dynamic widget rendering */}
       <div className="mobile-only">
         <Flex direction="column" gap="4" p="4">
