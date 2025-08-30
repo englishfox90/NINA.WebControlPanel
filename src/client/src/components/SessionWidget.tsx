@@ -455,3 +455,4 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
 };
 
 export default SessionWidget;
+

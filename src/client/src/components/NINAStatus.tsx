@@ -8,6 +8,7 @@ import {
   ExclamationTriangleIcon
 } from '@radix-ui/react-icons';
 import { useNINAEvent } from '../services/ninaWebSocket';
+import { getApiUrl } from '../config/api';
 
 interface Equipment {
   name: string;
@@ -44,7 +45,7 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
       setLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:3001/api/nina/equipment');
+      const response = await fetch(getApiUrl('nina/equipment'));
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }

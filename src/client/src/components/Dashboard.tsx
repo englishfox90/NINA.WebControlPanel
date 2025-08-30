@@ -11,6 +11,7 @@ import ImageViewerWidget from './ImageViewer';
 import { SettingsModal } from './SettingsModal';
 import WidgetService, { WidgetConfig } from '../services/widgetService';
 import { useResponsive } from '../hooks/useResponsive';
+import { getApiUrl } from '../config/api';
 import { 
   ReloadIcon, 
   DotFilledIcon,
@@ -97,7 +98,7 @@ const Dashboard: React.FC = () => {
   // Fetch config from backend API
   const fetchConfig = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/config');
+      const response = await fetch(getApiUrl('config'));
       const config = await response.json();
       const feeds = [
         config.streams?.liveFeed1 || '',
@@ -113,7 +114,7 @@ const Dashboard: React.FC = () => {
   // Fetch NINA connection status
   const fetchNinaConnectionStatus = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/nina/status');
+      const response = await fetch(getApiUrl('nina/status'));
       const status = await response.json();
       setNinaConnectionStatus(status);
     } catch (error) {
@@ -349,3 +350,4 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+

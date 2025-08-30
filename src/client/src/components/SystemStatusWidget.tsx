@@ -11,6 +11,7 @@ import {
   CrossCircledIcon,
   ReloadIcon
 } from '@radix-ui/react-icons';
+import { getApiUrl } from '../config/api';
 
 interface SystemStatus {
   timestamp: string;
@@ -69,7 +70,7 @@ const SystemStatusWidget: React.FC<SystemStatusProps> = ({ hideHeader = false })
   const fetchSystemStatus = async () => {
     try {
       setError(null);
-      const response = await fetch('http://localhost:3001/api/system/status');
+      const response = await fetch(getApiUrl('system/status'));
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -325,3 +326,4 @@ const SystemStatusWidget: React.FC<SystemStatusProps> = ({ hideHeader = false })
 };
 
 export default SystemStatusWidget;
+

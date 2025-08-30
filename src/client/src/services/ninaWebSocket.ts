@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { getWsUrl } from '../config/api';
 
 export interface NINAWebSocketEvent {
   Type: string;
@@ -28,7 +29,7 @@ export class NINAWebSocketManager {
   private isConnecting = false;
   private url: string;
 
-  private constructor(url: string = 'ws://localhost:3001/ws/nina') {
+  private constructor(url: string = getWsUrl('ws/nina')) {
     this.url = url;
   }
 

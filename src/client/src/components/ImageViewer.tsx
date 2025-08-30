@@ -19,6 +19,7 @@ import {
   InfoCircledIcon
 } from '@radix-ui/react-icons';
 import { useNINAEvent } from '../services/ninaWebSocket';
+import { getApiUrl } from '../config/api';
 
 interface ImageViewerProps {
   onRefresh?: () => void;
@@ -66,7 +67,7 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
       setError(null);
       setLoading(true);
 
-      const response = await fetch('http://localhost:3001/api/nina/image-history');
+      const response = await fetch(getApiUrl('nina/image-history'));
       
       if (!response.ok) {
         throw new Error(`Failed to fetch image history: ${response.status}`);
@@ -107,7 +108,7 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
       setCurrentImageIndex(imageIndex);
       
       // Fetch image by index with web optimization
-      const response = await fetch(`http://localhost:3001/api/nina/image/${imageIndex}?resize=true&size=medium&quality=85`);
+      const response = await fetch(getApiUrl(`nina/image/${imageIndex}?resize=true&size=medium&quality=85`));
       
       if (!response.ok) {
         throw new Error(`Failed to fetch image: ${response.status}`);

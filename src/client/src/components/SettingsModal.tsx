@@ -21,6 +21,7 @@ import {
   InfoCircledIcon,
   FileTextIcon
 } from '@radix-ui/react-icons';
+import { getApiUrl } from '../config/api';
 
 // TypeScript declarations for File System Access API
 declare global {
@@ -87,7 +88,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
       setLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:3001/api/config');
+      const response = await fetch(getApiUrl('config'));
       if (!response.ok) {
         throw new Error(`Failed to load configuration: ${response.status}`);
       }
@@ -109,7 +110,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
       setSaving(true);
       setError(null);
       
-      const response = await fetch('http://localhost:3001/api/config', {
+      const response = await fetch(getApiUrl('config'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -539,3 +540,4 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
 };
 
 export default SettingsModal;
+

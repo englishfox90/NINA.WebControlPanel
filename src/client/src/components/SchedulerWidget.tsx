@@ -10,6 +10,7 @@ import {
   ClockIcon
 } from '@radix-ui/react-icons';
 import { useNINAEvent } from '../services/ninaWebSocket';
+import { getApiUrl } from '../config/api';
 
 interface TargetSchedulerProps {
   onRefresh?: () => void;
@@ -27,7 +28,7 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
       setLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:3001/api/scheduler/progress');
+      const response = await fetch(getApiUrl('scheduler/progress'));
       if (!response.ok) throw new Error('Failed to fetch');
       
       const result = await response.json();
@@ -343,3 +344,4 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
 };
 
 export default TargetSchedulerWidget;
+

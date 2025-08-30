@@ -26,6 +26,7 @@ import {
 } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import type { TimeAstronomicalData } from '../types/dashboard';
+import { getApiUrl } from '../config/api';
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -60,7 +61,7 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
       setLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:3001/api/time/astronomical');
+      const response = await fetch(getApiUrl('time/astronomical'));
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -653,3 +654,4 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
 };
 
 export default TimeAstronomicalWidget;
+
