@@ -46,14 +46,19 @@ class TargetSchedulerService {
           COUNT(DISTINCT t.Id) as target_count,
           SUM(ep.acquired) as total_acquired,
           SUM(ep.accepted) as total_accepted,
-          SUM(ep.desired) as total_desired
+          SUM(ep.desired) as total_desired,
+          CASE 
+            WHEN SUM(ep.desired) > 0 THEN 
+              MIN(100.0, ((SUM(ep.acquired) + SUM(ep.accepted)) * 100.0) / (SUM(ep.desired) * 2.0))
+            ELSE 0 
+          END as completion_percentage
         FROM project p
         LEFT JOIN target t ON p.Id = t.projectid AND t.active = 1
         LEFT JOIN exposureplan ep ON t.Id = ep.targetid AND ep.enabled = 1
         LEFT JOIN exposuretemplate et ON ep.exposureTemplateId = et.Id
         WHERE p.state = 1 AND (ep.id IS NULL OR et.Id IS NOT NULL)
         GROUP BY p.Id
-        ORDER BY p.priority DESC, p.name
+        ORDER BY p.priority DESC, completion_percentage DESC, p.name
       `;
 
       const projects = this.db.prepare(query).all();

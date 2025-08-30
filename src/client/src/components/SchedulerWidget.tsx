@@ -230,7 +230,7 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
                   <Flex align="center" gap="2">
                     <ImageIcon width="14" height="14" />
                     <Text size="2" color="gray">
-                      {project.targets?.[0]?.filters?.reduce((sum: number, f: any) => sum + (f.accepted || 0), 0) || 0} images
+                      {project.targets?.[0]?.filters?.reduce((sum: number, f: any) => sum + (f.accepted || 0), 0) || 0} images graded
                       {project.targets?.[0]?.filters && project.targets[0].filters.length > 0 && (() => {
                         const totalIntegrationMinutes = Math.round(
                           project.targets[0].filters.reduce((sum: number, f: any) => sum + (f.acceptedIntegrationTime || 0), 0) / 60
