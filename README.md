@@ -8,15 +8,15 @@ A modern, full-stack web dashboard for monitoring and controlling remote astroph
 
 ## ✨ Features
 
-- 🎯 **Real-time Equipment Monitoring** - Live status of cameras, mounts, focusers, and more
-- � **Live NINA WebSocket Integration** - Real-time equipment events and session updates
-- �📊 **Target Scheduler Integration** - Progress tracking and session management
-- 🖥️ **System Monitoring** - Hardware metrics (CPU, memory, temperature)
-- 📱 **Responsive Design** - Works on desktop, tablet, and mobile
-- 🎨 **Drag & Drop Dashboard** - Customizable widget layout
-- 🔄 **Live RTSP Streaming** - Real-time view from observatory cameras
-- ⚡ **Current Session Monitoring** - Live imaging session details and progress
-- 🔌 **WebSocket Architecture** - Sub-second real-time updates without polling
+- 🎯 **Real-time Equipment Monitoring** - Live status of cameras, mounts, focusers, and more ✅
+- 🔌 **NINA API Integration** - Complete integration with 11 equipment endpoints ✅
+- 📊 **Target Scheduler Integration** - Progress tracking and session management ✅
+- 🖥️ **System Monitoring** - Hardware metrics (CPU, memory, temperature) ✅
+- 📱 **Responsive Design** - Works on desktop, tablet, and mobile ✅
+- 🎨 **Customizable Dashboard** - Database-driven widget configuration ✅
+- 🔄 **Live RTSP Streaming** - Real-time view from observatory cameras ✅
+- 💾 **SQLite Database** - Configuration and target scheduler integration ✅
+- 🛡️ **Mock Data Fallback** - Professional fallback when equipment unavailable ✅
 
 ## 🚀 Quick Start
 
@@ -96,33 +96,30 @@ See [database documentation](./docs/database/) for schema details.
 
 ## 🧩 Widget System
 
-The dashboard features a modular widget system:
+The dashboard features a modular widget system with database-driven configuration:
 
-- **Current Session Widget** 🔴 - **NEW!** Real-time imaging session monitoring with live equipment updates
-- **NINA Status** - Equipment connection and status monitoring
-- **Target Scheduler** - Current session progress and project tracking
-- **System Monitor** - Hardware performance metrics (CPU, memory, temperature)
-- **RTSP Viewer** - Live camera streams from observatory
-- **Image Viewer** - Latest captured images and thumbnails
+- **NINA Equipment Status** ✅ - Live monitoring of 11 equipment types (Camera, Mount, Focuser, etc.)
+- **Target Scheduler Progress** ✅ - Real-time project progress with 382+ captured images across 6 projects  
+- **System Monitor** ✅ - Cross-platform hardware metrics (CPU, memory, temperature)
+- **RTSP Viewer** ✅ - Live camera streams from observatory
+- **Image Viewer** 🚧 - Latest captured images (mock data, ready for file system integration)
 
-Widgets are drag-and-drop with persistent layout saving. The **Current Session Widget** provides real-time updates via WebSocket connection to NINA's event system.
-
-See [Current Session & WebSocket Documentation](./docs/CURRENT_SESSION_WEBSOCKET.md) for technical details.
+All widgets are responsive with Radix UI components and feature professional fallback when services unavailable.
 
 ## 🌐 API Integration
 
-### NINA Advanced API
-- **Port**: 1888 (default)
-- **REST Endpoints**: Camera, mount, focuser, rotator, weather station status
-- **Real-time WebSocket**: `ws://nina-host:1888/v2/socket` for live equipment events
-- **Session State**: Live tracking of imaging sessions, targets, and equipment changes
-- **Event History**: Complete event timeline for session analysis
+### NINA Equipment API ✅ **COMPLETE**
+- **Endpoint**: `http://172.26.81.152:1888/`
+- **Backend Service**: Complete `ninaService.js` with 11 equipment endpoints
+- **Equipment Types**: Camera, Mount, Focuser, Filter Wheel, Guider, Rotator, Switch, Flat Panel, Weather, Dome, Safety Monitor
+- **Error Handling**: Graceful degradation with connection status reporting
+- **Mock Data**: Professional fallback equipment data when NINA unavailable
 
-### WebSocket Architecture
-- **Backend Processing**: Centralized NINA event processing and session state management
-- **Frontend Updates**: Real-time WebSocket broadcasting to connected clients
-- **Event Types**: Equipment connections, target changes, safety alerts, imaging progress
-- **Sub-second Latency**: Immediate updates when equipment status changes
+### Target Scheduler Database ✅ **COMPLETE**
+- **Database**: `resources/schedulerdb.sqlite` with live project data
+- **Projects**: 6 active projects (Barnard 160, SH2-124, M31, M42, NGC 7635, etc.)
+- **Progress Tracking**: Filter completion, exposure times, priority management
+- **API Endpoints**: `/api/scheduler/progress`, `/api/scheduler/activity`, `/api/scheduler/status`
 
 ### System Monitoring
 - **Hardware**: CPU, memory, disk usage with cross-platform support

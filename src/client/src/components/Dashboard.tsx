@@ -6,6 +6,7 @@ import SystemStatusWidget from './SystemStatusWidget';
 import SchedulerWidget from './SchedulerWidget';
 import RTSPViewer from './RTSPViewer';
 import SessionWidget from './SessionWidget';
+import TimeAstronomicalWidget from './TimeAstronomicalWidget';
 import MobileLayout from './MobileLayout';
 import WidgetService, { WidgetConfig } from '../services/widgetService';
 import { 
@@ -154,6 +155,8 @@ const Dashboard: React.FC = () => {
         return <RTSPViewer key={config.id} streams={rtspFeeds} isConnected={true} hideHeader={true} />;
       case 'SessionWidget':
         return <SessionWidget key={config.id} hideHeader={true} />;
+      case 'TimeAstronomicalWidget':
+        return <TimeAstronomicalWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       default:
         return <div key={config.id}>Unknown widget: {config.component}</div>;
     }

@@ -64,3 +64,64 @@ export interface ImageViewerProps {
   isLoading?: boolean;
   onRefresh?: () => void;
 }
+
+// Time and Astronomical Widget Types
+export interface TimeData {
+  serverTime: string;
+  browserTime: string;
+  timeZoneOffset: number;
+  isDifferent: boolean;
+}
+
+export interface MoonPhase {
+  phase: string;
+  illumination: number;
+  name: string;
+}
+
+export interface AstronomicalData {
+  sunrise: string;
+  sunset: string;
+  civilTwilightBegin: string;
+  civilTwilightEnd: string;
+  nauticalTwilightBegin: string;
+  nauticalTwilightEnd: string;
+  astronomicalTwilightBegin: string;
+  astronomicalTwilightEnd: string;
+  currentPhase: 'night' | 'astronomical' | 'nautical' | 'civil' | 'daylight';
+  moonPhase: MoonPhase;
+  // Multi-day data for 8-hour window handling
+  multiDay?: {
+    yesterday: {
+      date: string;
+      sunset?: string;
+      civilTwilightEnd?: string;
+      nauticalTwilightEnd?: string;
+      astronomicalTwilightEnd?: string;
+    };
+    today: {
+      date: string;
+      sunrise: string;
+      sunset: string;
+      civilTwilightBegin: string;
+      civilTwilightEnd: string;
+      nauticalTwilightBegin: string;
+      nauticalTwilightEnd: string;
+      astronomicalTwilightBegin: string;
+      astronomicalTwilightEnd: string;
+    };
+    tomorrow: {
+      date: string;
+      sunrise?: string;
+      civilTwilightBegin?: string;
+      nauticalTwilightBegin?: string;
+      astronomicalTwilightBegin?: string;
+    };
+  };
+}
+
+export interface TimeAstronomicalData {
+  time: TimeData;
+  astronomical: AstronomicalData;
+  lastUpdate: string;
+}

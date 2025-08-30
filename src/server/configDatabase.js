@@ -135,10 +135,10 @@ class ConfigDatabase {
       observatory: {
         name: "My Remote Observatory",
         location: {
-          latitude: 40.7128,
-          longitude: -74.0060,
+          latitude: 31.5475,
+          longitude: -99.3817,
           elevation: 100,
-          timezone: "America/New_York"
+          timezone: "America/Chicago"
         }
       },
       layout: {

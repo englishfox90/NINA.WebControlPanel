@@ -11,6 +11,7 @@ const { getConfigDatabase } = require('./configDatabase');
 const SystemMonitor = require('../services/systemMonitor');
 const NINAService = require('../services/ninaService');
 const SessionStateManager = require('../services/sessionStateManager');
+const AstronomicalService = require('../services/astronomicalService');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,6 +20,7 @@ const PORT = process.env.CONFIG_API_PORT || 3001;
 // Initialize system monitor and NINA service
 const systemMonitor = new SystemMonitor();
 const ninaService = new NINAService();
+const astronomicalService = new AstronomicalService();
 const sessionStateManager = new SessionStateManager(ninaService);
 
 // Listen for session state updates and broadcast to connected clients
@@ -459,6 +461,86 @@ app.post('/api/nina/session-state/refresh', async (req, res) => {
       Error: error.message,
       StatusCode: 500,
       Type: 'API'
+    });
+  }
+});
+
+// Time and Astronomical API Endpoints
+// Provides server time, browser time comparison, and astronomical calculations
+
+// Get current time and astronomical data
+app.get('/api/time/astronomical', async (req, res) => {
+  try {
+    const now = new Date();
+    const browserTime = req.headers['x-browser-time'] || now.toISOString();
+    const timeZoneOffset = parseInt(req.headers['x-timezone-offset'] || '0');
+    
+    // Calculate if server and browser times are significantly different (more than 1 minute)
+    const serverTime = now.toISOString();
+    const browserDate = new Date(browserTime);
+    const timeDifference = Math.abs(now.getTime() - browserDate.getTime());
+    const isDifferent = timeDifference > 60000; // More than 1 minute difference
+    
+    // Get observatory location from configuration
+    const config = getConfigDatabase().getConfig();
+    const location = config.observatory?.location || {
+      latitude: 31.5475,
+      longitude: -99.3817,
+      timezone: 'America/Chicago'
+    };
+    
+    console.log(`🌅 Fetching astronomical data for location: ${location.latitude}, ${location.longitude}`);
+    
+    // Get real astronomical data from sunrise-sunset.org API
+    const astronomicalData = await astronomicalService.getComprehensiveAstronomicalData(
+      location.latitude,
+      location.longitude,
+      location.timezone
+    );
+    
+    // Add current phase using real astronomical data instead of hardcoded times
+    astronomicalData.currentPhase = astronomicalService.getCurrentPhase(now, astronomicalData);
+    astronomicalData.moonPhase = astronomicalService.getMoonPhase(now);
+    
+    const response = {
+      time: {
+        serverTime,
+        browserTime,
+        timeZoneOffset,
+        isDifferent
+      },
+      astronomical: astronomicalData,
+      lastUpdate: now.toISOString()
+    };
+    
+    res.json(response);
+  } catch (error) {
+    console.error('❌ Error getting time/astronomical data:', error);
+    
+    // Fallback to mock data on API failure
+    const fallbackData = {
+      sunrise: '06:30:00',
+      sunset: '19:30:00',
+      civilTwilightBegin: '06:00:00',
+      civilTwilightEnd: '20:00:00',
+      nauticalTwilightBegin: '05:25:00',
+      nauticalTwilightEnd: '20:35:00',
+      astronomicalTwilightBegin: '04:50:00',
+      astronomicalTwilightEnd: '21:10:00',
+      currentPhase: getCurrentPhase(new Date()),
+      moonPhase: astronomicalService.getCurrentMoonPhase(new Date()),
+      fallback: true
+    };
+    
+    res.json({
+      time: {
+        serverTime: new Date().toISOString(),
+        browserTime: req.headers['x-browser-time'] || new Date().toISOString(),
+        timeZoneOffset: parseInt(req.headers['x-timezone-offset'] || '0'),
+        isDifferent: false
+      },
+      astronomical: fallbackData,
+      lastUpdate: new Date().toISOString()
     });
   }
 });

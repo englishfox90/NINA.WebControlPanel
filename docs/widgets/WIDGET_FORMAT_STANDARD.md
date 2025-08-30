@@ -398,6 +398,7 @@ const handleLayoutChange = (layout: Layout[], layouts: { [key: string]: Layout[]
 2. **NINAStatus** - Updated to new standard (no auto-refresh) ✅ 
 3. **SchedulerWidget** - Updated to new standard (no auto-refresh) ✅
 4. **RTSPViewer** - Keeps refresh functionality for video feed ✅
+5. **TimeAstronomicalWidget** - NEW! Complete implementation with time display and astronomical visualization ✅
 
 ### **Auto-Refresh Exceptions**
 Only these widgets should implement auto-refresh:
@@ -478,6 +479,6 @@ import { formatDate } from '../utils/helpers';
 
 **All new widgets MUST follow this standard format. Existing widgets should be gradually updated to match this pattern for consistency and maintainability.**
 
-**Last Updated:** August 28, 2025  
-**Format Version:** 1.0  
+**Last Updated:** August 29, 2025  
+**Format Version:** 1.1  
 **Status:** Production Standard

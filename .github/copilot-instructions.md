@@ -1,4 +1,10 @@
-# GitHub Copilot Instructions - Astro Observatory Dashboard
+{
+  "Response": "2025-07-20T09:43:44+02:00",
+  "Error": "string",
+  "StatusCode": 200,
+  "Success": true,
+  "Type": "API"
+}# GitHub Copilot Instructions - Astro Observatory Dashboard
 
 ## Project Overview
 This is a **production-ready full-stack astrophotography dashboard** for monitoring NINA (Nighttime Imaging 'N' Astronomy) equipment with React 18 + TypeScript + Radix UI + Express.js + SQLite.
