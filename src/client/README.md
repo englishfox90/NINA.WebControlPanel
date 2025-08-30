@@ -1,6 +1,24 @@
-# Getting Started with Create React App
+# NINA WebControlPanel - React Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This is the React frontend application for the NINA WebControlPanel, a production-ready astrophotography dashboard built with React 18 + TypeScript + Radix UI.
+
+## 🚀 Features
+
+- **Real-time Equipment Monitoring** - Live NINA equipment status via WebSocket
+- **Target Scheduler Integration** - Live project progress from SQLite database  
+- **Image Viewer** - Real-time captured image display with WebSocket integration
+- **Settings Management** - Comprehensive configuration modal with native file picker
+- **System Monitoring** - Cross-platform hardware metrics display
+- **RTSP Streaming** - Live observatory camera feeds
+- **Responsive Design** - Mobile-optimized with Radix UI components
+
+## 🛠️ Built With
+
+- **React 18** - Modern React with concurrent features
+- **TypeScript** - Full type safety and IntelliSense
+- **Radix UI Themes** - Professional component library  
+- **WebSocket Integration** - Real-time updates from NINA
+- **File System Access API** - Native browser file picker integration
 
 ## Available Scripts
 
@@ -38,6 +56,32 @@ If you aren’t satisfied with the build tool and configuration choices, you can
 Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
 
 You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+
+## 🧩 Component Architecture
+
+### Core Components
+- **Dashboard.tsx** - Main application layout with widget integration
+- **SettingsModal.tsx** - Comprehensive configuration interface with file picker
+- **ImageViewer.tsx** - Real-time NINA image display with WebSocket integration
+- **NINAStatus.tsx** - Live equipment monitoring with 11 device types
+- **SystemStatusWidget.tsx** - Cross-platform hardware metrics
+- **RTSPViewer.tsx** - Live camera stream viewer
+- **SessionWidget.tsx** - Current NINA session monitoring
+- **TimeAstronomicalWidget.tsx** - Server time and astronomical data
+
+### Technical Details
+- **TypeScript**: Full type safety with strict mode enabled
+- **WebSocket Integration**: Real-time updates from backend server
+- **File System Access API**: Modern browser file picker (Chrome/Edge)
+- **Radix UI**: Professional component library with responsive design
+- **Error Handling**: Graceful degradation with loading states
+
+## 🔧 Configuration
+
+The frontend connects to the Express.js backend on port 3001 for:
+- **API Integration**: RESTful endpoints for configuration and data
+- **WebSocket Events**: Real-time NINA session and image updates
+- **Database Operations**: SQLite configuration persistence
 
 ## Learn More
 

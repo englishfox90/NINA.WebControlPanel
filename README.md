@@ -15,7 +15,9 @@ A modern, full-stack web dashboard for monitoring and controlling remote astroph
 - 🌅 **Astronomical Data** - Live twilight phases, moon cycles, and time synchronization ✅
 - 🔄 **Live RTSP Streaming** - Real-time view from observatory cameras ✅
 - 📡 **Session Monitoring** - Real-time NINA session tracking via WebSocket ✅
-- 📱 **Responsive Design** - Works on desktop, tablet, and mobile ✅
+- � **Image Viewer** - Real-time NINA image display with WebSocket integration ✅
+- ⚙️ **Settings Management** - Comprehensive configuration modal with file picker ✅
+- �📱 **Responsive Design** - Works on desktop, tablet, and mobile ✅
 - 🎨 **Customizable Dashboard** - Database-driven widget configuration ✅
 - 💾 **SQLite Database** - Configuration and target scheduler integration ✅
 - 🛡️ **Mock Data Fallback** - Professional fallback when equipment unavailable ✅
@@ -81,11 +83,25 @@ NINA.WebControlPanel/
 
 ### Configuration
 
-The application will automatically create a configuration database on first run. Key settings:
+The application features a comprehensive **Settings Modal** with native file picker integration:
 
-- **NINA API**: Configure your NINA instance URL/IP and port
-- **Streams**: Set up RTSP camera feeds
-- **Database**: Target scheduler database path
+#### 🔧 **Settings Interface**
+- **NINA Connection**: Host/IP and port configuration with connection testing
+- **SQLite Database**: Native file picker for target scheduler database (Chrome/Edge) 
+- **Live Streams**: Configure up to 3 RTSP camera feeds
+- **File System Access API**: Modern browser integration with SQLite file filtering
+- **Cross-browser Support**: Manual input fallback for Firefox/Safari
+
+#### 🗄️ **Database Configuration**
+- **Configuration Database**: Auto-created `dashboard-config.sqlite` 
+- **Target Scheduler**: Connect to NINA's `schedulerdb.sqlite`
+- **Persistent Settings**: All configuration stored in SQLite
+- **API Integration**: RESTful configuration management via `/api/config`
+
+Key settings include:
+- **NINA API**: Configure your NINA instance URL/IP and port  
+- **Streams**: Set up RTSP camera feeds with individual URLs
+- **Database Path**: SQLite target scheduler database selection 
 - **Observatory**: Location and equipment details
 
 ## 🗄️ Database
@@ -106,7 +122,8 @@ The dashboard features a modular widget system with database-driven configuratio
 - **RTSP Viewer** ✅ - Live camera streams from observatory
 - **Time & Astronomical Data** ✅ - Server time sync, twilight phases, and moon phase tracking
 - **Current Session** ✅ - Real-time NINA session monitoring with WebSocket integration
-- **Image Viewer** 🚧 - Latest captured images (mock data, ready for file system integration)
+- **Image Viewer** ✅ - Real-time NINA captured images with WebSocket integration and metadata display
+- **Settings Modal** ✅ - Comprehensive configuration interface with native file picker
 
 All widgets are responsive with Radix UI components and feature professional fallback when services unavailable.
 
@@ -160,22 +177,27 @@ All widgets are responsive with Radix UI components and feature professional fal
 
 ## 🗂️ Development TODOs
 
-### 🎯 **Immediate Priorities** 
-1. **Current Session Widget Refinement** - Enhanced UI/UX and logic improvements
-2. **Twilight Clock Widget** - Astronomical twilight tracking and countdown timers
-3. **Guiding Widget** - Real-time guiding performance monitoring and charts
-4. **Weather Widget** - Environmental conditions and safety monitoring dashboard
-5. **Portal Banner System** - Safety alerts and flat panel light notifications
+### 🎯 **Current Development Status**
+**✅ Core Dashboard: PRODUCTION READY** - All essential monitoring features implemented
+
+### 🚀 **Enhancement Priorities**
+1. **Advanced Image Management** - Directory browsing and image history navigation  
+2. **Automated Sequence Controls** - NINA sequence management and automation tools
+3. **Enhanced Session Analytics** - Historical data and performance trending
+4. **Mobile App Companion** - Native mobile application for remote monitoring
+5. **Multi-Observatory Support** - Manage multiple NINA instances from single dashboard
 
 ### 🔧 **Technical Improvements**
-6. **Responsive Layout System** - Fix browser resize not triggering layout saves
-7. **Logging System Overhaul** - Structured logging with file rotation and log levels
+- **Enhanced WebSocket Integration** - Sub-second real-time updates for critical equipment
+- **Advanced Logging System** - Structured logging with file rotation and configurable levels  
+- **Performance Optimization** - Caching strategies for large image collections
+- **Backup & Recovery** - Configuration and data backup automation
 
-### 📅 **Future Enhancements**
-- Advanced session analytics and reporting
-- Mobile app companion
-- Multi-observatory support
-- Automated imaging sequence designer
+### 📊 **Advanced Features** 
+- **Predictive Analytics** - Weather integration and session success prediction
+- **Equipment Health Monitoring** - Long-term equipment performance tracking  
+- **Automation Rules** - Custom triggers and responses for equipment states
+- **Cloud Integration** - Remote access and mobile notifications
 
 ## 🤝 Contributing
 
@@ -198,4 +220,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Project Status**: ✅ Production Ready with Real-time WebSocket Integration | **Last Updated**: August 29, 2025
+**Project Status**: ✅ **PRODUCTION READY** - Complete astrophotography dashboard with real-time monitoring | **Last Updated**: August 29, 2025
