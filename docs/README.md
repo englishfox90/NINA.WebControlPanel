@@ -160,6 +160,9 @@ Point to your captured images:
 - `GET /api/system/disk` - Disk space information
 - `GET /api/system/network` - Network interface and speeds
 
+### Astronomical Data
+- `GET /api/time/astronomical` - Time zones, sun/moon data, twilight phases
+
 ## 🛠️ Development
 
 ### Project Structure
@@ -394,14 +397,15 @@ GET /api/system/network     # Network interface and speeds
 | **`Settings.tsx`** | ✅ Complete | `Tabs`, `Dialog`, `Switch`, `Select` | ⚙️→GearIcon, ✅→CheckIcon | ✅ Database persistence | **Simplified** - Core settings only |
 | **`SystemStatusWidget.tsx`** | ✅ Complete | `Card`, `Flex`, `Progress`, `Badge` | 🖥️→DesktopIcon, 📊→ActivityLogIcon | ✅ Live system monitoring | **NEW** - Real-time system health |
 | **`TargetSchedulerWidget.tsx`** | ✅ Complete | `Card`, `Flex`, `Progress`, `Badge`, `HoverCard` | 🎯→TargetIcon, 📅→CalendarIcon | ✅ Live scheduler data | **NEW** - Production ready monitoring |
+| **`TimeAstronomicalWidget.tsx`** | ✅ Complete | `Card`, `Flex`, `Box`, `Progress`, `HoverCard` | 🌅→SunIcon, 🌙→MoonIcon, ⏰→ClockIcon | ✅ Live astronomical data | **NEW** - Accurate moon phases & twilight |
 | **`config-server.js`** | ✅ Complete | N/A | N/A | ✅ Full REST API + System APIs | None - Production ready |
 | **`configDatabase.js`** | ✅ Complete | N/A | N/A | ✅ SQLite operations | None - Production ready |
 | **`targetSchedulerService.js`** | ✅ Complete | N/A | N/A | ✅ Scheduler database queries | **NEW** - Real-time project monitoring |
 
 **MODERNIZATION SUMMARY:**
-- ✅ **10/10 Core Components** fully modernized with Radix UI (includes SystemStatusWidget & TargetSchedulerWidget)
+- ✅ **11/11 Core Components** fully modernized with Radix UI (includes SystemStatusWidget + TargetSchedulerWidget + TimeAstronomicalWidget)
 - ✅ **25+ Icons** upgraded from emojis to professional icons  
-- ✅ **Full Backend Integration** - Express API server + SQLite database + System/Scheduler monitoring APIs
+- ✅ **Full Backend Integration** - Express API server + SQLite database + System/Scheduler/Astronomical monitoring APIs
 - ✅ **Live Stream System** - Working RTSP feeds with enhanced video transitions
 - ✅ **System Monitoring** - Real-time CPU, memory, disk, network, and uptime tracking
 - ✅ **Target Scheduler Monitoring** - Real-time project progress with integration time tracking and hover cards
@@ -647,6 +651,8 @@ NINA.WebControlPanel/
 │   │   │   │   ├── RTSPViewer.tsx     # Video streams - ✅ **LIVE FEEDS + ENHANCED UX**
 │   │   │   │   ├── ImageViewer.tsx    # Image gallery - ✅ READY FOR LIVE DATA
 │   │   │   │   ├── SystemStatusWidget.tsx # System monitoring - ✅ **NEW: REAL-TIME SYSTEM HEALTH**
+│   │   │   │   ├── TargetSchedulerWidget.tsx # Project progress - ✅ **NEW: LIVE SCHEDULER DATA** 
+│   │   │   │   ├── TimeAstronomicalWidget.tsx # Astronomical data - ✅ **NEW: MOON PHASES & TWILIGHT**
 │   │   │   │   ├── Settings.tsx.disabled # Settings - ✅ SIMPLIFIED VERSION
 │   │   │   │   └── MobileLayout.tsx   # Mobile layout - ✅ COMPLETE
 │   │   │   ├── 📂 services/           # Frontend services & API integration

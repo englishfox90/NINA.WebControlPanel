@@ -1,6 +1,69 @@
 # 🤖 AI AGENT INSTRUCTIONS - Astro Observatory Dashboard
 
-> **CRITICAL**: This document is specifically for AI agents. Always read this completely before making any changes to the project.
+> **CRITICAL**: This document is specifically for AI agents. Always read this completely bef| Component | Status | Capability | Backend | Next Action | Priority |
+|-----------|--------|------------|---------|-------------|----------|
+| `Dashboard.tsx` | ✅ Complete | Layout + navigation | ✅ Config API | Image gallery integration | 🟡 Medium |
+| `SystemStatusWidget.tsx` | ✅ Complete | **Real-time monitoring** | ✅ Cross-platform | None needed | ✅ Done |
+| `RTSPViewer.tsx` | ✅ Complete | **Live video feeds** | ✅ Working streams | Enhanced controls | 🟢 Low |
+| `TargetSchedulerWidget.tsx` | ✅ Complete | **Live project progress** | ✅ SQLite integration | None needed | ✅ Done |
+| `TimeAstronomicalWidget.tsx` | ✅ Complete | **Live astronomical data** | ✅ Astronomical API | None needed | ✅ Done |
+| `NINAStatus.tsx` | ✅ Complete | **Live equipment status** | ✅ NINA API integration | None needed | ✅ Done |
+| `ImageViewer.tsx` | ✅ UI Ready | Mock gallery display | 🚧 Ready for files | **Live directory scan** | 🔴 High |
+| `Settings.tsx` | ✅ Complete | Database persistence | ✅ Full CRUD | None needed | ✅ Done |g any changes to the} else {
+  // Linux: Use available memory calculation  
+  usedGB = totalGB - availableGB;
+}
+```
+
+### 🔌 **NINA API Integration (COMPLETE)**
+
+The NINA equipment monitoring system is fully implemented with comprehensive error handling and mock data fallback.
+
+#### **Backend Service: `ninaService.js`**
+```javascript
+// Complete NINA API integration with 11 equipment endpoints
+class NINAService {
+  constructor(baseUrl = 'http://172.26.81.152', port = 1888) {
+    this.baseUrl = `${baseUrl}:${port}`;
+    this.timeout = 5000; // 5-second timeout
+  }
+
+  // Equipment monitoring endpoints:
+  // - Camera: /equipment/camera/info
+  // - Mount: /equipment/mount/info  
+  // - Focuser: /equipment/focuser/info
+  // - Filter Wheel: /equipment/filterwheel/info
+  // - Guider: /equipment/guider/info
+  // - Rotator: /equipment/rotator/info
+  // - Switch: /equipment/switch/info
+  // - Flat Panel: /equipment/flatdevice/info
+  // - Weather: /equipment/weather/info
+  // - Dome: /equipment/dome/info
+  // - Safety Monitor: /equipment/safetymonitor/info
+}
+```
+
+#### **API Endpoints**
+- **`GET /api/nina/equipment`** - Returns complete equipment status
+- **`GET /api/nina/status`** - Returns NINA connection status
+- **Mock Data**: Professional fallback with realistic equipment names
+- **Error Handling**: Graceful degradation with connection status reporting
+
+#### **Frontend Component: `NINAStatus.tsx`**
+```tsx
+// Live equipment monitoring with connection status
+const fetchEquipmentStatus = async () => {
+  const response = await fetch('http://localhost:3001/api/nina/equipment');
+  const result = await response.json();
+  setData(result); // Includes mockMode flag when NINA unavailable
+};
+```
+
+#### **Equipment Status Display**
+- **Connection Indicators**: Green (connected), Red (disconnected), Yellow (warning)
+- **Status Information**: Temperature (cameras), position (mounts), device names
+- **Responsive Layout**: Scrollable equipment list with Radix UI components
+- **Auto-refresh**: Manual refresh button, ready for real-time WebSocket integrationoject.
 
 ## 📋 AGENT QUICK REFERENCE
 
@@ -10,8 +73,8 @@
 **Current State**: ✅ **PRODUCTION READY**
 - **Phase**: Full Stack Development Complete
 - **Architecture**: React 18 + TypeScript + Radix UI + Express.js + SQLite
-- **Status**: All core components implemented and functional
-- **Last Updated**: August 28, 2025
+- **Status**: All core components implemented and functional, TimeAstronomical widget completed with accurate moon phase calculations
+- **Last Updated**: August 30, 2025
 
 ### 🚨 **CRITICAL STATUS FLAGS**
 - 🚧 **In Progress** - Currently being worked on
@@ -21,10 +84,18 @@
 - 🆘 **Broken** - Not functional, needs immediate attention
 
 ### ⚡ **IMMEDIATE PRIORITIES**
-1. **🔴 HIGH**: Connect `NINAStatus.tsx` to live NINA API (port 1888)
+1. **🔴 HIGH**: Connect `NINAStatus.tsx` to live NINA API (port 1888) - **API ENDPOINTS IMPLEMENTED ✅**
 2. **🟡 MEDIUM**: Implement live image loading in `ImageViewer.tsx`
 3. **✅ COMPLETE**: Target Scheduler Progress Widget - Production ready with real-time monitoring
 4. **🟢 LOW**: Add advanced NINA controls to Dashboard
+
+### 🔌 **NINA API INTEGRATION STATUS**
+- **API Service**: ✅ `ninaService.js` - Complete implementation with 11 equipment endpoints
+- **Equipment Monitoring**: ✅ Camera, Mount, Focuser, Filter Wheel, Guider, Rotator, etc.
+- **Mock Data Fallback**: ✅ Professional mock data when NINA unavailable
+- **Error Handling**: ✅ Graceful degradation with connection status reporting
+- **Widget Integration**: ✅ `NINAStatus.tsx` displays live equipment status
+- **Backend Endpoints**: ✅ `/api/nina/equipment` and `/api/nina/status`
 
 ---
 
@@ -34,11 +105,12 @@
 ```
 NINA.WebControlPanel/
 ├── 🎯 FRONTEND (React 18 + TypeScript)
-│   ├── src/client/src/components/   # 9/9 Components ✅ COMPLETE
+│   ├── src/client/src/components/   # 6/6 Components ✅ COMPLETE
 │   │   ├── Dashboard.tsx        # Main layout ✅
-│   │   ├── NINAStatus.tsx      # Equipment status ✅ (Mock data)
+│   │   ├── NINAStatus.tsx      # Equipment status ✅ LIVE API
 │   │   ├── RTSPViewer.tsx      # Live video ✅ WORKING
 │   │   ├── SystemStatusWidget.tsx # System monitoring ✅ WORKING
+│   │   ├── TimeAstronomicalWidget.tsx # Time & astronomy ✅ COMPLETE
 │   │   ├── ImageViewer.tsx     # Photo gallery ✅ (Mock data)
 │   │   └── Settings.tsx.disabled # Config UI ✅
 │   ├── src/services/           # API integration layer
@@ -73,6 +145,9 @@ GET /api/scheduler/project/:id # Individual project details
 GET /api/scheduler/status      # Current/next target status
 GET /api/scheduler/activity    # Recent imaging activity
 
+// Astronomical Data APIs ✅ WORKING  
+GET /api/time/astronomical     # Time zones, sun/moon data, twilight phases
+
 // NINA Equipment APIs ✅ WORKING
 GET /api/nina/equipment        # Live equipment status and connection info
 GET /api/nina/status          # NINA system connection status
@@ -96,9 +171,9 @@ GET /api/nina/status          # NINA system connection status
 | `Settings.tsx` | ✅ Complete | Database persistence | ✅ Full CRUD | None needed | ✅ Done |
 
 ### 🎯 **COMPLETION METRICS**
-- **UI Components**: 10/10 ✅ Complete (includes SystemStatusWidget + TargetSchedulerWidget + NINAStatus)
-- **Backend APIs**: 11/11 ✅ Complete (Config + System + Target Scheduler + NINA APIs working)
-- **Live Data Feeds**: 4/5 ✅ Complete (RTSP + System + Target Scheduler + NINA Equipment)
+- **UI Components**: 11/11 ✅ Complete (includes SystemStatusWidget + TargetSchedulerWidget + TimeAstronomicalWidget + NINAStatus)
+- **Backend APIs**: 12/12 ✅ Complete (Config + System + Target Scheduler + Astronomical + NINA APIs working)
+- **Live Data Feeds**: 5/6 ✅ Complete (RTSP + System + Target Scheduler + Astronomical + NINA Equipment)
 - **Database Integration**: ✅ 100% Complete (SQLite + Express)
 - **Mobile Responsive**: ✅ 100% Complete (Radix UI)
 - **Production Ready**: ✅ 95% Complete (Only image gallery remaining)
@@ -173,6 +248,40 @@ if (platform === 'darwin') {
   usedGB = totalGB - availableGB;
 }
 ```
+
+### 🌅 **Astronomical Widget (Production Ready)**
+**MAJOR UPDATE**: Complete astronomical calculations with accurate moon phases
+
+#### **Key Features Implemented:**
+- **Real-time Twilight Phases**: Accurate civil, nautical, astronomical twilight calculations
+- **Moon Phase Calculation**: Precise lunar cycle tracking with synodic month (29.53059 days)  
+- **Interactive Chart**: Radix HoverCard system for detailed phase information
+- **Current Phase Detection**: Live astronomical phase tracking with timezone handling
+- **8-Hour Window Display**: Professional progress bars for twilight phases
+
+#### **Technical Implementation:**
+```javascript
+// Accurate moon phase calculation
+getMoonPhase(date) {
+  const referenceNewMoon = new Date('2000-01-06T18:14:00Z'); 
+  const synodicMonth = 29.53059; // days
+  const daysSince = (date - referenceNewMoon) / (1000 * 60 * 60 * 24);
+  const age = daysSince % synodicMonth;
+  // Returns: age, illumination, phase name
+}
+
+// Real twilight times from sunrise-sunset.org API  
+getComprehensiveAstronomicalData(lat, lng, date) {
+  // Fetches: sunrise, sunset, civil/nautical/astronomical twilight
+  // Timezone-aware with proper UTC handling
+}
+```
+
+#### **UI Enhancements:**
+- **Replaced Chart.js tooltips** with Radix HoverCard for consistent UX
+- **Proportional hover zones** covering full chart height with 2% overlap
+- **Color-matched badges** using exact chart segment hex colors
+- **No console spam** - memoized calculations with minute-based cache
 
 ### 🎥 **Video Feed Enhancements**
 **Dynamic container sizing** implemented:
@@ -264,20 +373,31 @@ curl http://localhost:3001/api/system/memory
    - **Estimated Time**: 2-4 hours
 
 ### ✅ **COMPLETED MAJOR FEATURES**
-2. **NINA API Integration** - ✅ **COMPLETE** (August 28, 2025)
-   - **Endpoint**: `http://172.26.81.152:1888/` 
-   - **Components**: ✅ Equipment status widget with real-time updates
-   - **APIs**: `/api/nina/equipment` and `/api/nina/status` endpoints
-   - **Features**: Live equipment monitoring, connection status, fallback to mock data
-   - **Widget**: `NINAStatus.tsx` follows standard widget format
+1. **NINA API Integration** - ✅ **COMPLETE** (August 29, 2025)
+   - **Endpoint**: `http://172.26.81.152:1888/` with 11 equipment API calls
+   - **Backend Service**: `ninaService.js` - Complete implementation with equipment monitoring
+   - **Equipment Monitored**: Camera, Mount, Focuser, Filter Wheel, Guider, Rotator, Switch, Flat Panel, Weather, Dome, Safety Monitor
+   - **API Endpoints**: `/api/nina/equipment` and `/api/nina/status` with full error handling
+   - **Frontend Component**: `NINAStatus.tsx` displays live equipment status with connection indicators
+   - **Mock Data**: Professional fallback when NINA unavailable (maintains UX)
+   - **Status**: ✅ Production ready - automatically detects NINA availability
 
-3. **Target Scheduler Integration** - ✅ **COMPLETE** (August 28, 2025)
+2. **Target Scheduler Integration** - ✅ **COMPLETE** (August 28, 2025)
+2. **Target Scheduler Integration** - ✅ **COMPLETE** (August 28, 2025)
    - **Database**: `../schedulerdb.sqlite` (382 acquired images across 6 projects)
    - **Features**: ✅ Project progress tracking, scheduler status, completion analytics
    - **Documentation**: See `../TARGET_SCHEDULER_DATABASE.md` for complete schema analysis
    - **Widget**: `TargetSchedulerWidget.tsx` with real-time updates and hover cards
    - **APIs**: Full REST endpoints for progress, activity, and project details
 
+### 🟡 **MEDIUM PRIORITY** (Future Development)
+3. **Live Image Gallery** - Connect `ImageViewer.tsx` to file system
+   - **Directory**: `D:/Observatory/Captured`
+   - **Features**: Real image loading, FITS metadata parsing
+   - **Status**: Mock data implemented, ready for file system integration
+   - **Estimated Time**: 2-4 hours
+
+4. **Advanced System Monitoring** - Enhance `SystemStatusWidget.tsx`
 4. **Advanced System Monitoring** - Enhance `SystemStatusWidget.tsx`
    - **Features**: Historical charts, alert thresholds
    - **Estimated Time**: 1-2 hours
