@@ -218,62 +218,102 @@ const Dashboard: React.FC = () => {
     <Box style={{ minHeight: '100vh' }}>
       {/* Header */}
       <Flex 
-        justify="between" 
-        align="center" 
+        direction={{ initial: 'column', md: 'row' }}
+        justify={{ md: 'between' }} 
+        align={{ initial: 'start', md: 'center' }}
+        gap="3"
         p="4" 
         style={{ 
           borderBottom: '1px solid var(--gray-6)',
           background: 'var(--color-background)'
         }}
       >
-        <Flex align="center" gap="4">
-          <Heading as="h1" size="6">
+        {/* Row 1: Title and Settings */}
+        <Flex 
+          justify="between" 
+          align="center"
+          width={{ initial: '100%', md: 'auto' }}
+          gap="4"
+        >
+          <Heading as="h1" size={{ initial: '5', md: '6' }}>
             NINA Observatory Dashboard
           </Heading>
-          <Flex align="center" gap="2">
-            <Badge 
-              color={ninaConnectionStatus.connected ? "green" : "red"} 
-              variant="soft"
-            >
-              <DotFilledIcon width="8" height="8" />
-              {ninaConnectionStatus.connected ? "NINA CONNECTED" : "NINA DISCONNECTED"}
-              {ninaConnectionStatus.mockMode && " (MOCK)"}
-            </Badge>
-            <Text size="2" color="gray">
-              Last Update: {new Date().toLocaleTimeString()}
-            </Text>
-          </Flex>
-        </Flex>
-        
-        <Flex gap="2">
-          <Button 
-            variant="soft"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <GearIcon width="16" height="16" />
-            Settings
-          </Button>
-          {!isMobile && (
+          <Flex gap="2" align="center">
             <Button 
               variant="soft"
-              onClick={handleEditToggle}
-              disabled={loading || layoutLoading}
+              size={{ initial: '2', md: '3' }}
+              onClick={() => setSettingsOpen(true)}
             >
-              {isEditMode ? (
-                <>
-                  <CheckIcon width="16" height="16" />
-                  Save Layout
-                </>
-              ) : (
-                <>
-                  <Pencil1Icon width="16" height="16" />
-                  Edit Layout
-                </>
-              )}
+              <GearIcon width="16" height="16" />
+              Settings
             </Button>
-          )}
+            {!isMobile && (
+              <Button 
+                variant="soft"
+                onClick={handleEditToggle}
+                disabled={loading || layoutLoading}
+              >
+                {isEditMode ? (
+                  <>
+                    <CheckIcon width="16" height="16" />
+                    Save Layout
+                  </>
+                ) : (
+                  <>
+                    <Pencil1Icon width="16" height="16" />
+                    Edit Layout
+                  </>
+                )}
+              </Button>
+            )}
+          </Flex>
+        </Flex>
+
+        {/* Row 2: Status and Last Update */}
+        <Flex 
+          align="center" 
+          gap="3"
+          justify={{ initial: 'start', md: 'end' }}
+          width={{ initial: '100%', md: 'auto' }}
+        >
+          <Badge 
+            color={ninaConnectionStatus.connected ? "green" : "red"} 
+            variant="soft"
+            size={{ initial: '1', md: '2' }}
+          >
+            <DotFilledIcon width="8" height="8" />
+            {ninaConnectionStatus.connected ? "NINA CONNECTED" : "NINA DISCONNECTED"}
+            {ninaConnectionStatus.mockMode && " (MOCK)"}
+          </Badge>
+          <Text size="2" color="gray">
+            Last Update: {new Date().toLocaleTimeString()}
+          </Text>
         </Flex>
       </Flex>
+
+      {/* Mobile Edit Layout Button - Show below header */}
+      {isMobile && (
+        <Flex p="3" justify="center" style={{ borderBottom: '1px solid var(--gray-6)' }}>
+          <Button 
+            variant="soft"
+            onClick={handleEditToggle}
+            disabled={loading || layoutLoading}
+            size="2"
+          >
+            {isEditMode ? (
+              <>
+                <CheckIcon width="16" height="16" />
+                Save Layout
+              </>
+            ) : (
+              <>
+                <Pencil1Icon width="16" height="16" />
+                Edit Layout
+              </>
+            )}
+          </Button>
+        </Flex>
+      )}
 
       {/* Mobile Layout - Dynamic widget rendering */}
       <div className="mobile-only">
