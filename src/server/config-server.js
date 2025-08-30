@@ -47,6 +47,19 @@ sessionStateManager.on('equipmentChange', (equipmentEvent) => {
   broadcastNINAEvent('EQUIPMENT_CHANGE', equipmentEvent);
 });
 
+// Listen for safety events and broadcast to NINA clients
+console.log('[DEBUG] Setting up safety event listener');
+sessionStateManager.on('safetyChange', (safetyEvent) => {
+  console.log('[BACKEND] 🚨 Broadcasting safety event to', ninaClients.size, 'clients:', safetyEvent.eventType, safetyEvent);
+  
+  // Forward the specific NINA event types to frontend
+  if (safetyEvent.eventType === 'FLAT-LIGHT-TOGGLED') {
+    broadcastNINAEvent('FLAT-LIGHT-TOGGLED', safetyEvent);
+  } else if (safetyEvent.eventType === 'SAFETY-CHANGED') {
+    broadcastNINAEvent('SAFETY-CHANGED', safetyEvent);
+  }
+});
+
 console.log('[DEBUG] Event listener setup complete');
 
 // WebSocket server for session state updates
@@ -405,6 +418,41 @@ app.get('/api/nina/status', async (req, res) => {
       connected: false,
       error: 'Failed to get NINA status',
       details: error.message 
+    });
+  }
+});
+
+// Get NINA flat panel status for safety monitoring
+app.get('/api/nina/flat-panel', async (req, res) => {
+  try {
+    const flatPanelStatus = await ninaService.getFlatPanelStatus();
+    res.json(flatPanelStatus);
+  } catch (error) {
+    console.error('Error getting flat panel status:', error);
+    res.status(500).json({ 
+      error: 'Failed to get flat panel status',
+      details: error.message,
+      Success: false,
+      StatusCode: 500,
+      Response: {
+        Connected: false,
+        LightOn: false,
+        CoverState: "Unknown",
+        LocalizedCoverState: "Unknown",
+        LocalizedLightOnState: "Unknown",
+        Brightness: 0,
+        SupportsOpenClose: false,
+        MinBrightness: 0,
+        MaxBrightness: 0,
+        SupportsOnOff: false,
+        SupportedActions: [],
+        Name: "Flat Panel",
+        DisplayName: "Flat Panel",
+        Description: "Flat panel status unavailable",
+        DriverInfo: "N/A",
+        DriverVersion: "N/A",
+        DeviceId: "unknown"
+      }
     });
   }
 });

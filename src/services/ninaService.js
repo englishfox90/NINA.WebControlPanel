@@ -407,6 +407,41 @@ class NINAService {
     };
   }
 
+  async getFlatPanelStatus() {
+    try {
+      const response = await this.makeRequest('/equipment/flatdevice/info');
+      return response;
+    } catch (error) {
+      console.warn('⚠️ Flat panel not available, returning safe defaults:', error.message);
+      // Return safe defaults when flat panel is not available
+      return {
+        Response: {
+          CoverState: "Closed", // Default to safe state
+          LocalizedCoverState: "Closed",
+          LocalizedLightOnState: "Off",
+          LightOn: false, // Default to safe state
+          Brightness: 0,
+          SupportsOpenClose: false,
+          MinBrightness: 0,
+          MaxBrightness: 100,
+          SupportsOnOff: true,
+          SupportedActions: [],
+          Connected: false,
+          Name: "Flat Panel",
+          DisplayName: "Flat Panel Device",
+          Description: "ASCOM Flat Panel Device",
+          DriverInfo: "Not Connected",
+          DriverVersion: "N/A",
+          DeviceId: "flatdevice"
+        },
+        Error: null,
+        StatusCode: 200,
+        Success: true,
+        Type: "FlatDeviceResponse"
+      };
+    }
+  }
+
   async getConnectionStatus() {
     try {
       const response = await this.makeRequest('/application-start');

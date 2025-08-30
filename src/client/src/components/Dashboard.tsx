@@ -8,6 +8,7 @@ import RTSPViewer from './RTSPViewer';
 import SessionWidget from './SessionWidget';
 import TimeAstronomicalWidget from './TimeAstronomicalWidget';
 import ImageViewerWidget from './ImageViewer';
+import SafetyBanner from './SafetyBanner';
 import { SettingsModal } from './SettingsModal';
 import WidgetService, { WidgetConfig } from '../services/widgetService';
 import { useResponsive } from '../hooks/useResponsive';
@@ -241,7 +242,6 @@ const Dashboard: React.FC = () => {
           <Flex gap="2" align="center">
             <Button 
               variant="soft"
-              size={{ initial: '2', md: '3' }}
               onClick={() => setSettingsOpen(true)}
             >
               <GearIcon width="16" height="16" />
@@ -290,6 +290,9 @@ const Dashboard: React.FC = () => {
           </Text>
         </Flex>
       </Flex>
+
+      {/* Safety Banner for Observatory Monitoring */}
+      <SafetyBanner />
 
       {/* Mobile Layout - Dynamic widget rendering */}
       <div className="mobile-only">

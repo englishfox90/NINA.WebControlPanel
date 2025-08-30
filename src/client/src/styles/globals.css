@@ -177,3 +177,23 @@ textarea {
   background: transparent;
   min-height: 100vh;
 }
+
+/* Safety Banner Animations */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.safety-warning-pulse {
+  animation: pulse 2s infinite;
+}

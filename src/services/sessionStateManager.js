@@ -129,6 +129,21 @@ class SessionStateManager extends EventEmitter {
               this.emit('equipmentChange', equipmentEvent);
             }
             
+            // Check for safety-related events for the safety banner
+            if (event.Event === 'FLAT-LIGHT-TOGGLED' || event.Event === 'SAFETY-CHANGED') {
+              console.log('🚨 Safety-related event detected:', event.Event);
+              
+              const safetyEvent = {
+                eventType: event.Event,
+                time: event.Time || new Date().toISOString(),
+                data: event.Data || {},
+                originalEvent: event
+              };
+              
+              // Emit safety event immediately for real-time safety monitoring
+              this.emit('safetyChange', safetyEvent);
+            }
+            
             // Add event to our events array
             this.events.unshift(event);
             console.log('📚 Event added to array. Total events:', this.events.length);
