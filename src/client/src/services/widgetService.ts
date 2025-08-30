@@ -1,4 +1,6 @@
 // Widget Service - Manages widgets using the dashboard_widgets table
+import { API_BASE_URL } from '../config/api';
+
 interface WidgetLayout {
   i: string;
   x: number;
@@ -23,7 +25,6 @@ interface WidgetResponse {
   error?: string;
 }
 
-import { API_BASE_URL } from '../config/api';
 const API_BASE = API_BASE_URL + '/api';
 
 export class WidgetService {
