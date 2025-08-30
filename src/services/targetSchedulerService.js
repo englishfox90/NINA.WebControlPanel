@@ -69,9 +69,11 @@ class TargetSchedulerService {
         `;
         const lastActivityResult = this.db.prepare(lastActivityQuery).get(project.id);
         
-        // Calculate overall completion
+        // Calculate overall completion - give credit for acquired images + full credit for accepted images
+        // Formula: (acquired + accepted) / (desired * 2) * 100, capped at 100%
+        // This rewards capture progress even before grading is complete
         const totalCompletion = project.total_desired > 0 
-          ? Math.round((project.total_accepted / project.total_desired) * 100 * 10) / 10
+          ? Math.min(100, Math.round(((project.total_acquired + project.total_accepted) / (project.total_desired * 2)) * 100 * 10) / 10)
           : 0;
 
         return {
@@ -114,11 +116,13 @@ class TargetSchedulerService {
       return targets.map(target => {
         const filters = this.getTargetFilters(target.id);
         
-        // Calculate target completion
+        // Calculate target completion - give credit for acquired images + full credit for accepted images  
+        // Formula: (acquired + accepted) / (desired * 2) * 100, capped at 100%
         const totalDesired = filters.reduce((sum, f) => sum + f.desired, 0);
+        const totalAcquired = filters.reduce((sum, f) => sum + f.acquired, 0);
         const totalAccepted = filters.reduce((sum, f) => sum + f.accepted, 0);
         const totalCompletion = totalDesired > 0 
-          ? Math.round((totalAccepted / totalDesired) * 100 * 10) / 10
+          ? Math.min(100, Math.round(((totalAcquired + totalAccepted) / (totalDesired * 2)) * 100 * 10) / 10)
           : 0;
 
         return {
@@ -173,7 +177,9 @@ class TargetSchedulerService {
           desired: filter.desired || 0,
           acquired: filter.acquired || 0,
           accepted: filter.accepted || 0,
-          completion: filter.desired > 0 ? Math.round((filter.accepted / filter.desired) * 100) : 0,
+          // Updated completion calculation: (acquired + accepted) / (desired * 2) * 100, capped at 100%
+          // This gives partial credit for captured images before grading
+          completion: filter.desired > 0 ? Math.min(100, Math.round(((filter.acquired + filter.accepted) / (filter.desired * 2)) * 100)) : 0,
           exposureTime: exposureTime,
           desiredIntegrationTime: desiredIntegrationTime,
           acquiredIntegrationTime: acquiredIntegrationTime,
@@ -217,8 +223,9 @@ class TargetSchedulerService {
         ...project,
         targets: targets,
         recentImages: recentImages,
+        // Updated completion calculation: (acquired + accepted) / (desired * 2) * 100, capped at 100%
         totalCompletion: project.total_desired > 0 
-          ? Math.round((project.total_accepted / project.total_desired) * 100 * 10) / 10
+          ? Math.min(100, Math.round(((project.total_acquired + project.total_accepted) / (project.total_desired * 2)) * 100 * 10) / 10)
           : 0
       };
     } catch (error) {
