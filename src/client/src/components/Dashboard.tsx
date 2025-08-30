@@ -20,6 +20,13 @@ import {
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
+// Interface for NINA connection status
+interface NinaConnectionStatus {
+  connected: boolean;
+  message: string;
+  mockMode?: boolean;
+}
+
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 // Grid layout configuration
@@ -53,6 +60,10 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [layoutLoading, setLayoutLoading] = useState(true);
   const [rtspFeeds, setRtspFeeds] = useState<string[]>([]);
+  const [ninaConnectionStatus, setNinaConnectionStatus] = useState<NinaConnectionStatus>({
+    connected: false,
+    message: 'Checking connection...'
+  });
 
   // Load widgets from database
   const loadWidgets = async () => {
@@ -89,9 +100,32 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Fetch NINA connection status
+  const fetchNinaConnectionStatus = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/nina/status');
+      const status = await response.json();
+      setNinaConnectionStatus(status);
+    } catch (error) {
+      console.error('Failed to fetch NINA connection status:', error);
+      setNinaConnectionStatus({
+        connected: false,
+        message: 'Failed to check connection'
+      });
+    }
+  };
+
   useEffect(() => {
     loadWidgets();
     fetchConfig();
+    fetchNinaConnectionStatus();
+
+    // Set up periodic connection status checking every 30 seconds
+    const statusInterval = setInterval(fetchNinaConnectionStatus, 30000);
+
+    return () => {
+      clearInterval(statusInterval);
+    };
   }, []);
 
   // Handle layout changes and save to database
@@ -124,8 +158,9 @@ const Dashboard: React.FC = () => {
 
   const handleRefresh = () => {
     setLoading(true);
-    // Refresh config along with other data
+    // Refresh config and NINA status along with other data
     fetchConfig();
+    fetchNinaConnectionStatus();
     setTimeout(() => setLoading(false), 1000);
   };
 
@@ -180,11 +215,12 @@ const Dashboard: React.FC = () => {
           </Heading>
           <Flex align="center" gap="2">
             <Badge 
-              color="green" 
+              color={ninaConnectionStatus.connected ? "green" : "red"} 
               variant="soft"
             >
               <DotFilledIcon width="8" height="8" />
-              ONLINE
+              {ninaConnectionStatus.connected ? "NINA CONNECTED" : "NINA DISCONNECTED"}
+              {ninaConnectionStatus.mockMode && " (MOCK)"}
             </Badge>
             <Text size="2" color="gray">
               Last Update: {new Date().toLocaleTimeString()}
