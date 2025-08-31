@@ -18,19 +18,30 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastImageSave, setLastImageSave] = useState<string>('');
+  const [lastApiCall, setLastApiCall] = useState<number>(0);
 
   // Use enhanced unified WebSocket for scheduler events
   const { 
     connected: wsConnected, 
     onWidgetEvent,
+    onSessionUpdate,
     lastEvent 
   } = useSchedulerWebSocket();
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (reason = 'manual') => {
+    // Throttle API calls - minimum 3 seconds between calls
+    const now = Date.now();
+    if (now - lastApiCall < 3000 && reason !== 'manual') {
+      console.log('📊 Scheduler API call throttled (< 3s since last call)');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
+      setLastApiCall(now);
       
+      console.log(`📊 Scheduler API call: ${reason}`);
       const response = await fetch(getApiUrl('scheduler/progress'));
       if (!response.ok) throw new Error('Failed to fetch');
       
@@ -41,47 +52,58 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [lastApiCall]);
 
-  // Enhanced WebSocket event handler for image saves
-  const handleImageSaveEvent = useCallback((event: any) => {
-    console.log('📊 Scheduler image save event received:', event.Type, event.Data);
+  // Enhanced WebSocket event handler - only for IMAGE-SAVE events
+  const handleWidgetEvent = useCallback((event: any) => {
+    console.log('📊 Scheduler widget event received:', event.Type, event.Data?.ImageStatistics?.ImageType);
     
-    // Only process IMAGE-SAVE events with ImageStatistics (ignore calibration images)
+    // Only process IMAGE-SAVE events with ImageStatistics (light frames)
     if (event.Type === 'IMAGE-SAVE' && event.Data?.ImageStatistics) {
       const imageStats = event.Data.ImageStatistics;
-      console.log('✅ Processing light frame for scheduler progress:', imageStats);
       
+      // Skip calibration frames (darks, flats, bias)
+      if (imageStats.ImageType && imageStats.ImageType !== 'LIGHT') {
+        console.log('📊 Ignoring calibration frame:', imageStats.ImageType);
+        return;
+      }
+      
+      console.log('✅ Processing light frame for scheduler progress update');
       setLastImageSave(event.Timestamp);
-      
-      // Refresh project progress when new light frame is saved
-      console.log('📊 New light frame saved, refreshing scheduler progress...');
-      fetchData();
-    } else if (event.Type === 'IMAGE-SAVE') {
-      console.log('📊 Ignoring IMAGE-SAVE event without ImageStatistics (likely calibration frame)');
+      fetchData('light-frame-captured');
+    } else if (event.Type === 'SEQUENCE-FINISHED') {
+      console.log('📊 Sequence finished, updating scheduler progress');
+      fetchData('sequence-finished');
     }
   }, [fetchData]);
 
-  // Subscribe to image save WebSocket events using enhanced system
+  // Handle session updates for "Shooting Now" badge updates
+  const handleSessionUpdate = useCallback((sessionData: any) => {
+    // Only update if target changed (affects "Shooting Now" badge)
+    const newTarget = sessionData?.target?.name;
+    const currentTarget = data?.find((p: any) => p.isCurrentlyActive)?.targets?.[0]?.name;
+    
+    if (newTarget !== currentTarget) {
+      console.log('📊 Target changed, updating "Shooting Now" badge:', newTarget);
+      fetchData('target-changed');
+    }
+  }, [data, fetchData]);
+
+  // Subscribe to events using optimized handlers
   useEffect(() => {
-    const unsubscribeWidget = onWidgetEvent(handleImageSaveEvent);
+    const unsubscribeWidget = onWidgetEvent(handleWidgetEvent);
+    const unsubscribeSession = onSessionUpdate(handleSessionUpdate);
     
     return () => {
       unsubscribeWidget();
+      unsubscribeSession();
     };
-  }, [onWidgetEvent, handleImageSaveEvent]);
+  }, [onWidgetEvent, onSessionUpdate, handleWidgetEvent, handleSessionUpdate]);
 
+  // Initial data load
   useEffect(() => {
-    fetchData();
+    fetchData('initial-load');
   }, [fetchData]);
-
-  // Global refresh integration
-  useEffect(() => {
-    if (onRefresh) {
-      const handleGlobalRefresh = () => fetchData();
-      // Listen for global refresh events if needed
-    }
-  }, [onRefresh, fetchData]);
 
   if (loading) {
     return (
@@ -162,42 +184,43 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
             <Card key={project.id} variant="surface">
               <Box p="3">
                 <Flex justify="between" align="center" mb="2">
-                  <HoverCard.Root>
-                    <HoverCard.Trigger>
-                      <Text weight="bold" size="3" style={{ cursor: 'pointer' }}>
-                        {project.name}
-                      </Text>
-                    </HoverCard.Trigger>
-                    <HoverCard.Content size="3" style={{ maxWidth: '500px', width: '500px' }}>
-                      <Flex direction="column" gap="2">
-                        <Heading size="3">{project.name}</Heading>
-                        {project.description && (
-                          <Text size="2" color="gray">{project.description}</Text>
-                        )}
-                        <Separator />
-                        <Heading size="2">Filter Details</Heading>
-                        {project.targets?.[0]?.filters?.map((filter: any) => {
-                          const integrationMinutes = Math.round((filter.acceptedIntegrationTime || 0) / 60);
-                          const desiredMinutes = Math.round((filter.desiredIntegrationTime || 0) / 60);
-                          const remainingMinutes = Math.round((filter.remainingIntegrationTime || 0) / 60);
-                          
-                          // Helper function to format time
-                          const formatTime = (minutes: number) => {
-                            if (minutes >= 60) {
-                              const hours = Math.floor(minutes / 60);
-                              const remainingMins = minutes % 60;
-                              return remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
-                            }
-                            return `${minutes}m`;
-                          };
-                          
-                          return (
-                            <Box key={filter.filtername}>
-                              <Flex justify="between" align="center" mb="1">
-                                <Text weight="medium" size="2">{filter.filtername}</Text>
-                                <Badge variant="soft" color={
-                                  filter.completion >= 100 ? 'green' : 
-                                  filter.completion >= 50 ? 'amber' : 'red'
+                  <Flex align="center" gap="2">
+                    <HoverCard.Root>
+                      <HoverCard.Trigger>
+                        <Text weight="bold" size="3" style={{ cursor: 'pointer' }}>
+                          {project.name}
+                        </Text>
+                      </HoverCard.Trigger>
+                      <HoverCard.Content size="3" style={{ maxWidth: '500px', width: '500px' }}>
+                        <Flex direction="column" gap="2">
+                          <Heading size="3">{project.name}</Heading>
+                          {project.description && (
+                            <Text size="2" color="gray">{project.description}</Text>
+                          )}
+                          <Separator />
+                          <Heading size="2">Filter Details</Heading>
+                          {project.targets?.[0]?.filters?.map((filter: any) => {
+                            const integrationMinutes = Math.round((filter.acceptedIntegrationTime || 0) / 60);
+                            const desiredMinutes = Math.round((filter.desiredIntegrationTime || 0) / 60);
+                            const remainingMinutes = Math.round((filter.remainingIntegrationTime || 0) / 60);
+                            
+                            // Helper function to format time
+                            const formatTime = (minutes: number) => {
+                              if (minutes >= 60) {
+                                const hours = Math.floor(minutes / 60);
+                                const remainingMins = minutes % 60;
+                                return remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
+                              }
+                              return `${minutes}m`;
+                            };
+                            
+                            return (
+                              <Box key={filter.filtername}>
+                                <Flex justify="between" align="center" mb="1">
+                                  <Text weight="medium" size="2">{filter.filtername}</Text>
+                                  <Badge variant="soft" color={
+                                    filter.completion >= 100 ? 'green' : 
+                                    filter.completion >= 50 ? 'amber' : 'red'
                                 }>
                                   {filter.completion}%
                                 </Badge>
@@ -233,6 +256,13 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
                       </Flex>
                     </HoverCard.Content>
                   </HoverCard.Root>
+                    {project.isCurrentlyActive && (
+                      <Badge variant="solid" color="green">
+                        <DotFilledIcon width="12" height="12" />
+                        Shooting Now
+                      </Badge>
+                    )}
+                  </Flex>
                   <Badge 
                     variant="soft" 
                     color={project.priority === 2 ? 'red' : project.priority === 1 ? 'amber' : 'gray'}
@@ -350,7 +380,7 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
               </Box>
             </Card>
           )) || <Text size="2" color="gray">No projects found</Text>}
-          </Flex>
+        </Flex>
 
       </Flex>
     </Card>
