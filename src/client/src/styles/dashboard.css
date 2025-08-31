@@ -199,9 +199,9 @@
     display: flex;
   }
 }
-
+/* 
 /* Dark theme adjustments */
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   .widget-container {
     border-color: var(--gray-7);
     background: var(--gray-2);
@@ -223,7 +223,8 @@
     color: var(--gray-11);
     border-bottom-color: var(--gray-7);
   }
-}
+} */
+
 
 /* Hide resize handles in view mode */
 .widget-container.view-mode .react-resizable-handle {
@@ -238,4 +239,9 @@
 /* Show widget header only in view mode */
 .widget-container.edit-mode .widget-header {
   display: none;
+}
+
+.radix-themes:where([data-panel-background='translucent']) {
+  --color-panel: none !important;
+  --backdrop-filter-panel: blur(64px);
 }

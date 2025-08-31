@@ -1,3 +1,9 @@
+# NINA WebControlPanel - Astrophotography Monitoring Dashboard
+# This is a private monitoring interface for telescope equipment
 # https://www.robotstxt.org/robotstxt.html
+
 User-agent: *
-Disallow:
+Disallow: /
+
+# Private astrophotography monitoring interface
+# Not intended for public indexing

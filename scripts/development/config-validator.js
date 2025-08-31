@@ -172,16 +172,41 @@ class ConfigValidator {
       const configDb = getConfigDatabase();
       const config = configDb.getConfig();
       
-      const ninaUrl = `${config.nina.baseUrl}:${config.nina.apiPort}/api/info`;
+      // Fix URL construction - baseUrl already includes protocol, so we need to handle it properly
+      let baseUrl = config.nina.baseUrl;
       
-      // Test with timeout
-      const fetch = require('axios');
-      const response = await fetch.get(ninaUrl, { 
-        timeout: config.nina.timeout || 5000 
-      });
+      // Remove trailing slash if present
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
+      }
       
-      if (response.data) {
-        console.log('✅ NINA connection successful');
+      // If baseUrl already includes protocol, we need to extract just the host part for port construction
+      if (baseUrl.startsWith('http://') || baseUrl.startsWith('https://')) {
+        const urlParts = new URL(baseUrl);
+        const ninaUrl = `${urlParts.protocol}//${urlParts.hostname}:${config.nina.apiPort}/api/info`;
+        
+        // Test with timeout
+        const fetch = require('axios');
+        const response = await fetch.get(ninaUrl, { 
+          timeout: config.nina.timeout || 5000 
+        });
+        
+        if (response.data) {
+          console.log('✅ NINA connection successful');
+        }
+      } else {
+        // If no protocol, construct URL normally
+        const ninaUrl = `http://${baseUrl}:${config.nina.apiPort}/api/info`;
+        
+        // Test with timeout
+        const fetch = require('axios');
+        const response = await fetch.get(ninaUrl, { 
+          timeout: config.nina.timeout || 5000 
+        });
+        
+        if (response.data) {
+          console.log('✅ NINA connection successful');
+        }
       }
     } catch (error) {
       this.warnings.push(`NINA API not accessible: ${error.message} (will use mock data)`);

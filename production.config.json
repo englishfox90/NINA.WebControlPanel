@@ -1,0 +1,9 @@
+{
+  "NODE_ENV": "production",
+  "PORT": 3001,
+  "LOG_LEVEL": "info",
+  "ENABLE_CORS": true,
+  "BUILD_DIR": "C:\\Astrophotography\\NINA.WebControlPanel\\build",
+  "LOGS_DIR": "C:\\Astrophotography\\NINA.WebControlPanel\\logs",
+  "DEPLOYMENT_TIME": "2025-08-31T09:46:25.580Z"
+}

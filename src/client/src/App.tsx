@@ -13,7 +13,6 @@ const App: React.FC = () => {
       radius="medium" 
       appearance="dark" 
       hasBackground={false}
-      panelBackground="solid"
       scaling="100%"
     >
       <Dashboard />

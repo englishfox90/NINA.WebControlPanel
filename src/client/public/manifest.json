@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "NINA WebControl",
+  "name": "NINA WebControlPanel - Astrophotography Dashboard",
+  "description": "Real-time monitoring and control dashboard for NINA (Nighttime Imaging 'N' Astronomy) astrophotography equipment",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +21,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#1e1e1e",
+  "background_color": "#0a0a0a",
+  "categories": ["astrophotography", "astronomy", "monitoring", "dashboard"]
 }

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <!-- Dark space background -->
+  <rect width="192" height="192" fill="#0a0a0a"/>
+  
+  <!-- Telescope aperture (outer ring) -->
+  <circle cx="96" cy="96" r="70" fill="none" stroke="#4a9eff" stroke-width="8"/>
+  
+  <!-- Camera/sensor (center square) -->
+  <rect x="76" y="76" width="40" height="40" fill="#ff6b35"/>
+  
+  <!-- NINA text -->
+  <text x="96" y="150" font-family="Arial, sans-serif" font-size="20" font-weight="bold" 
+        text-anchor="middle" fill="#ffffff">NINA</text>
+  
+  <!-- Stars -->
+  <circle cx="40" cy="40" r="3" fill="#ffffff"/>
+  <circle cx="150" cy="45" r="2.5" fill="#ffffff"/>
+  <circle cx="30" cy="130" r="2" fill="#ffffff"/>
+  <circle cx="160" cy="140" r="3" fill="#ffffff"/>
+  
+  <!-- Additional smaller stars -->
+  <circle cx="65" cy="25" r="1.5" fill="#ffffff"/>
+  <circle cx="125" cy="165" r="1.5" fill="#ffffff"/>
+</svg>

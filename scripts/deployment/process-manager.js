@@ -10,9 +10,10 @@ const os = require('os');
 
 class ProcessManager {
   constructor() {
-    this.configPath = path.join(__dirname, '..', 'src', 'server');
-    this.logDir = path.join(__dirname, '..', 'logs');
-    this.pidFile = path.join(__dirname, '..', 'nina-webcontrol.pid');
+    this.projectRoot = path.resolve(__dirname, '../..');
+    this.configPath = path.join(this.projectRoot, 'src', 'server');
+    this.logDir = path.join(this.projectRoot, 'logs');
+    this.pidFile = path.join(this.projectRoot, 'nina-webcontrol.pid');
     
     // Ensure log directory exists
     if (!fs.existsSync(this.logDir)) {
@@ -24,14 +25,44 @@ class ProcessManager {
   startServer() {
     console.log('🚀 Starting NINA WebControlPanel Backend Server...');
     
-    const serverProcess = spawn('node', ['config-server.js'], {
+    // Use process.execPath to get the current Node.js executable path
+    const nodeExecutable = process.execPath;
+    const serverScript = path.join(this.configPath, 'config-server.js');
+    
+    // Verify the server script exists
+    if (!fs.existsSync(serverScript)) {
+      console.error(`❌ Server script not found: ${serverScript}`);
+      return null;
+    }
+    
+    console.log(`   Node executable: ${nodeExecutable}`);
+    console.log(`   Server script: ${serverScript}`);
+    
+    // Set production environment variables
+    const env = {
+      ...process.env,
+      NODE_ENV: 'production',
+      BUILD_DIR: path.join(this.projectRoot, 'build')
+    };
+    
+    console.log(`   Environment: NODE_ENV=${env.NODE_ENV}, BUILD_DIR=${env.BUILD_DIR}`);
+    
+    const serverProcess = spawn(nodeExecutable, [serverScript], {
       cwd: this.configPath,
       detached: true,
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: env
+    });
+
+    // Handle spawn errors
+    serverProcess.on('error', (error) => {
+      console.error('❌ Failed to start server process:', error.message);
+      return null;
     });
 
     // Write PID for management
     fs.writeFileSync(this.pidFile, serverProcess.pid.toString());
+    console.log(`   Process ID: ${serverProcess.pid}`);
 
     // Set up logging
     const logFile = path.join(this.logDir, `server-${new Date().toISOString().split('T')[0]}.log`);
@@ -55,6 +86,7 @@ class ProcessManager {
       const timestamp = new Date().toISOString();
       const logEntry = `[${timestamp}] [EXIT] Process exited with code ${code}, signal ${signal}\n`;
       logStream.write(logEntry);
+      logStream.close();
       
       if (fs.existsSync(this.pidFile)) {
         fs.unlinkSync(this.pidFile);
@@ -71,6 +103,7 @@ class ProcessManager {
     process.on('SIGINT', () => this.stopServer());
     process.on('SIGTERM', () => this.stopServer());
 
+    console.log('✅ Server process started successfully');
     return serverProcess;
   }
 

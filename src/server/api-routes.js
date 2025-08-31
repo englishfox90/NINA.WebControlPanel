@@ -13,20 +13,8 @@ class APIRoutes {
     this.targetSchedulerService = targetSchedulerService;
     this.sessionStateManager = sessionStateManager;
     
-    // Initialize target scheduler database
-    this.targetSchedulerDb = null;
-    try {
-      const { getTargetSchedulerDatabase } = require('../services/targetSchedulerService');
-      const schedulerPath = configDatabase.getConfigValue('database.targetSchedulerPath', '../../resources/schedulerdb.sqlite');
-      const resolvedPath = path.resolve(__dirname, schedulerPath);
-      console.log(`🔍 Loading Target Scheduler from database config: ${schedulerPath}`);
-      console.log(`🔍 Resolved Target Scheduler path: ${resolvedPath}`);
-      this.targetSchedulerDb = getTargetSchedulerDatabase(resolvedPath);
-      console.log('✅ Target Scheduler database initialized from database configuration');
-    } catch (error) {
-      console.error('⚠️ Target Scheduler database not available:', error.message);
-      this.targetSchedulerDb = null;
-    }
+    // Use the targetSchedulerService passed from config-server.js
+    this.targetSchedulerDb = targetSchedulerService;
     
     console.log('🔧 API Routes initialized with all services');
   }
