@@ -5,29 +5,39 @@
 | `Dashboard.tsx` | ✅ Complete | Layout + navigation | ✅ Config API | Image gallery integration | 🟡 Medium |
 | `SystemStatusWidget.tsx` | ✅ Complete | **Real-time monitoring** | ✅ Cross-platform | None needed | ✅ Done |
 | `RTSPViewer.tsx` | ✅ Complete | **Live video feeds** | ✅ Working streams | Enhanced controls | 🟢 Low |
-| `TargetSchedulerWidget.tsx` | ✅ Complete | **Live project progress** | ✅ SQLite integration | None needed |*Last Updated: August 31, 2025 at 14:30 - ImageViewer Architectural Alignment & WebSocket Error Fixes Complete*
+| `TargetSchedulerWidget.tsx` | ✅ Complete | **Live project progress** | ✅ SQLite integration | None needed |*Last Updated: August 31, 2025 at 15:00 - Complete Session Committed: Dark Capture Framework, ImageViewer Alignment & Production Testing Suite*
 
-## 🆕 Recent Updates (August 31, 2025 Session)
+## 🆕 Recent Updates (August 31, 2025 Session) - ALL COMMITTED ✅
 
-### ImageViewer Architectural Alignment ✅
-- **Issue**: ImageViewer was making direct backend API calls while other widgets used `getApiUrl()` helper
-- **Solution**: Updated ImageViewer to use `getApiUrl('nina/prepared-image?...')` for consistency
-- **Result**: All widgets now follow the same architectural pattern with centralized API configuration
+### Major Features Completed & Committed:
 
-### Event-Driven Image Loading ✅  
-- **Issue**: ImageViewer was fetching images on component mount unnecessarily
-- **Solution**: Removed initial fetch, now purely event-driven (WebSocket IMAGE-SAVE events only)
-- **Result**: Reduced API load and true real-time behavior
+#### 1. Dark Capture Framework ✅ (Commit: `5ff3fca`)
+- **Complete dark frame detection** with real-time WebSocket processing
+- **Enhanced session boundary detection** with 30-minute gap logic
+- **Comprehensive exposure time grouping** for multiple exposure sequences (1s, 15s, 180s+)
+- **Session state debugging** with detailed logging for troubleshooting edge cases
 
-### WebSocket Error Handling ✅
-- **Issue**: "data.find is not a function" error in WebSocket message parsing
-- **Solution**: Added robust validation in NINAStatus.tsx to check `equipment` is array before calling `.map()`
-- **Result**: Eliminated WebSocket parsing errors and improved stability
+#### 2. ImageViewer Architectural Alignment ✅ (Commits: `62551b7`, `6633191`)
+- **Architectural consistency**: Updated to use `getApiUrl()` helper like Dashboard/NINAStatus
+- **Event-driven architecture**: Removed initial fetch, now purely WebSocket IMAGE-SAVE driven
+- **Interface enhancements**: New ImageStatistics interface with comprehensive metadata
 
-### Interface Architecture Enhancements ✅
-- **Added**: `src/client/src/interfaces/image.ts` with comprehensive ImageStatistics interface
-- **Enhanced**: Backend proxy pattern with proper binary data handling (arraybuffer)
-- **Updated**: Client package.json with proxy configuration for development consistency✅ Done |
+#### 3. WebSocket Stability Improvements ✅ (Commit: `31cda29`)
+- **Fixed parsing errors**: Eliminated "data.find is not a function" with robust validation
+- **Enhanced event routing**: Optimized widget-specific message delivery
+- **Better error handling**: Graceful degradation with proper array validation
+
+#### 4. SchedulerWidget Professional Enhancement ✅ (Commit: `5506b7a`)
+- **Professional hover cards** with detailed filter breakdowns (RGB, Ha, OIII counts)
+- **Integration time tracking** with total hours per project and per filter
+- **Data accuracy fixes** by excluding deleted exposure templates
+- **Enhanced visual design** with better spacing and professional presentation
+
+#### 5. Comprehensive Testing Suite ✅ (Commit: `8466639`)
+- **Dark capture testing**: Validates detection via ImageStatistics classification
+- **Session boundary testing**: Comprehensive gap detection scenarios
+- **Edge case coverage**: Exposure time transitions and state persistence
+- **Production debugging tools** for observatory troubleshooting✅ Done |
 | `TimeAstronomicalWidget.tsx` | ✅ Complete | **Live astronomical data** | ✅ Astronomical API | None needed | ✅ Done |
 | `SessionWidget.tsx` | ✅ Complete | **NINA session monitoring** | ✅ WebSocket integration | None needed | ✅ Done |
 | `NINAStatus.tsx` | ✅ Complete | **Live equipment status** | ✅ NINA API integration | None needed | ✅ Done |
