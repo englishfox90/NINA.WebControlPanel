@@ -43,7 +43,21 @@ class EventProcessor extends EventEmitter {
     if (this.isImageEvent(eventType)) {
       const imageData = this.processImageEvent(event, eventTime);
       this.emit('imageEvent', imageData);
+      
+      // Check if this is a dark frame
+      if (this.isDarkImage(event)) {
+        const darkData = this.processDarkEvent(event, eventTime);
+        this.emit('darkEvent', darkData);
+        return { type: 'dark', data: darkData };
+      }
+      
       return { type: 'image', data: imageData };
+    }
+
+    if (this.isFlatEvent(eventType)) {
+      const flatData = this.processFlatEvent(event, eventTime);
+      this.emit('flatEvent', flatData);
+      return { type: 'flat', data: flatData };
     }
 
     if (this.isActivityEvent(eventType)) {
@@ -82,6 +96,11 @@ class EventProcessor extends EventEmitter {
 
   isImageEvent(eventType) {
     return eventType === 'IMAGE-SAVE';
+  }
+
+  isFlatEvent(eventType) {
+    return eventType.startsWith('FLAT-') || 
+           ['FLAT-COVER-CLOSED', 'FLAT-COVER-OPENED', 'FLAT-LIGHT-TOGGLED', 'FLAT-BRIGHTNESS-CHANGED'].includes(eventType);
   }
 
   isActivityEvent(eventType) {
@@ -160,6 +179,37 @@ class EventProcessor extends EventEmitter {
     };
   }
 
+  processFlatEvent(event, eventTime) {
+    const eventType = event.Event;
+    const data = {
+      type: eventType,
+      time: eventTime.toISOString(),
+      originalEvent: event
+    };
+
+    switch (eventType) {
+      case 'FLAT-COVER-CLOSED':
+        return { ...data, action: 'session_start', isCoverClosed: true };
+      
+      case 'FLAT-COVER-OPENED':
+        return { ...data, action: 'session_end', isCoverClosed: false };
+      
+      case 'FLAT-LIGHT-TOGGLED':
+        return { ...data, action: 'light_toggle', isLightOn: event.IsLightOn || false };
+      
+      case 'FLAT-BRIGHTNESS-CHANGED':
+        return { 
+          ...data, 
+          action: 'brightness_change', 
+          brightness: event.New || null,
+          previousBrightness: event.Previous || null 
+        };
+      
+      default:
+        return { ...data, action: 'unknown' };
+    }
+  }
+
   processActivityEvent(event, eventTime) {
     const eventType = event.Event;
     let subsystem = null;
@@ -201,6 +251,29 @@ class EventProcessor extends EventEmitter {
     return {
       type: event.Event === 'SEQUENCE-STARTING' ? 'start' : 'finish',
       time: eventTime.toISOString(),
+      originalEvent: event
+    };
+  }
+
+  // Dark frame detection and processing
+  isDarkImage(event) {
+    return event.Event === 'IMAGE-SAVE' && 
+           event.ImageStatistics && 
+           event.ImageStatistics.ImageType === 'DARK';
+  }
+
+  processDarkEvent(event, eventTime) {
+    const stats = event.ImageStatistics;
+    return {
+      type: 'dark_capture',
+      time: eventTime.toISOString(),
+      exposureTime: stats.ExposureTime || 0,
+      temperature: stats.Temperature || null,
+      filter: stats.Filter || null,
+      gain: stats.Gain || null,
+      offset: stats.Offset || null,
+      cameraName: stats.CameraName || 'Unknown',
+      action: 'image_captured',
       originalEvent: event
     };
   }

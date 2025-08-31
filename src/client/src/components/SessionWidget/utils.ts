@@ -108,22 +108,163 @@ export const getSessionStatus = (sessionData: any): 'active' | 'idle' | 'unknown
 };
 
 /**
+ * Extract flat capture information from session data
+ */
+export const extractFlatInfo = (sessionData: any) => {
+  if (!sessionData) return null;
+  
+  if (isEnhancedSessionData(sessionData)) {
+    const enhanced = sessionData as any;
+    return enhanced.flats || null;
+  }
+  
+  // Check if legacy session has flat activity
+  if (isLegacySessionData(sessionData)) {
+    const legacy = sessionData as any;
+    if (legacy.activity?.subsystem === 'flats') {
+      return {
+        isActive: legacy.activity.state === 'capturing_flats' || legacy.activity.state === 'calibrating_flats',
+        filter: legacy.filter?.name || null,
+        brightness: null, // Not available in legacy format
+        imageCount: 0, // Would need to track separately
+        startedAt: legacy.activity.since,
+        lastImageAt: legacy.lastImage?.time || null,
+        state: legacy.activity.state
+      };
+    }
+  }
+  
+  return null;
+};
+
+/**
+ * Extract dark capture information from session data
+ */
+export const extractDarkInfo = (sessionData: any) => {
+  if (!sessionData) return null;
+  
+  if (isEnhancedSessionData(sessionData)) {
+    const enhanced = sessionData as any;
+    return enhanced.darks || null;
+  }
+  
+  // Check if legacy session has dark activity
+  if (isLegacySessionData(sessionData)) {
+    const legacy = sessionData as any;
+    if (legacy.activity?.subsystem === 'darks') {
+      return {
+        isActive: legacy.activity.state === 'capturing_darks',
+        currentExposureTime: legacy.activity.details?.exposureTime || null,
+        exposureGroups: {},
+        totalImages: legacy.activity.details?.totalImages || 0,
+        startedAt: legacy.activity.since,
+        lastImageAt: legacy.lastImage?.time || null,
+        state: legacy.activity.state,
+        details: legacy.activity.details
+      };
+    }
+  }
+  
+  return null;
+};
+
+/**
+ * Check if session is currently capturing flats
+ */
+export const isCapturingFlats = (sessionData: any): boolean => {
+  const flatInfo = extractFlatInfo(sessionData);
+  return flatInfo?.isActive === true || false;
+};
+
+/**
+ * Check if session is currently capturing darks
+ */
+export const isCapturingDarks = (sessionData: any): boolean => {
+  const darkInfo = extractDarkInfo(sessionData);
+  return darkInfo?.isActive === true || false;
+};
+
+/**
+ * Format flat capture status for display
+ */
+export const formatFlatStatus = (sessionData: any): { text: string; color: string } | null => {
+  const flatInfo = extractFlatInfo(sessionData);
+  if (!flatInfo || !flatInfo.isActive) return null;
+  
+  const state = (flatInfo as any).state;
+  if (state === 'calibrating_flats') {
+    return {
+      text: `Calibrating flats${flatInfo.filter ? ` (${flatInfo.filter})` : ''}`,
+      color: 'orange'
+    };
+  } else if (state === 'capturing_flats') {
+    return {
+      text: `Capturing flats${flatInfo.filter ? ` (${flatInfo.filter})` : ''}${flatInfo.imageCount > 0 ? ` - ${flatInfo.imageCount} taken` : ''}`,
+      color: 'blue'
+    };
+  }
+  
+  return {
+    text: `Flat panel active${flatInfo.filter ? ` (${flatInfo.filter})` : ''}`,
+    color: 'gray'
+  };
+};
+
+/**
+ * Format dark capture status for display
+ */
+export const formatDarkStatus = (sessionData: any): { text: string; color: string } | null => {
+  const darkInfo = extractDarkInfo(sessionData);
+  if (!darkInfo || !darkInfo.isActive) return null;
+  
+  const currentExposure = darkInfo.currentExposureTime;
+  const totalImages = darkInfo.totalImages || 0;
+  const exposureCount = darkInfo.details?.exposureCount || 0;
+  const totalExposures = darkInfo.details?.totalExposures || Object.keys(darkInfo.exposureGroups || {}).length;
+  
+  let text = 'Capturing darks';
+  
+  if (currentExposure) {
+    text += ` (${currentExposure}s)`;
+    if (exposureCount > 0) {
+      text += ` - ${exposureCount} taken`;
+    }
+  } else if (totalImages > 0) {
+    text += ` - ${totalImages} total`;
+  }
+  
+  if (totalExposures > 1) {
+    text += ` [${totalExposures} exposure times]`;
+  }
+  
+  return {
+    text,
+    color: 'purple'
+  };
+};
+
+/**
  * Extract target information from session data
  */
 export const extractTargetInfo = (sessionData: any) => {
   if (!sessionData) return null;
   
+  let target = null;
+  
   if (isEnhancedSessionData(sessionData)) {
     const enhanced = sessionData as any;
-    return enhanced.target;
-  }
-  
-  if (isLegacySessionData(sessionData)) {
+    target = enhanced.target;
+  } else if (isLegacySessionData(sessionData)) {
     const legacy = sessionData as any;
-    return legacy.target;
+    target = legacy.target;
   }
   
-  return null;
+  // Don't show expired targets in the UI
+  if (target && target.isExpired) {
+    return null;
+  }
+  
+  return target;
 };
 
 /**

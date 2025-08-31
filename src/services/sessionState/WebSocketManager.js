@@ -178,7 +178,9 @@ class WebSocketManager extends EventEmitter {
           Event: eventType,
           Time: new Date().toISOString(),
           Timestamp: new Date().toISOString(),
-          Data: message.Response // Include the full response data
+          // Flatten the response data to match expected structure
+          ...message.Response,
+          Data: message.Response // Keep original for reference
         };
         
         console.log('📡 NINA WebSocket Event:', ninaEvent.Event, 'received at', new Date().toISOString());

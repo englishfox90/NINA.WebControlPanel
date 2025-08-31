@@ -19,7 +19,15 @@ class SessionStateProcessor extends EventEmitter {
       lastEquipmentChange: null,
       sessionStart: null,
       isActive: false,
-      lastUpdate: null
+      lastUpdate: null,
+      flats: { 
+        isActive: false, 
+        filter: null, 
+        brightness: null, 
+        imageCount: 0, 
+        startedAt: null, 
+        lastImageAt: null 
+      }
     };
   }
 
@@ -87,13 +95,29 @@ class SessionStateProcessor extends EventEmitter {
     const nowTime = now.getTime();
     let startIndex = -1;
     let endIndex = -1;
+    let sessionType = null; // 'sequence', 'flats', or 'darks'
 
-    // Find last SEQUENCE-STARTING at or before now
+    // Find the most recent session start
     for (let i = sortedEvents.length - 1; i >= 0; i--) {
-      if (sortedEvents[i].Event === 'SEQUENCE-STARTING' && 
-          sortedEvents[i].parsedTime.getTime() <= nowTime) {
-        startIndex = i;
-        break;
+      const event = sortedEvents[i];
+      if (event.parsedTime.getTime() <= nowTime) {
+        if (event.Event === 'SEQUENCE-STARTING') {
+          startIndex = i;
+          sessionType = 'sequence';
+          break;
+        } else if (event.Event === 'FLAT-COVER-CLOSED') {
+          startIndex = i;
+          sessionType = 'flats';
+          break;
+        }
+      }
+    }
+
+    // Check for dark capture session if no other session found
+    if (startIndex === -1) {
+      const darkSession = this.findDarkCaptureSession(sortedEvents, now);
+      if (darkSession.hasActiveSession) {
+        return { ...darkSession, sessionType: 'darks' };
       }
     }
 
@@ -101,9 +125,11 @@ class SessionStateProcessor extends EventEmitter {
       return { hasActiveSession: false, startIndex: -1, endIndex: -1 };
     }
 
-    // Find first SEQUENCE-FINISHED after that start
+    // Find corresponding end event after that start
     for (let i = startIndex + 1; i < sortedEvents.length; i++) {
-      if (sortedEvents[i].Event === 'SEQUENCE-FINISHED') {
+      const event = sortedEvents[i];
+      if ((sessionType === 'sequence' && event.Event === 'SEQUENCE-FINISHED') ||
+          (sessionType === 'flats' && event.Event === 'FLAT-COVER-OPENED')) {
         endIndex = i;
         break;
       }
@@ -112,14 +138,83 @@ class SessionStateProcessor extends EventEmitter {
     return {
       hasActiveSession: true,
       startIndex,
-      endIndex
+      endIndex,
+      sessionType
     };
   }
 
+  findDarkCaptureSession(sortedEvents, now) {
+    const nowTime = now.getTime();
+    let firstDarkIndex = -1;
+    let lastDarkIndex = -1;
+    
+    // Find all dark frame events within a reasonable time window (30 minutes)
+    const darkEvents = [];
+    for (let i = 0; i < sortedEvents.length; i++) {
+      const event = sortedEvents[i];
+      if (event.Event === 'IMAGE-SAVE' && 
+          event.ImageStatistics && 
+          event.ImageStatistics.ImageType === 'DARK') {
+        darkEvents.push({ index: i, event, time: event.parsedTime.getTime() });
+      }
+    }
+
+    if (darkEvents.length === 0) {
+      return { hasActiveSession: false, startIndex: -1, endIndex: -1 };
+    }
+
+    // Find the most recent dark session (group of darks within 30 minutes)
+    const sessionGapMinutes = 30;
+    const sessionGapMs = sessionGapMinutes * 60 * 1000;
+    
+    let currentSessionStart = -1;
+    let currentSessionEnd = -1;
+    
+    for (let i = darkEvents.length - 1; i >= 0; i--) {
+      const darkEvent = darkEvents[i];
+      
+      // If this dark is before current time, it could be part of an active session
+      if (darkEvent.time <= nowTime) {
+        currentSessionEnd = darkEvent.index;
+        
+        // Find the start of this dark session (working backwards)
+        for (let j = i; j >= 0; j--) {
+          const prevDark = darkEvents[j];
+          const timeDiff = (j < darkEvents.length - 1) ? 
+            darkEvents[j + 1].time - prevDark.time : 0;
+          
+          if (j === 0 || timeDiff > sessionGapMs) {
+            currentSessionStart = prevDark.index;
+            break;
+          }
+        }
+        
+        // Check if this session is recent enough to be considered active (within last 30 minutes)
+        const lastDarkTime = sortedEvents[currentSessionEnd].parsedTime.getTime();
+        if (nowTime - lastDarkTime < sessionGapMs) {
+          return {
+            hasActiveSession: true,
+            startIndex: currentSessionStart,
+            endIndex: currentSessionEnd
+          };
+        }
+        break;
+      }
+    }
+
+    return { hasActiveSession: false, startIndex: -1, endIndex: -1 };
+  }
+
   extractSessionSlice(sortedEvents, boundaries) {
-    return boundaries.endIndex === -1 
-      ? sortedEvents.slice(boundaries.startIndex)
-      : sortedEvents.slice(boundaries.startIndex, boundaries.endIndex);
+    if (boundaries.endIndex === -1) {
+      return sortedEvents.slice(boundaries.startIndex);
+    } else if (boundaries.sessionType === 'darks') {
+      // For dark sessions, include the endIndex since it points to the last dark image
+      return sortedEvents.slice(boundaries.startIndex, boundaries.endIndex + 1);
+    } else {
+      // For sequence and flat sessions, endIndex points to the closing event (excluded)
+      return sortedEvents.slice(boundaries.startIndex, boundaries.endIndex);
+    }
   }
 
   buildSessionState(allEvents, sessionSlice, boundaries) {
@@ -146,7 +241,23 @@ class SessionStateProcessor extends EventEmitter {
       lastImage: sessionData.lastImage,
       safe,
       activity: sessionData.activity,
-      lastEquipmentChange
+      lastEquipmentChange,
+      flats: sessionData.flats || { 
+        isActive: false, 
+        filter: null, 
+        brightness: null, 
+        imageCount: 0, 
+        startedAt: null, 
+        lastImageAt: null 
+      },
+      darks: sessionData.darks || {
+        isActive: false,
+        currentExposureTime: null,
+        exposureGroups: {},
+        totalImages: 0,
+        startedAt: null,
+        lastImageAt: null
+      }
     };
   }
 
@@ -195,12 +306,42 @@ class SessionStateProcessor extends EventEmitter {
     let filter = null;
     let lastImage = null;
     let activity = { subsystem: null, state: null, since: null };
+    let flatState = { 
+      isActive: false, 
+      filter: null, 
+      brightness: null, 
+      imageCount: 0, 
+      startedAt: null, 
+      lastImageAt: null 
+    };
+    let darkState = {
+      isActive: false,
+      currentExposureTime: null,
+      exposureGroups: {},
+      totalImages: 0,
+      startedAt: null,
+      lastImageAt: null
+    };
 
     // Track equipment states for activity determination
     let lastAutofocusStart = null;
     let lastGuiderEvent = null;
     let lastMountEvent = null;
     let lastRotatorEvent = null;
+    
+    // Track flat capture sequence
+    let flatSessionActive = false;
+    let flatImageCount = 0;
+    let flatSessionStart = null;
+    let currentFilter = null;
+    let currentBrightness = null;
+
+    // Track dark capture sequence
+    let darkSessionActive = false;
+    let darkImageCount = 0;
+    let darkSessionStart = null;
+    let darkExposureGroups = {};
+    let currentDarkExposure = null;
 
     // Process each event in session
     for (const event of sessionSlice) {
@@ -217,6 +358,61 @@ class SessionStateProcessor extends EventEmitter {
       // Last image capture
       if (event.Event === 'IMAGE-SAVE') {
         lastImage = { time: event.Time };
+        
+        // Check if this is a dark frame
+        const isDarkFrame = event.ImageStatistics && event.ImageStatistics.ImageType === 'DARK';
+        
+        if (isDarkFrame) {
+          const exposureTime = event.ImageStatistics.ExposureTime || 0;
+          
+          // Initialize dark session if not active
+          if (!darkSessionActive) {
+            darkSessionActive = true;
+            darkSessionStart = event.Time;
+            darkImageCount = 0;
+            darkExposureGroups = {};
+            console.log('⚫ Dark capture session started');
+          }
+          
+          // Track by exposure time
+          if (!darkExposureGroups[exposureTime]) {
+            darkExposureGroups[exposureTime] = {
+              count: 0,
+              firstImageAt: event.Time,
+              lastImageAt: event.Time,
+              temperature: event.ImageStatistics.Temperature || null,
+              filter: event.ImageStatistics.Filter || null
+            };
+          }
+          
+          darkExposureGroups[exposureTime].count++;
+          darkExposureGroups[exposureTime].lastImageAt = event.Time;
+          darkImageCount++;
+          currentDarkExposure = exposureTime;
+          
+          console.log(`⚫ Dark frame captured: ${exposureTime}s (${darkExposureGroups[exposureTime].count} total for this exposure)`);
+          console.log(`🔍 Current dark exposure updated to: ${currentDarkExposure}s, total exposure groups:`, Object.keys(darkExposureGroups));
+        } else if (flatSessionActive) {
+          // If we're in a flat session, count the image
+          flatImageCount++;
+          flatState.lastImageAt = event.Time;
+        }
+      }
+
+      // Flat panel event processing
+      if (event.Event === 'FLAT-COVER-CLOSED') {
+        flatSessionActive = true;
+        flatSessionStart = event.Time;
+        flatImageCount = 0;
+        console.log('🟡 Flat capture session started');
+      } else if (event.Event === 'FLAT-COVER-OPENED') {
+        flatSessionActive = false;
+        console.log(`🟡 Flat capture session ended (${flatImageCount} flats captured)`);
+      } else if (event.Event === 'FLAT-BRIGHTNESS-CHANGED') {
+        currentBrightness = event.New || null;
+      } else if (event.Event === 'FILTERWHEEL-CHANGED' && flatSessionActive) {
+        // Track filter during flat session
+        currentFilter = event.New?.Name || null;
       }
 
       // Activity tracking
@@ -239,15 +435,75 @@ class SessionStateProcessor extends EventEmitter {
       }
     }
 
-    // Determine current activity (priority order)
-    activity = this.determineCurrentActivity({
-      lastAutofocusStart,
-      lastGuiderEvent,
-      lastMountEvent,
-      lastRotatorEvent
-    });
+    // Update flat state
+    flatState = {
+      isActive: flatSessionActive,
+      filter: currentFilter,
+      brightness: currentBrightness,
+      imageCount: flatImageCount,
+      startedAt: flatSessionStart,
+      lastImageAt: flatState.lastImageAt
+    };
 
-    return { target, filter, lastImage, activity };
+    // Update dark state
+    darkState = {
+      isActive: darkSessionActive,
+      currentExposureTime: currentDarkExposure,
+      exposureGroups: darkExposureGroups,
+      totalImages: darkImageCount,
+      startedAt: darkSessionStart,
+      lastImageAt: darkImageCount > 0 ? Object.values(darkExposureGroups).reduce((latest, group) => 
+        !latest || new Date(group.lastImageAt) > new Date(latest) ? group.lastImageAt : latest, null) : null
+    };
+
+    // Debug: Log final dark state
+    if (darkSessionActive) {
+      console.log(`🔍 Final dark state - Current exposure: ${currentDarkExposure}s, Total images: ${darkImageCount}, Groups:`, 
+        Object.entries(darkExposureGroups).map(([exp, data]) => `${exp}s: ${data.count} images`).join(', '));
+    }
+
+    // Determine current activity (priority order)
+    // If darks are active, override activity (highest priority for calibration frames)
+    if (darkSessionActive) {
+      const exposureCount = currentDarkExposure ? (darkExposureGroups[currentDarkExposure]?.count || 0) : 0;
+      activity = {
+        subsystem: 'darks',
+        state: 'capturing_darks',
+        since: darkSessionStart,
+        details: {
+          exposureTime: currentDarkExposure,
+          exposureCount: exposureCount,
+          totalExposures: Object.keys(darkExposureGroups).length,
+          totalImages: darkImageCount
+        }
+      };
+      
+      console.log(`🔍 Activity set for darks - Exposure: ${currentDarkExposure}s, Count: ${exposureCount}, Total groups: ${Object.keys(darkExposureGroups).length}`);
+    } else if (flatSessionActive) {
+      const isCalibratingFlats = flatImageCount === 0 && currentBrightness !== null;
+      activity = {
+        subsystem: 'flats',
+        state: isCalibratingFlats ? 'calibrating_flats' : 'capturing_flats',
+        since: flatSessionStart
+      };
+    } else {
+      activity = this.determineCurrentActivity({
+        lastAutofocusStart,
+        lastGuiderEvent,
+        lastMountEvent,
+        lastRotatorEvent
+      });
+    }
+
+    // Apply target expiration check
+    if (target) {
+      target.isExpired = this.isTargetExpired(target, lastImage?.time);
+      if (target.isExpired) {
+        console.log(`🎯 Target "${target.name}" has expired after 8 hours of inactivity`);
+      }
+    }
+
+    return { target, filter, lastImage, activity, flats: flatState, darks: darkState };
   }
 
   processTargetEvent(event) {
@@ -259,10 +515,48 @@ class SessionStateProcessor extends EventEmitter {
           ra: 0, dec: 0, raString: 'N/A', decString: 'N/A', 
           epoch: 'J2000', raDegrees: 0
         },
-        rotation: event.Rotation || null
+        rotation: event.Rotation || null,
+        startedAt: event.Time || null,
+        targetEndTime: event.TargetEndTime || null,  // Store the actual scheduled end time
+        isExpired: false  // Will be calculated later
       };
     }
     return null;
+  }
+
+  // Check if target has expired using actual TargetEndTime from Target Scheduler
+  isTargetExpired(target, lastImageTime) {
+    if (!target) return false;
+    
+    const now = new Date();
+    
+    // Use TargetEndTime if available (most accurate)
+    if (target.targetEndTime) {
+      const targetEndTime = new Date(target.targetEndTime);
+      const isExpired = now > targetEndTime;
+      
+      if (isExpired) {
+        const hoursOverdue = Math.round((now.getTime() - targetEndTime.getTime()) / (60 * 60 * 1000));
+        console.log(`🎯 Target "${target.name}" expired: scheduled until ${target.targetEndTime}, now ${hoursOverdue}h overdue`);
+      }
+      
+      return isExpired;
+    }
+    
+    // Fallback to 8-hour timeout if no TargetEndTime (legacy support)
+    if (target.startedAt) {
+      const targetStartTime = new Date(target.startedAt);
+      const eightHours = 8 * 60 * 60 * 1000;
+      const isExpired = (now.getTime() - targetStartTime.getTime()) > eightHours;
+      
+      if (isExpired) {
+        console.log(`🎯 Target "${target.name}" expired (fallback): started ${target.startedAt}, elapsed ${Math.round((now.getTime() - targetStartTime.getTime()) / (60 * 60 * 1000))}h`);
+      }
+      
+      return isExpired;
+    }
+    
+    return false;
   }
 
   processFilterEvent(event) {

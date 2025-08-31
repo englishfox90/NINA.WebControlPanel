@@ -17,6 +17,8 @@ export interface EnhancedSessionState {
     rotation: number | null;
     targetEndTime: string | null;
     since: string | null;
+    startedAt: string | null;
+    isExpired: boolean;
   };
   filter: {
     name: string | null;
@@ -30,9 +32,37 @@ export interface EnhancedSessionState {
     changedAt: string | null;
   };
   activity: {
-    subsystem: 'camera' | 'guider' | 'mount' | 'rotator' | null;
-    state: 'autofocus' | 'guiding' | 'slewing' | 'homed' | 'rotating' | null;
+    subsystem: 'camera' | 'guider' | 'mount' | 'rotator' | 'flats' | 'darks' | null;
+    state: 'autofocus' | 'guiding' | 'slewing' | 'homed' | 'rotating' | 'capturing_flats' | 'calibrating_flats' | 'capturing_darks' | null;
     since: string | null;
+    details?: {
+      exposureTime?: number;
+      exposureCount?: number;
+      totalExposures?: number;
+      totalImages?: number;
+    };
+  };
+  flats: {
+    isActive: boolean;
+    filter: string | null;
+    brightness: number | null;
+    imageCount: number;
+    startedAt: string | null;
+    lastImageAt: string | null;
+  };
+  darks: {
+    isActive: boolean;
+    currentExposureTime: number | null;
+    exposureGroups: Record<number, {
+      count: number;
+      firstImageAt: string;
+      lastImageAt: string;
+      temperature: number | null;
+      filter: string | null;
+    }>;
+    totalImages: number;
+    startedAt: string | null;
+    lastImageAt: string | null;
   };
   equipmentLastChange: {
     device: string | null;
@@ -74,8 +104,8 @@ export interface LegacySessionSafe {
 }
 
 export interface LegacySessionActivity {
-  subsystem: 'autofocus' | 'guiding' | 'mount' | 'rotator' | null;
-  state: 'running' | 'guiding' | 'slewing' | 'homed' | 'syncing' | null;
+  subsystem: 'autofocus' | 'guiding' | 'mount' | 'rotator' | 'flats' | null;
+  state: 'running' | 'guiding' | 'slewing' | 'homed' | 'syncing' | 'capturing_flats' | 'calibrating_flats' | null;
   since: string | null;
 }
 
@@ -111,6 +141,9 @@ export interface SessionTarget {
     raDegrees: number;
   };
   rotation: number | null;
+  startedAt: string | null;
+  targetEndTime: string | null;
+  isExpired: boolean;
 }
 
 export interface SessionFilter {

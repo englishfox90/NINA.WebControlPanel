@@ -57,19 +57,23 @@ export const useSessionData = (enableEnhancedMode = false): UseSessionDataReturn
 
   // Handle WebSocket session updates
   const handleSessionUpdate = useCallback((data: any) => {
-    console.log(`📡 Session update received (${enableEnhancedMode ? 'Enhanced' : 'Standard'}):`, data);
+    console.log(`📡 Session WebSocket update received - eliminating API call need:`, 
+                `Active: ${data.isActive}, Darks: ${data.darks?.totalImages || 0}, Target: ${data.target?.name || 'None'}`);
     setSessionData(data);
     setError(null);
-  }, [enableEnhancedMode]);
+    // Since we got WebSocket data, we're no longer loading
+    if (loading) {
+      setLoading(false);
+    }
+  }, [enableEnhancedMode, loading]);
 
   // Handle widget events
   const handleWidgetEvent = useCallback((event: any) => {
     console.log(`📡 Session widget event (${enableEnhancedMode ? 'Enhanced' : 'Standard'}):`, event.Type);
-    // Refresh on important session events
-    if (['SEQUENCE-STARTING', 'SEQUENCE-FINISHED', 'IMAGE-SAVE'].includes(event.Type)) {
-      loadSessionData();
-    }
-  }, [loadSessionData, enableEnhancedMode]);
+    // WebSocket session updates already contain all the data we need
+    // No need to make additional API calls since sessionUpdate messages include latest state
+    // This eliminates duplicate network requests shown in dev tools
+  }, [enableEnhancedMode]);
 
   // Subscribe to WebSocket events
   useEffect(() => {
@@ -82,10 +86,32 @@ export const useSessionData = (enableEnhancedMode = false): UseSessionDataReturn
     };
   }, [onSessionUpdate, onWidgetEvent, handleSessionUpdate, handleWidgetEvent]);
 
-  // Load initial data
+  // Smart initial data loading: prefer WebSocket, fallback to API
   useEffect(() => {
-    loadSessionData();
-  }, [loadSessionData]);
+    // If WebSocket is connected, wait briefly for session data
+    // Otherwise, load via API immediately
+    if (wsConnected) {
+      console.log('📡 WebSocket connected, waiting for session data...');
+      const wsTimeout = setTimeout(() => {
+        if (!sessionData) {
+          console.log('📡 No WebSocket data received, falling back to API');
+          loadSessionData();
+        }
+      }, 2000);
+      return () => clearTimeout(wsTimeout);
+    } else {
+      console.log('📡 WebSocket not connected, loading via API');
+      loadSessionData();
+    }
+  }, [wsConnected, loadSessionData]);
+
+  // Handle WebSocket connection status changes
+  useEffect(() => {
+    if (wsConnected && !sessionData && !loading) {
+      console.log('📡 WebSocket reconnected, data should arrive via sessionUpdate');
+      // Data should come via sessionUpdate, no API call needed
+    }
+  }, [wsConnected, sessionData, loading]);
 
   // Public refresh function
   const refresh = useCallback(async () => {

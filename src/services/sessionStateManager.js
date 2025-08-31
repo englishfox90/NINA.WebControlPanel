@@ -82,6 +82,25 @@ class SessionStateManager extends EventEmitter {
       }
       this.processSessionState();
     });
+
+    this.eventProcessor.on('flatEvent', (data) => {
+      console.log('🟡 Flat event:', data.action, data.brightness || '');
+      this.processSessionState();
+    });
+
+    this.eventProcessor.on('darkEvent', (data) => {
+      console.log('⚫ Dark event:', data.action, `${data.exposureTime}s`);
+      this.processSessionState();
+    });
+
+    this.eventProcessor.on('genericEvent', (data) => {
+      // Only update session state for important generic events
+      const importantEvents = ['IMAGE-SAVE', 'SEQUENCE-STARTING', 'SEQUENCE-FINISHED'];
+      if (importantEvents.includes(data.event.Event)) {
+        console.log('📋 Generic event triggers session update:', data.event.Event);
+        this.processSessionState();
+      }
+    });
   }
 
   setupErrorHandling() {
@@ -209,20 +228,12 @@ class SessionStateManager extends EventEmitter {
       console.log('📡 Emitting ninaEvent for WebSocket broadcast:', event.Event);
       this.emit('ninaEvent', event.Event, event);
       
-      // Update session state if needed
-      if (processedEvent && this.shouldUpdateSessionState(processedEvent.type)) {
-        this.processSessionState();
-      }
+      // Session state updates are handled by EventProcessor listeners
+      // No need to call processSessionState() here to avoid duplicates
       
     } catch (error) {
       console.error('❌ Error handling NINA event:', error);
     }
-  }
-
-  shouldUpdateSessionState(eventType) {
-    // Update session state for important events
-    const importantEvents = ['session', 'target', 'filter', 'image', 'activity', 'safety'];
-    return importantEvents.includes(eventType);
   }
 
   processSessionState() {
