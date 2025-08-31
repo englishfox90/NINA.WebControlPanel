@@ -43,6 +43,7 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [serverTimeOffset, setServerTimeOffset] = useState<number>(0);
 
   const fetchData = async () => {
     try {
@@ -56,6 +57,15 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
       
       const result = await response.json();
       setData(result);
+      
+      // Calculate server time offset for accurate time display
+      if (result.time?.serverTime) {
+        const serverTime = new Date(result.time.serverTime);
+        const browserTime = new Date();
+        const offset = serverTime.getTime() - browserTime.getTime();
+        setServerTimeOffset(offset);
+        console.log(`⏰ Server time offset: ${offset}ms (${Math.round(offset / 1000)}s)`);
+      }
     } catch (err) {
       console.error('Error fetching astronomical data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch astronomical data');
@@ -69,14 +79,16 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
     fetchData();
   }, []);
 
-  // Real-time clock update every second - memoized to prevent phase recalculation
+  // Real-time clock update every second - use server time offset
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(new Date());
+      const browserTime = new Date();
+      const serverTime = new Date(browserTime.getTime() + serverTimeOffset);
+      setCurrentTime(serverTime);
     }, 1000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [serverTimeOffset]);
 
   // Auto-refresh data every 30 minutes
   useEffect(() => {
@@ -433,11 +445,27 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
       <Flex direction="column" gap="4">
         {/* Current Time Display */}
         <Box style={{ textAlign: 'center' }}>
-          <Text size="6" weight="bold" className="font-mono">
-            {formatTime12Hour(currentTime)}
-          </Text>
+          <HoverCard.Root>
+            <HoverCard.Trigger>
+              <Text size="6" weight="bold" className="font-mono" style={{ cursor: 'help' }}>
+                {formatTime12Hour(currentTime)}
+              </Text>
+            </HoverCard.Trigger>
+            <HoverCard.Content size="1">
+              <Flex direction="column" gap="1">
+                <Text size="2" weight="bold">Time Information</Text>
+                <Text size="1">Server time: {formatTime12Hour(currentTime)}</Text>
+                <Text size="1">Browser time: {formatTime12Hour(new Date())}</Text>
+                {data?.time?.isDifferent && (
+                  <Text size="1" color="amber">
+                    ⚠️ Times differ by {Math.round((serverTimeOffset) / 1000)}s
+                  </Text>
+                )}
+              </Flex>
+            </HoverCard.Content>
+          </HoverCard.Root>
           <Text size="2" color="gray" style={{ display: 'block' }}>
-            Current local time
+            Server time (hover for details)
           </Text>
         </Box>
 
