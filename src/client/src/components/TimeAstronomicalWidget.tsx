@@ -152,18 +152,11 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
     }
 
     const phases: TimePhase[] = [];
-    // Use the server time for the reference date to ensure proper phase window calculation
+    // Use the current server time for the reference date to ensure proper phase window calculation
     const todayDateStr = data.astronomical.multiDay.today.date;
-    const serverTimezone = data?.time?.serverTimezone;
     
-    let referenceDate: Date;
-    if (serverTimezone && currentTime) {
-      // Use the current server time (from our state) for the reference
-      referenceDate = new Date(currentTime);
-    } else {
-      // Fallback to browser time if server timezone not available
-      referenceDate = new Date(`${todayDateStr}T${new Date().toTimeString().split(' ')[0]}`);
-    }
+    // Use the currentTime state which represents the server time
+    const referenceDate = currentTime || new Date();
     
     const windowStart = new Date(referenceDate.getTime() - 4 * 60 * 60 * 1000); // 4 hours before
     const windowEnd = new Date(referenceDate.getTime() + 4 * 60 * 60 * 1000); // 4 hours after
@@ -190,30 +183,13 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
       }
     };
 
-    // Helper to create dates from yesterday, today, tomorrow with proper server timezone handling
+    // Helper to create dates from yesterday, today, tomorrow 
+    // The astronomical API already returns times in the server's timezone, so no conversion needed
     const createDate = (dateStr: string, timeStr: string): Date => {
-      // Create date string and let the browser handle timezone conversion
       // The astronomical data times are already in the server's local timezone
+      // Just create Date objects directly without timezone compensation
       const dateTimeStr = `${dateStr}T${timeStr}`;
-      const serverTimezone = data?.time?.serverTimezone;
-      
-      if (serverTimezone) {
-        // Create a date object that represents the server time in the browser's context
-        // We need to adjust for the timezone difference
-        const tempDate = new Date(dateTimeStr);
-        
-        // Get the current date in both timezones to calculate offset
-        const now = new Date();
-        const nowInServerTZ = new Date(now.toLocaleString('en-US', { timeZone: serverTimezone }));
-        const nowInBrowserTZ = new Date(now.toLocaleString('en-US'));
-        const timezoneOffset = nowInBrowserTZ.getTime() - nowInServerTZ.getTime();
-        
-        // Apply the timezone offset to the server time
-        return new Date(tempDate.getTime() + timezoneOffset);
-      } else {
-        // Fallback to old behavior if no timezone info
-        return new Date(dateTimeStr);
-      }
+      return new Date(dateTimeStr);
     };
 
     // Add yesterday's evening phases if they extend into our window
