@@ -152,9 +152,19 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
     }
 
     const phases: TimePhase[] = [];
-    // Use the 'today' date from the astronomical data to ensure consistency
+    // Use the server time for the reference date to ensure proper phase window calculation
     const todayDateStr = data.astronomical.multiDay.today.date;
-    const referenceDate = new Date(`${todayDateStr}T${new Date().toTimeString().split(' ')[0]}`);
+    const serverTimezone = data?.time?.serverTimezone;
+    
+    let referenceDate: Date;
+    if (serverTimezone && currentTime) {
+      // Use the current server time (from our state) for the reference
+      referenceDate = new Date(currentTime);
+    } else {
+      // Fallback to browser time if server timezone not available
+      referenceDate = new Date(`${todayDateStr}T${new Date().toTimeString().split(' ')[0]}`);
+    }
+    
     const windowStart = new Date(referenceDate.getTime() - 4 * 60 * 60 * 1000); // 4 hours before
     const windowEnd = new Date(referenceDate.getTime() + 4 * 60 * 60 * 1000); // 4 hours after
 
@@ -180,11 +190,30 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
       }
     };
 
-    // Helper to create dates from yesterday, today, tomorrow with proper timezone handling
+    // Helper to create dates from yesterday, today, tomorrow with proper server timezone handling
     const createDate = (dateStr: string, timeStr: string): Date => {
-      // Create date in local timezone to match the API data which is already in local time
-      const date = new Date(`${dateStr}T${timeStr}`);
-      return date;
+      // Create date string and let the browser handle timezone conversion
+      // The astronomical data times are already in the server's local timezone
+      const dateTimeStr = `${dateStr}T${timeStr}`;
+      const serverTimezone = data?.time?.serverTimezone;
+      
+      if (serverTimezone) {
+        // Create a date object that represents the server time in the browser's context
+        // We need to adjust for the timezone difference
+        const tempDate = new Date(dateTimeStr);
+        
+        // Get the current date in both timezones to calculate offset
+        const now = new Date();
+        const nowInServerTZ = new Date(now.toLocaleString('en-US', { timeZone: serverTimezone }));
+        const nowInBrowserTZ = new Date(now.toLocaleString('en-US'));
+        const timezoneOffset = nowInBrowserTZ.getTime() - nowInServerTZ.getTime();
+        
+        // Apply the timezone offset to the server time
+        return new Date(tempDate.getTime() + timezoneOffset);
+      } else {
+        // Fallback to old behavior if no timezone info
+        return new Date(dateTimeStr);
+      }
     };
 
     // Add yesterday's evening phases if they extend into our window
@@ -346,7 +375,7 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
     const sortedPhases = phases.sort((a, b) => a.start.getTime() - b.start.getTime());
     
     return sortedPhases;
-  }, [data, Math.floor(Date.now() / (60 * 1000))]); // Recalculate every minute to update the 8-hour window
+  }, [data, currentTime, Math.floor(Date.now() / (60 * 1000))]); // Recalculate every minute and when currentTime changes
 
   // Generate chart data from phases - memoized to prevent recalculation
   const chartData = useMemo(() => {
