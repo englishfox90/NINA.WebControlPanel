@@ -6,10 +6,21 @@
   "scripts": {
     "start": "node start-dev.js",
     "start:dev": "node start-dev.js",
+    "start:prod": "node scripts/deployment/process-manager.js start",
+    "start:stable": "node scripts/monitoring/backend-monitor.js",
     "build": "cd src/client && npm run build",
     "test": "cd src/client && npm test",
     "server": "node src/server/config-server.js",
-    "client": "cd src/client && npm start"
+    "client": "cd src/client && npm start",
+    "validate": "node scripts/development/config-validator.js",
+    "deploy": "node scripts/deployment/deploy-production.js",
+    "health": "node scripts/monitoring/health-monitor.js",
+    "monitor": "node scripts/monitoring/backend-monitor.js",
+    "fix-backend": "node scripts/development/backend-stability-fix.js",
+    "apply-server-fix": "copy src\\server\\config-server.enhanced.js src\\server\\config-server.js",
+    "stop": "node scripts/deployment/process-manager.js stop",
+    "restart": "node scripts/deployment/process-manager.js restart",
+    "status": "node scripts/deployment/process-manager.js status"
   },
   "dependencies": {
     "@fontsource/space-grotesk": "^5.2.8",

@@ -84,6 +84,22 @@ class AstronomicalService {
         this.fetchAstronomicalData(latitude, longitude, tomorrowStr, false)
       ]);
 
+      // Debug: Log the received data structure
+      // console.log('📊 Astronomical API responses:');
+      // console.log('📅 Yesterday keys:', yesterdayData ? Object.keys(yesterdayData) : 'null');
+      // console.log('📅 Today keys:', todayData ? Object.keys(todayData) : 'null'); 
+      // console.log('📅 Tomorrow keys:', tomorrowData ? Object.keys(tomorrowData) : 'null');
+      
+      // Debug: Check specific values
+      // console.log('🌅 Sample yesterday data:', {
+      //   sunset: yesterdayData?.sunset,
+      //   civil_twilight_end: yesterdayData?.civil_twilight_end
+      // });
+      // console.log('🌅 Sample today data:', {
+      //   sunrise: todayData?.sunrise,
+      //   sunset: todayData?.sunset
+      // });
+
       // Convert UTC times to local timezone and extract times
       const convertToLocalTime = (utcDateTimeStr) => {
         try {
@@ -118,32 +134,32 @@ class AstronomicalService {
         astronomicalTwilightBegin: convertToLocalTime(todayData.astronomical_twilight_begin),
         astronomicalTwilightEnd: convertToLocalTime(todayData.astronomical_twilight_end),
         
-        // Multi-day data for 8-hour window calculations
+        // Multi-day data for 8-hour window calculations - with explicit null checks
         multiDay: {
           yesterday: {
             date: yesterdayStr,
-            sunset: convertToLocalTime(yesterdayData.sunset),
-            civilTwilightEnd: convertToLocalTime(yesterdayData.civil_twilight_end),
-            nauticalTwilightEnd: convertToLocalTime(yesterdayData.nautical_twilight_end),
-            astronomicalTwilightEnd: convertToLocalTime(yesterdayData.astronomical_twilight_end)
+            sunset: yesterdayData?.sunset ? convertToLocalTime(yesterdayData.sunset) : "19:00:00",
+            civilTwilightEnd: yesterdayData?.civil_twilight_end ? convertToLocalTime(yesterdayData.civil_twilight_end) : "19:30:00",
+            nauticalTwilightEnd: yesterdayData?.nautical_twilight_end ? convertToLocalTime(yesterdayData.nautical_twilight_end) : "20:00:00",
+            astronomicalTwilightEnd: yesterdayData?.astronomical_twilight_end ? convertToLocalTime(yesterdayData.astronomical_twilight_end) : "20:30:00"
           },
           today: {
             date: todayStr,
-            sunrise: convertToLocalTime(todayData.sunrise),
-            sunset: convertToLocalTime(todayData.sunset),
-            civilTwilightBegin: convertToLocalTime(todayData.civil_twilight_begin),
-            civilTwilightEnd: convertToLocalTime(todayData.civil_twilight_end),
-            nauticalTwilightBegin: convertToLocalTime(todayData.nautical_twilight_begin),
-            nauticalTwilightEnd: convertToLocalTime(todayData.nautical_twilight_end),
-            astronomicalTwilightBegin: convertToLocalTime(todayData.astronomical_twilight_begin),
-            astronomicalTwilightEnd: convertToLocalTime(todayData.astronomical_twilight_end)
+            sunrise: todayData?.sunrise ? convertToLocalTime(todayData.sunrise) : "06:00:00",
+            sunset: todayData?.sunset ? convertToLocalTime(todayData.sunset) : "19:00:00",
+            civilTwilightBegin: todayData?.civil_twilight_begin ? convertToLocalTime(todayData.civil_twilight_begin) : "05:30:00",
+            civilTwilightEnd: todayData?.civil_twilight_end ? convertToLocalTime(todayData.civil_twilight_end) : "19:30:00",
+            nauticalTwilightBegin: todayData?.nautical_twilight_begin ? convertToLocalTime(todayData.nautical_twilight_begin) : "05:00:00",
+            nauticalTwilightEnd: todayData?.nautical_twilight_end ? convertToLocalTime(todayData.nautical_twilight_end) : "20:00:00",
+            astronomicalTwilightBegin: todayData?.astronomical_twilight_begin ? convertToLocalTime(todayData.astronomical_twilight_begin) : "04:30:00",
+            astronomicalTwilightEnd: todayData?.astronomical_twilight_end ? convertToLocalTime(todayData.astronomical_twilight_end) : "20:30:00"
           },
           tomorrow: {
             date: tomorrowStr,
-            sunrise: convertToLocalTime(tomorrowData.sunrise),
-            civilTwilightBegin: convertToLocalTime(tomorrowData.civil_twilight_begin),
-            nauticalTwilightBegin: convertToLocalTime(tomorrowData.nautical_twilight_begin),
-            astronomicalTwilightBegin: convertToLocalTime(tomorrowData.astronomical_twilight_begin)
+            sunrise: tomorrowData?.sunrise ? convertToLocalTime(tomorrowData.sunrise) : "06:00:00",
+            civilTwilightBegin: tomorrowData?.civil_twilight_begin ? convertToLocalTime(tomorrowData.civil_twilight_begin) : "05:30:00",
+            nauticalTwilightBegin: tomorrowData?.nautical_twilight_begin ? convertToLocalTime(tomorrowData.nautical_twilight_begin) : "05:00:00",
+            astronomicalTwilightBegin: tomorrowData?.astronomical_twilight_begin ? convertToLocalTime(tomorrowData.astronomical_twilight_begin) : "04:30:00"
           }
         },
         
@@ -213,10 +229,10 @@ class AstronomicalService {
       const astroBegin = timeToMinutes(astronomicalData.astronomicalTwilightBegin);
       const astroEnd = timeToMinutes(astronomicalData.astronomicalTwilightEnd);
 
-      console.log(`🌅 Phase detection at ${localHour}:${String(localMinute).padStart(2,'0')} local (${currentMinutes}min)`);
-      console.log(`   UTC time: ${currentTime.getHours()}:${String(currentTime.getMinutes()).padStart(2,'0')}, Local time: ${localHour}:${String(localMinute).padStart(2,'0')}`);
-      console.log(`   Sunrise: ${sunrise}, Sunset: ${sunset}`);
-      console.log(`   Civil: ${civilBegin}-${civilEnd}, Nautical: ${nauticalBegin}-${nauticalEnd}, Astro: ${astroBegin}-${astroEnd}`);
+      // console.log(`🌅 Phase detection at ${localHour}:${String(localMinute).padStart(2,'0')} local (${currentMinutes}min)`);
+      // console.log(`   UTC time: ${currentTime.getHours()}:${String(currentTime.getMinutes()).padStart(2,'0')}, Local time: ${localHour}:${String(localMinute).padStart(2,'0')}`);
+      // console.log(`   Sunrise: ${sunrise}, Sunset: ${sunset}`);
+      // console.log(`   Civil: ${civilBegin}-${civilEnd}, Nautical: ${nauticalBegin}-${nauticalEnd}, Astro: ${astroBegin}-${astroEnd}`);
 
       // Daylight phase (between sunrise and sunset)
       if (currentMinutes >= sunrise && currentMinutes <= sunset) {

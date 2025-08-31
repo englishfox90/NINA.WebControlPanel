@@ -8,12 +8,12 @@ const path = require('path');
 const WebSocket = require('ws');
 
 // Import organized components
-const APIRoutes = require('./api');
-const { getConfigDatabase } = require('./configDatabase');
-const SessionStateManager = require('../../scripts/debug/sessionStateManager.fixed');
-const SystemMonitor = require('../services/systemMonitor');
-const NINAService = require('../services/ninaService');
-const AstronomicalService = require('../services/astronomicalService');
+const APIRoutes = require('../../src/server/api-routes');
+const { getConfigDatabase } = require('../../src/server/configDatabase');
+const SessionStateManager = require('../../src/services/sessionStateManager.fixed');
+const SystemMonitor = require('../../src/services/systemMonitor');
+const NINAService = require('../../src/services/ninaService');
+const AstronomicalService = require('../../src/services/astronomicalService');
 
 // Enhanced error handling setup
 process.on('uncaughtException', (error) => {
@@ -84,22 +84,21 @@ async function initializeServer() {
   const astronomicalService = new AstronomicalService();
   
   // Initialize target scheduler service
-  const { TargetSchedulerService } = require('../services/targetSchedulerService');
+  const { TargetSchedulerService } = require('../../src/services/targetSchedulerService');
   const dbPath = path.join(__dirname, '../../resources/schedulerdb.sqlite');
   const targetSchedulerService = new TargetSchedulerService(dbPath);
   
   console.log('🔭 NINA Service configured: ' + ninaService.fullUrl);
-  
-  // Initialize SessionStateManager
-  const sessionStateManager = new SessionStateManager(ninaService);
-  await sessionStateManager.initialize();
   
   // Initialize Express app
   const app = express();
   const PORT = process.env.CONFIG_API_PORT || 3001;
 
   // Middleware
-  app.use(cors());
+  app.use(cors({
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    credentials: true
+  }));
   
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -122,8 +121,7 @@ async function initializeServer() {
     systemMonitor,
     ninaService,
     astronomicalService,
-    targetSchedulerService,
-    sessionStateManager
+    targetSchedulerService
   );
   
   // Register all API routes
@@ -137,95 +135,93 @@ async function initializeServer() {
   // Create HTTP server
   const server = http.createServer(app);
 
-  // Initialize WebSocket server (matching original implementation)
-  const wss = new WebSocket.Server({ server });
+  // Initialize WebSocket server
+  const wss = new WebSocket.Server({ 
+    server,
+    path: '/ws',
+    clientTracking: true,
+    maxClients: 100
+  });
+
+  // Initialize SessionStateManager with WebSocket
+  const sessionStateManager = new SessionStateManager(ninaService);
+  await sessionStateManager.initialize();
+
+  // WebSocket connection handling
   const sessionClients = new Set();
   const ninaClients = new Set();
 
-  // Handle WebSocket connections from frontend
   wss.on('connection', (ws, req) => {
-    const url = new URL(req.url, `http://${req.headers.host}`);
+    const clientIP = req.connection.remoteAddress;
+    const url = req.url;
     
-    if (url.pathname === '/ws/session') {
-      console.log('🔌 Frontend session client connected');
-      sessionClients.add(ws);
-      
-      // Send current session state immediately
-      ws.send(JSON.stringify({
-        type: 'sessionUpdate',
-        data: sessionStateManager.getSessionState()
-      }));
-      
-      ws.on('close', () => {
-        console.log('❌ Frontend session client disconnected');
-        sessionClients.delete(ws);
-      });
-      
-      ws.on('error', (error) => {
-        console.error('❌ Frontend session WebSocket error:', error);
-        sessionClients.delete(ws);
-      });
-    } else if (url.pathname === '/ws/nina') {
-      console.log('� Frontend NINA client connected');
+    console.log(`🔌 New WebSocket connection from ${clientIP} to ${url}`);
+    
+    if (url.startsWith('/ws/nina')) {
+      console.log(`🔌 Frontend NINA client connected from ${clientIP}`);
       ninaClients.add(ws);
       
-      // Send initial connection confirmation
-      ws.send(JSON.stringify({
-        type: 'connection',
-        message: 'Connected to NINA event stream',
-        timestamp: new Date().toISOString()
-      }));
+      ws.on('close', () => {
+        console.log(`📡 NINA client disconnected (${clientIP})`);
+        ninaClients.delete(ws);
+      });
+    } else if (url.startsWith('/ws/session')) {
+      console.log(`📡 Session client connected from ${clientIP}`);
+      sessionClients.add(ws);
       
       ws.on('close', () => {
-        console.log('❌ Frontend NINA client disconnected');
-        ninaClients.delete(ws);
-      });
-      
-      ws.on('error', (error) => {
-        console.error('❌ Frontend NINA WebSocket error:', error);
-        ninaClients.delete(ws);
+        console.log(`📡 Session client disconnected (${clientIP})`);
+        sessionClients.delete(ws);
       });
     }
-  });
 
-  // Broadcast session updates to all connected frontend clients
-  sessionStateManager.on('sessionUpdate', (sessionState) => {
-    const message = JSON.stringify({
-      type: 'sessionUpdate',
-      data: sessionState
-    });
-    
-    sessionClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      } else {
-        sessionClients.delete(client);
-      }
+    ws.on('error', (error) => {
+      console.error(`❌ WebSocket error from ${clientIP}:`, error.message);
     });
   });
 
-  // Broadcast NINA events to all connected frontend clients
-  const broadcastNINAEvent = (eventType, eventData) => {
-    const message = JSON.stringify({
-      type: 'nina-event',
-      data: {
-        Type: eventType,
-        Timestamp: new Date().toISOString(),
-        Source: 'NINA',
-        Data: eventData
-      }
+  // Enhanced event listeners setup
+  if (sessionStateManager) {
+    // Session state change events
+    sessionStateManager.on('sessionStateChanged', (stateData) => {
+      const message = {
+        type: 'sessionStateChanged',
+        data: stateData,
+        timestamp: new Date().toISOString()
+      };
+      
+      sessionClients.forEach(client => {
+        try {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        } catch (error) {
+          console.error('❌ Error broadcasting session state:', error);
+          sessionClients.delete(client);
+        }
+      });
     });
     
-    console.log('📡 Broadcasting NINA event to', ninaClients.size, 'clients:', eventType);
-    
-    ninaClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      } else {
-        ninaClients.delete(client);
-      }
+    // NINA event forwarding
+    sessionStateManager.on('ninaEvent', (eventData) => {
+      const message = {
+        type: 'ninaEvent',
+        data: eventData,
+        timestamp: new Date().toISOString()
+      };
+      
+      ninaClients.forEach(client => {
+        try {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        } catch (error) {
+          console.error('❌ Error broadcasting NINA event:', error);
+          ninaClients.delete(client);
+        }
+      });
     });
-  };
+  }
 
   // Start server
   server.listen(PORT, () => {

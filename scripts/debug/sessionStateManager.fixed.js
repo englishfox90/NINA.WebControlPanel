@@ -225,12 +225,15 @@ class SessionStateManager extends EventEmitter {
       this.lastHeartbeat = Date.now();
       
       // Send SUBSCRIBE message as required by NINA WebSocket API
-      try {
-        console.log('📡 Sending SUBSCRIBE message to NINA WebSocket');
-        this.wsConnection.send('SUBSCRIBE /v2/socket');
-      } catch (error) {
-        console.error('❌ Failed to send SUBSCRIBE message:', error);
-      }
+      // Add small delay to ensure WebSocket is fully ready
+      setTimeout(() => {
+        try {
+          console.log('📡 Sending SUBSCRIBE message to NINA WebSocket');
+          this.wsConnection.send('SUBSCRIBE /v2/socket');
+        } catch (error) {
+          console.error('❌ Failed to send SUBSCRIBE message:', error);
+        }
+      }, 100); // 100ms delay
       
       // Clear any existing reconnect interval
       this.clearReconnectInterval();

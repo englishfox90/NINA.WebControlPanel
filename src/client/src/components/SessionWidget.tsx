@@ -9,6 +9,7 @@ import {
   EyeOpenIcon,
   TargetIcon
 } from '@radix-ui/react-icons';
+import { getApiUrl, getWsUrl } from '../config/api';
 
 // Session state interfaces
 interface SessionTarget {
@@ -82,16 +83,10 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
-  const [renderCount, setRenderCount] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
-
-  // Add render tracking
-  React.useEffect(() => {
-    console.log(`🎨 SessionWidget re-rendered #${renderCount + 1}, filter: ${sessionData.filter?.name || 'none'}`);
-  });
 
   // Load initial session state from REST API
   const loadInitialState = async () => {
@@ -99,7 +94,7 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/nina/session-state');
+      const response = await fetch(getApiUrl('nina/session-state'));
       const data = await response.json();
       
       if (data.Success && data.Response) {
@@ -124,8 +119,7 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
     }
 
     try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.hostname}:3001/ws/session`;
+      const wsUrl = getWsUrl('ws/session');
       
       console.log('🔌 Connecting to session WebSocket:', wsUrl);
       
@@ -151,10 +145,7 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
           
           if (message.type === 'sessionUpdate' && message.data) {
             console.log('📡 Session update received:', message.data.isActive ? 'Active' : 'Idle');
-            console.log('📊 Session data:', message.data);
-            console.log('🔄 Setting new session data, triggering re-render...');
             setSessionData(message.data);
-            setRenderCount(prev => prev + 1);
             setError(null);
           }
         } catch (err) {
@@ -203,7 +194,7 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
   const handleRefresh = async () => {
     try {
       setError(null);
-      const response = await fetch('/api/nina/session-state/refresh', { method: 'POST' });
+      const response = await fetch(getApiUrl('nina/session-state/refresh'), { method: 'POST' });
       const data = await response.json();
       
       if (data.Success && data.Response) {
@@ -223,6 +214,13 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
     loadInitialState();
     connectWebSocket();
     
+    // Set up periodic refresh every 2 minutes as backup to WebSocket
+    const refreshInterval = setInterval(() => {
+      if (!loading && !error) {
+        handleRefresh();
+      }
+    }, 120000); // 2 minutes
+    
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
@@ -230,8 +228,9 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
+      clearInterval(refreshInterval);
     };
-  }, []);
+  }, []); // Empty dependency array - only run once on mount
 
   // Utility functions
   const formatTime = (timestamp: string) => {
@@ -340,7 +339,6 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
             <Flex align="center" gap="2">
               <CameraIcon />
               <Text size="4" weight="bold">Current Session</Text>
-              <Badge color="purple" size="1">Render #{renderCount}</Badge>
             </Flex>
             <Flex align="center" gap="2">
               {sessionData.sessionStart && (
@@ -414,7 +412,7 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({ hideHeader = false }) => 
               <Flex direction="column" gap="1">
                 <Text size="2" weight="medium">Current Filter</Text>
                 <Badge color="blue" size="2" style={{ fontSize: '14px', padding: '4px 8px' }}>
-                  🔍 {sessionData.filter.name} (R#{renderCount})
+                  🔍 {sessionData.filter.name}
                 </Badge>
               </Flex>
             )}

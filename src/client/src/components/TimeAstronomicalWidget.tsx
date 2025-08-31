@@ -135,7 +135,10 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
 
   // Generate 8-hour window phases using multi-day data - memoized to prevent console spam
   const phases = useMemo((): TimePhase[] => {
-    if (!data?.astronomical.multiDay) return [];
+    if (!data?.astronomical?.multiDay?.today?.date) {
+      console.log('⚠️ MultiDay data not available, skipping phase calculations');
+      return [];
+    }
 
     const phases: TimePhase[] = [];
     // Use the 'today' date from the astronomical data to ensure consistency

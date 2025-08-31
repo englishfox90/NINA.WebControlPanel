@@ -431,6 +431,11 @@ class ConfigDatabase {
     stmt.run(id);
   }
 
+  deleteWidget(id) {
+    // Alias for removeWidget to match API expectations
+    return this.removeWidget(id);
+  }
+
   getWidget(id) {
     const stmt = this.db.prepare('SELECT * FROM dashboard_widgets WHERE id = ? AND enabled = 1');
     return stmt.get(id);

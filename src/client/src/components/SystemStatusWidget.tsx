@@ -87,8 +87,8 @@ const SystemStatusWidget: React.FC<SystemStatusProps> = ({ hideHeader = false })
 
   useEffect(() => {
     fetchSystemStatus();
-    // Update every 5 seconds
-    const interval = setInterval(fetchSystemStatus, 5000);
+    // Update every 20 seconds
+    const interval = setInterval(fetchSystemStatus, 20000);
     return () => clearInterval(interval);
   }, []);
 

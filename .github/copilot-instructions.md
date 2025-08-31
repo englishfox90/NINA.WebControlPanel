@@ -50,48 +50,72 @@ interface SystemStatus {
 import { NINAStatus, DashboardConfig } from '../types';
 ```
 
+## 🛡️ **CRITICAL: Enhanced Backend Stability (August 2025)**
+The backend has been completely overhauled for production reliability:
+- **Memory Leak Prevention**: Events limited to 500 max, 4-hour cleanup cycles
+- **WebSocket Health**: Heartbeat monitoring with auto-reconnection
+- **Error Handling**: Graceful recovery prevents process crashes
+- **Modular Architecture**: APIRoutes class with separated concerns
+- **Process Monitoring**: Auto-restart capabilities with health checks
+
 ## Current Architecture Status
 
-### ✅ Completed Components (DON'T MODIFY UNLESS REQUESTED)
+### ✅ Enhanced Components (ALL PRODUCTION READY)
 - `SystemStatusWidget.tsx` - Real-time cross-platform monitoring ✅ WORKING
-- `TargetSchedulerWidget.tsx` - Live project progress from SQLite database ✅ WORKING
-  - Integrated directly into Dashboard.tsx (no separate component file)
-  - Features: Interactive hover cards, integration time calculations, manual refresh only
-  - Database: Direct connection to schedulerdb.sqlite with 4 API endpoints
-  - UI: Professional progress bars, priority badges, filter breakdowns
-- `NINAStatus.tsx` - Live equipment status monitoring ✅ WORKING
-  - Features: Real-time equipment monitoring, connection status, mock data fallback
-  - API: /api/nina/equipment and /api/nina/status endpoints
-  - UI: Standard widget format with scrollable equipment list
-- `RTSPViewer.tsx` - Live video streams with enhanced UX ✅ WORKING  
-- `Dashboard.tsx` - Main layout with API integration ✅ WORKING
+- `NINAStatus.tsx` - Live equipment status monitoring with 25+ endpoints ✅ WORKING
+- `TargetSchedulerWidget.tsx` - Live project progress from SQLite database ✅ WORKING  
+- `SessionWidget.tsx` - WebSocket-based real-time session tracking ✅ WORKING
+- `TimeAstronomicalWidget.tsx` - Live twilight phases and moon calculations ✅ WORKING
+- `RTSPViewer.tsx` - Live video streams with enhanced UX ✅ WORKING
+- `ImageViewer.tsx` - Real-time NINA image display ✅ WORKING
 - `Settings.tsx` - Database-backed configuration ✅ WORKING
+- `Dashboard.tsx` - Main layout with modular widget system ✅ WORKING
 
-### 🚧 Ready for Enhancement
-- `ImageViewer.tsx` - Mock data, ready for directory scanning
-
-### Backend APIs Available
+### Backend APIs Enhanced (25+ Endpoints)
 ```typescript
-// Configuration
+// Configuration (Enhanced)
 GET/POST /api/config
-GET/POST /api/widgets
+GET /api/config/health         // Health check endpoint
+GET /api/config/export         // Configuration export
+POST /api/config/import        // Configuration import
+GET /api/config/stats          // Database statistics
 
-// System Monitoring (WORKING)
+// System Monitoring (Enhanced)
 GET /api/system/status
-GET /api/system/cpu  
+GET /api/system/cpu
 GET /api/system/memory
 GET /api/system/disk
 GET /api/system/network
+GET /api/system/uptime          // System uptime info
 
-// Target Scheduler (WORKING)
-GET /api/scheduler/progress    // Project progress overview
-GET /api/scheduler/project/:id // Individual project details  
-GET /api/scheduler/status      // Current/next target status
-GET /api/scheduler/activity    // Recent imaging activity
+// Target Scheduler (Enhanced)
+GET /api/scheduler/progress     // Project progress overview
+GET /api/scheduler/project/:id  // Individual project details  
+GET /api/scheduler/status       // Current/next target status
+GET /api/scheduler/activity     // Recent imaging activity
 
-// NINA Equipment APIs (WORKING)
-GET /api/nina/equipment        // Live equipment status monitoring
-GET /api/nina/status          // NINA connection status
+// NINA Equipment APIs (Comprehensive - 25+ endpoints)
+GET /api/nina/equipment         // Live equipment status monitoring
+GET /api/nina/status            // NINA connection status
+GET /api/nina/flat-panel        // Flat panel safety monitoring
+GET /api/nina/weather           // Weather station data
+GET /api/nina/session           // Complete session data with images
+GET /api/nina/image-history     // Image acquisition history
+GET /api/nina/latest-image      // Most recent captured image
+GET /api/nina/camera            // Camera information and settings
+GET /api/nina/event-history     // NINA event stream history
+GET /api/nina/session-state     // Current session state analysis
+POST /api/nina/session-state/refresh // Manual session refresh
+
+// Astronomical Data (Enhanced)
+GET /api/time/astronomical      // Time zones, sun/moon data, twilight
+
+// Dashboard Management (Enhanced)
+GET /api/dashboard-widgets      // Widget configuration
+POST /api/dashboard-widgets     // Create new widget
+PUT /api/dashboard-widgets/layout // Bulk layout updates
+PUT /api/dashboard-widgets/:id  // Update specific widget
+DELETE /api/dashboard-widgets/:id // Remove widget
 ```
 
 ## Platform-Specific Critical Knowledge
@@ -220,17 +244,33 @@ NINA.WebControlPanel/
 ```
 
 ## Testing & Validation
-- Start unified development: `npm start`
-- Frontend: http://localhost:3000
+- Enhanced development: `npm start` (unified React + Express with stability)
+- Stability monitoring: `npm run start:stable` (auto-restart on crashes)
+- Frontend: http://localhost:3000 
 - Backend API: http://localhost:3001
-- Test system monitoring: `curl http://localhost:3001/api/system/status`
+- Health check: `curl http://localhost:3001/api/config/health`
+- System monitoring: `curl http://localhost:3001/api/system/status`
+- NINA equipment: `curl http://localhost:3001/api/nina/equipment`
+- Real-time monitoring: `npm run monitor`
+
+## Enhanced Development Commands
+```bash
+# Stability-enhanced development
+npm run start:stable         # Auto-restart with monitoring
+npm run monitor             # Real-time health monitoring
+npm run health              # Backend health check
+npm run fix-backend         # Apply stability fixes
+```
 
 ## What NOT to Do
-- ❌ Don't modify SystemStatusWidget.tsx (production-ready)
-- ❌ Don't use custom CSS when Radix components exist
+- ❌ Don't modify production-ready components without specific request
+- ❌ Don't use custom CSS when Radix components exist  
+- ❌ Don't modify platform-specific memory calculations (macOS fix implemented)
+- ❌ Don't modify SessionStateManager.fixed.js (stability fixes applied)
 - ❌ **NEVER create new .md files** - Update existing documentation only
 - ❌ Don't create files like FEATURE_COMPLETE.md, INTEGRATION_DONE.md
 - ❌ Don't duplicate documentation across multiple files
+- ❌ Don't break existing stability improvements or error handling
 
 ## Repository Cleanliness Rules
 
@@ -314,4 +354,4 @@ When implementing these, follow the established patterns and maintain the produc
 - New API endpoints or patterns
 - Development rule changes
 
-*Last Synced: August 29, 2025 at 11:35
+*Last Synced: August 30, 2025 at 16:50 - Backend Stability & API Reorganization Complete
