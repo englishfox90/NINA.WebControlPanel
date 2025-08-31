@@ -4,7 +4,6 @@ import {
   Box, 
   Flex, 
   Text, 
-  Button, 
   Badge, 
   Spinner,
   Callout,
@@ -12,142 +11,180 @@ import {
 } from '@radix-ui/themes';
 import { 
   CameraIcon, 
-  ReloadIcon,
-  ExclamationTriangleIcon,
   InfoCircledIcon
 } from '@radix-ui/react-icons';
 import { useImageViewerWebSocket } from '../hooks/useUnifiedWebSocket';
 import { getApiUrl } from '../config/api';
-import type { ImageHistoryItem, ImageData } from '../interfaces/equipment';
 import type { ImageViewerProps } from '../interfaces/dashboard';
+import type { ImageStatistics } from '../interfaces/image';
 
 export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideHeader = false }) => {
-  const [images, setImages] = useState<ImageHistoryItem[]>([]);
   const [latestImage, setLatestImage] = useState<string | null>(null);
-  const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
+  const [imageStats, setImageStats] = useState<ImageStatistics | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastImageSave, setLastImageSave] = useState<string>('');
 
-  // Use enhanced unified WebSocket for image events
-  const { 
-    onWidgetEvent
-  } = useImageViewerWebSocket();
+  // Add throttling to prevent duplicate API calls
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const FETCH_THROTTLE_MS = 2000; // 2 second minimum between fetches
 
-  const fetchImageHistory = useCallback(async () => {
-    try {
-      setError(null);
-      setLoading(true);
+  // Use unified WebSocket for IMAGE-SAVE events
+  const { onWidgetEvent } = useImageViewerWebSocket();
 
-      const response = await fetch(getApiUrl('nina/image-history'));
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image history: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      if (!result.Success || result.Error) {
-        throw new Error(result.Error || 'Failed to fetch image history');
-      }
-
-      // Sort images by creation date (newest first) and take first 10
-      const sortedImages = (result.Response || [])
-        .sort((a: ImageHistoryItem, b: ImageHistoryItem) => 
-          new Date(b.Date).getTime() - new Date(a.Date).getTime()
-        )
-        .slice(0, 10);
-
-      setImages(sortedImages);
-      
-      // Automatically load the most recent image if available (using first image's Date as index)
-      if (sortedImages.length > 0) {
-        // For now, we'll use index 0 since we don't have individual image indices from this API
-        // This endpoint seems to be for image history metadata, not individual image loading
-        console.log('Most recent image:', sortedImages[0]);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-      console.error('Error fetching image history:', err);
-    } finally {
-      setLoading(false);
+  // Fetch latest image from prepared-image endpoint with throttling
+  const fetchPreparedImage = useCallback(async () => {
+    const now = Date.now();
+    
+    // Prevent concurrent requests
+    if (imageLoading) {
+      console.log('🚫 Fetch already in progress, skipping');
+      return;
     }
-  }, []);
-
-  const fetchLatestImage = useCallback(async (imageIndex: number = 0) => {
+    
+    // Throttle API calls to prevent duplicates (but allow first call)
+    if (lastFetchTime > 0 && now - lastFetchTime < FETCH_THROTTLE_MS) {
+      console.log('🚫 Fetch throttled - too soon after last request');
+      return;
+    }
+    
+    setLastFetchTime(now);
+    console.log('📸 Fetching prepared image...');
+    setImageLoading(true);
+    setError(null);
+    
     try {
-      setImageLoading(true);
-      setCurrentImageIndex(imageIndex);
+      // Use getApiUrl helper like other widgets for consistency
+      const apiUrl = getApiUrl('nina/prepared-image?resize=true&size=800x600&autoPrepare=true');
+      const response = await fetch(apiUrl);
       
-      // Fetch image by index with web optimization
-      const response = await fetch(getApiUrl(`nina/image/${imageIndex}?resize=true&size=medium&quality=85`));
+      console.log('📸 Response details:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        url: response.url,
+        headers: {
+          contentType: response.headers.get('content-type'),
+          contentLength: response.headers.get('content-length'),
+          cacheControl: response.headers.get('cache-control')
+        }
+      });
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status}`);
+        if (response.status === 404) {
+          console.log('📸 No prepared image available yet');
+          setError('No image available from NINA');
+          return;
+        }
+        
+        // Get error details from response
+        let errorDetails = `${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.text();
+          console.log('📸 Error response body:', errorData);
+          errorDetails += ` - ${errorData}`;
+        } catch (e) {
+          console.log('📸 Could not read error response body');
+        }
+        
+        throw new Error(`Failed to fetch image: ${errorDetails}`);
       }
 
-      const data: ImageData = await response.json();
+      // Convert blob to object URL
+      const blob = await response.blob();
+      console.log('📸 Image blob received:', { size: blob.size, type: blob.type });
       
-      if (data.Success && data.Response) {
-        // Convert base64 to data URL for display
-        setLatestImage(`data:image/jpeg;base64,${data.Response}`);
-        console.log(`📸 Image ${imageIndex} loaded successfully`);
-      } else {
-        console.warn(`⚠️ No image available at index ${imageIndex} or API error:`, data.Error);
-        setLatestImage(null);
+      // Validate blob is actually an image
+      if (blob.size === 0 || !blob.type.startsWith('image/')) {
+        throw new Error(`Invalid image blob: size=${blob.size}, type=${blob.type}`);
       }
+      
+      // Clean up previous object URL to prevent memory leaks
+      if (latestImage && latestImage.startsWith('blob:')) {
+        URL.revokeObjectURL(latestImage);
+      }
+      
+      const objectUrl = URL.createObjectURL(blob);
+      setLatestImage(objectUrl);
+      console.log('✅ Image loaded successfully:', objectUrl);
+      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load image';
-      console.error(`❌ Image fetch error (index ${imageIndex}):`, errorMessage);
+      console.error('❌ Image fetch error:', errorMessage);
+      setError(errorMessage);
       setLatestImage(null);
     } finally {
       setImageLoading(false);
     }
-  }, []);
+  }, [latestImage, lastFetchTime, imageLoading]);
 
-  // Enhanced WebSocket event handler for image saves
+  // Handle WebSocket events - only IMAGE-SAVE, ignore IMAGE-PREPARED
   const handleImageSaveEvent = useCallback((event: any) => {
-    console.log('📸 Image save event received:', event.Type, event.Data);
+    console.log('📸 WebSocket event received:', event.Type, event);
     
-    // Only process IMAGE-SAVE events with ImageStatistics (ignore calibration images)
-    if (event.Type === 'IMAGE-SAVE' && event.Data?.ImageStatistics && event.Data.ImageStatistics.index !== undefined) {
-      const imageStats = event.Data.ImageStatistics;
-      console.log('✅ Processing light frame with ImageStatistics:', imageStats);
-      
-      setLastImageSave(event.Timestamp);
-      
-      let imageIndex = imageStats.index; 
-      
-      // Extract image index from ImageStatistics
-      if (imageStats.Index !== undefined) {
-        imageIndex = Math.floor(imageStats.Index);
-        console.log(`📸 Using image index from ImageStatistics: ${imageIndex}`);
-      } else {
-        console.log('📸 No index in ImageStatistics, using latest image (index 0)');
-      }
-      
-      fetchImageHistory();
-      fetchLatestImage(imageIndex);
-    } else if (event.Type === 'IMAGE-SAVE') {
-      console.log('📸 Ignoring IMAGE-SAVE event without ImageStatistics (likely calibration frame)');
+    // Only process IMAGE-SAVE events (ignore IMAGE-PREPARED)
+    if (event.Type !== 'IMAGE-SAVE') {
+      console.log(`📸 Ignoring ${event.Type} event - only processing IMAGE-SAVE events`);
+      return;
     }
-  }, [fetchImageHistory, fetchLatestImage]);
+    
+    // Validate ImageStatistics are present
+    if (!event.Data?.ImageStatistics) {
+      console.log('📸 IMAGE-SAVE event missing ImageStatistics, ignoring');
+      return;
+    }
 
-  // Subscribe to image save WebSocket events using enhanced system
+    const stats = event.Data.ImageStatistics;
+    console.log('📊 Processing IMAGE-SAVE with statistics:', stats);
+    
+    // Store image statistics from WebSocket event
+    setImageStats({
+      ExposureTime: stats.ExposureTime || 0,
+      ImageType: stats.ImageType || 'UNKNOWN',
+      Filter: stats.Filter || 'N/A',
+      Temperature: stats.Temperature || 0,
+      CameraName: stats.CameraName || 'Unknown Camera',
+      Date: event.Timestamp || new Date().toISOString(),
+      Gain: stats.Gain || 0,
+      Offset: stats.Offset || 0,
+      HFR: stats.HFR || 0,
+      Stars: stats.Stars || 0,
+      Mean: stats.Mean || 0,
+      StDev: stats.StDev || 0,
+      TelescopeName: stats.TelescopeName || 'Unknown Telescope',
+      RmsText: stats.RmsText || 'N/A'
+    });
+    
+    setLastImageSave(event.Timestamp);
+    
+    // Fetch the prepared image after receiving IMAGE-SAVE event
+    // Small delay to ensure NINA has processed the image
+    setTimeout(() => {
+      fetchPreparedImage();
+    }, 1000);
+  }, [fetchPreparedImage]);
+
+  // Subscribe to IMAGE-SAVE WebSocket events
   useEffect(() => {
-    const unsubscribeWidget = onWidgetEvent(handleImageSaveEvent);
+    console.log('🔌 Subscribing to IMAGE-SAVE events');
+    const unsubscribe = onWidgetEvent(handleImageSaveEvent);
     
     return () => {
-      unsubscribeWidget();
+      console.log('🔌 Unsubscribing from IMAGE-SAVE events');
+      unsubscribe();
     };
   }, [onWidgetEvent, handleImageSaveEvent]);
 
+  // Clean up object URLs on unmount
   useEffect(() => {
-    fetchImageHistory();
-    fetchLatestImage(0); // Load most recent image initially
-  }, [fetchImageHistory, fetchLatestImage]);
+    return () => {
+      if (latestImage && latestImage.startsWith('blob:')) {
+        URL.revokeObjectURL(latestImage);
+      }
+    };
+  }, [latestImage]);
 
+  // Utility functions
   const formatDate = (dateString: string) => {
     try {
       return new Date(dateString).toLocaleString();
@@ -160,49 +197,6 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
     return num?.toFixed(2) || 'N/A';
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <Flex direction="column" gap="3" p="4">
-          {!hideHeader && (
-            <Flex align="center" gap="2">
-              <CameraIcon />
-              <Text size="3" weight="medium">Latest NINA Images</Text>
-            </Flex>
-          )}
-          <Flex align="center" justify="center" style={{ minHeight: hideHeader ? '150px' : '200px' }}>
-            <Flex direction="column" align="center" gap="2">
-              <ReloadIcon className="loading-spinner" />
-              <Text size="2" color="gray">Loading images...</Text>
-            </Flex>
-          </Flex>
-        </Flex>
-      </Card>
-    );
-  }
-
-  if (error && images.length === 0) {
-    return (
-      <Card>
-        <Flex direction="column" gap="3" p="4">
-          {!hideHeader && (
-            <Flex align="center" gap="2">
-              <CameraIcon />
-              <Text size="3" weight="medium">Latest NINA Images</Text>
-            </Flex>
-          )}
-          <Flex align="center" justify="center" style={{ minHeight: hideHeader ? '150px' : '200px' }}>
-            <Flex direction="column" align="center" gap="2">
-              <ExclamationTriangleIcon color="red" width="24" height="24" />
-              <Text size="2" color="red">Failed to load images</Text>
-              <Text size="1" color="gray">{error}</Text>
-            </Flex>
-          </Flex>
-        </Flex>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <Flex direction="column" gap="4" p="4">
@@ -211,38 +205,17 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
           <Flex justify="between" align="center">
             <Flex align="center" gap="2">
               <CameraIcon />
-              <Text size="3" weight="medium">Latest NINA Images</Text>
+              <Text size="3" weight="medium">Latest NINA Image</Text>
               {lastImageSave && (
                 <Badge variant="soft" color="green" size="1">
                   Live Updates
                 </Badge>
               )}
             </Flex>
-            <Button 
-              onClick={() => {
-                fetchImageHistory();
-                fetchLatestImage(0); // Load most recent image on manual refresh
-              }}
-              variant="outline" 
-              size="2"
-              disabled={loading || imageLoading}
-            >
-              <ReloadIcon />
-              Refresh
-            </Button>
           </Flex>
         )}
 
-        {/* Status badge for grid layout */}
-        {hideHeader && (
-          <Flex justify="center">
-            <Badge color="blue" size="2">
-              <CameraIcon width="12" height="12" />
-              {images.length} Images
-            </Badge>
-          </Flex>
-        )}
-
+        {/* Error Display */}
         {error && (
           <Callout.Root color="orange">
             <Callout.Icon>
@@ -252,92 +225,111 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
           </Callout.Root>
         )}
 
-        {images.length === 0 ? (
-          <Flex direction="column" align="center" gap="3" py="6">
-            <CameraIcon width="24" height="24" />
-            <Text color="gray">No images available</Text>
-            <Text size="2" color="gray">
-              Images will appear here when NINA captures new photos
+        {/* Default State - No Image Available Yet */}
+        {!latestImage && !imageLoading && !error && (
+          <Flex direction="column" align="center" gap="3" py="8">
+            <CameraIcon width="32" height="32" color="gray" />
+            <Text size="3" color="gray" weight="medium">No image available yet</Text>
+            <Text size="2" color="gray" style={{ textAlign: 'center', maxWidth: '300px' }}>
+              Images will appear here automatically when NINA captures new photos
             </Text>
           </Flex>
-        ) : (
-          <Flex direction="column" gap="4">
-            {/* Latest Image Display */}
-            {latestImage && (
-              <Box>
-                <Flex justify="between" align="center" mb="3">
-                  <Text size="2" weight="medium">Latest Captured Image:</Text>
-                  <Badge variant="soft" color="blue" size="1">
-                    Index {currentImageIndex}
-                  </Badge>
-                </Flex>
-                <Card>
-                  <Box p="3">
-                    {imageLoading ? (
-                      <Flex justify="center" align="center" style={{ minHeight: '200px' }}>
-                        <Spinner size="3" />
-                      </Flex>
-                    ) : (
-                      <Box style={{ textAlign: 'center' }}>
-                        <img 
-                          src={latestImage}
-                          alt="Latest NINA capture"
-                          style={{ 
-                            maxWidth: '100%', 
-                            height: 'auto',
-                            borderRadius: '8px',
-                            boxShadow: 'var(--shadow-3)'
-                          }}
-                        />
-                      </Box>
-                    )}
-                  </Box>
-                </Card>
-                <Separator size="4" my="4" />
-              </Box>
-            )}
+        )}
 
-            {/* Image Metadata List */}
-            <Box>
-              <Text size="2" weight="medium" mb="3">Recent Images:</Text>
-              <Flex direction="column" gap="2">
-                {images.map((image, index) => (
-                  <Card key={`${image.Date}-${index}`} variant="surface">
-                    <Flex 
-                      justify="between" 
-                      align="center" 
-                      p="3"
-                    >
-                      <Flex direction="column" gap="1">
+        {/* Loading State */}
+        {imageLoading && (
+          <Flex direction="column" align="center" gap="3" py="8">
+            <Spinner size="3" />
+            <Text size="2" color="gray">Loading latest image...</Text>
+          </Flex>
+        )}
+
+        {/* Image Display */}
+        {latestImage && !imageLoading && (
+          <Box>
+            <Text size="2" weight="medium" mb="3">Latest Captured Image:</Text>
+            <Card>
+              <Box p="3">
+                <Box style={{ textAlign: 'center' }}>
+                  <img 
+                    src={latestImage}
+                    alt="Latest NINA capture"
+                    style={{ 
+                      maxWidth: '100%', 
+                      height: 'auto',
+                      borderRadius: '8px',
+                      boxShadow: 'var(--shadow-3)',
+                      backgroundColor: 'var(--color-surface)',
+                      objectFit: 'contain'
+                    }}
+                    onLoad={() => console.log('🖼️ Image displayed successfully')}
+                    onError={(e) => {
+                      console.error('❌ Image display error:', e);
+                      console.error('❌ Image src that failed:', latestImage);
+                      setError('Failed to display image');
+                    }}
+                  />
+                </Box>
+              </Box>
+            </Card>
+
+            {/* Image Statistics */}
+            {imageStats && (
+              <Box mt="3">
+                <Separator size="4" my="3" />
+                <Text size="2" weight="medium" mb="2">Image Details:</Text>
+                <Card variant="surface">
+                  <Box p="3">
+                    <Flex direction="column" gap="2">
+                      <Flex justify="between" align="center">
                         <Text size="2" weight="medium">
-                          {image.Filter} - {image.ExposureTime}s {image.ImageType}
+                          {imageStats.Filter} - {imageStats.ExposureTime}s {imageStats.ImageType}
                         </Text>
-                        <Text size="1" color="gray">
-                          {formatDate(image.Date)}
-                        </Text>
-                        <Text size="1" color="gray">
-                          {image.CameraName} • {image.TelescopeName}
-                        </Text>
+                        <Badge color="blue">{imageStats.Filter}</Badge>
                       </Flex>
-                      <Flex direction="column" gap="1" align="end">
-                        <Badge color="blue">{image.Filter}</Badge>
-                        {image.HFR && (
+                      <Text size="1" color="gray">
+                        {formatDate(imageStats.Date)}
+                      </Text>
+                      <Text size="1" color="gray">
+                        {imageStats.CameraName} • {imageStats.TelescopeName}
+                      </Text>
+                      
+                      <Flex justify="between" mt="2">
+                        <Flex direction="column" gap="1">
+                          {imageStats.HFR > 0 && (
+                            <Text size="1" color="gray">
+                              HFR: {formatNumber(imageStats.HFR)}
+                            </Text>
+                          )}
+                          {imageStats.Stars > 0 && (
+                            <Text size="1" color="gray">
+                              Stars: {imageStats.Stars}
+                            </Text>
+                          )}
                           <Text size="1" color="gray">
-                            HFR: {formatNumber(image.HFR)}
+                            Temperature: {imageStats.Temperature}°C
                           </Text>
-                        )}
-                        {image.Stars && (
+                        </Flex>
+                        <Flex direction="column" gap="1" align="end">
                           <Text size="1" color="gray">
-                            Stars: {image.Stars}
+                            Gain: {imageStats.Gain}
                           </Text>
-                        )}
+                          <Text size="1" color="gray">
+                            Offset: {imageStats.Offset}
+                          </Text>
+                          {imageStats.RmsText && imageStats.RmsText !== 'N/A' && (
+                            <Text size="1" color="gray">
+                              RMS: {imageStats.RmsText}
+                            </Text>
+                          )}
+                        </Flex>
                       </Flex>
                     </Flex>
-                  </Card>
-                ))}
-              </Flex>
-            </Box>
-          </Flex>
+                  </Box>
+                </Card>
+              </Box>
+            )}
+          </Box>
         )}
       </Flex>
     </Card>

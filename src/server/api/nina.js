@@ -2,9 +2,10 @@
 const express = require('express');
 
 class NINARoutes {
-  constructor(ninaService, sessionStateManager) {
+  constructor(ninaService, sessionStateManager, configDatabase) {
     this.ninaService = ninaService;
     this.sessionStateManager = sessionStateManager;
+    this.configDatabase = configDatabase;
   }
 
   register(app) {
@@ -139,6 +140,72 @@ class NINARoutes {
       } catch (error) {
         console.error('Error getting event history:', error);
         res.status(500).json({ error: 'Failed to get event history' });
+      }
+    });
+
+    // Proxy NINA prepared-image endpoint
+    app.get('/api/nina/prepared-image', async (req, res) => {
+      try {
+        const config = this.configDatabase.getConfig();
+        // Remove trailing slash from baseUrl if present
+        const baseUrl = config.nina.baseUrl.replace(/\/$/, '');
+        const ninaApiUrl = `${baseUrl}:${config.nina.apiPort}`;
+        
+        // Build query parameters from request
+        const queryParams = new URLSearchParams();
+        if (req.query.resize) queryParams.set('resize', req.query.resize);
+        if (req.query.size) queryParams.set('size', req.query.size);
+        if (req.query.autoPrepare) queryParams.set('autoPrepare', req.query.autoPrepare);
+        
+        const preparedImageUrl = `${ninaApiUrl}/v2/api/prepared-image?${queryParams.toString()}`;
+        console.log('📸 Proxying prepared-image request to:', preparedImageUrl);
+        
+        // Use axios for HTTP request instead of fetch
+        const axios = require('axios');
+        const response = await axios.get(preparedImageUrl, {
+          responseType: 'arraybuffer',
+          timeout: 30000, // 30 second timeout
+          validateStatus: function (status) {
+            // Accept 200-299 range and 304 (Not Modified)
+            return (status >= 200 && status < 300) || status === 304;
+          }
+        });
+        
+        // Handle 304 Not Modified - return empty response
+        if (response.status === 304) {
+          console.log('📸 Image not modified (304), sending empty response');
+          return res.status(304).end();
+        }
+        
+        if (response.status === 404) {
+          return res.status(404).json({
+            error: 'No prepared image available',
+            message: 'NINA has no prepared image ready yet'
+          });
+        }
+        
+        if (response.status !== 200) {
+          throw new Error(`NINA API error: ${response.status} ${response.statusText}`);
+        }
+        
+        // Get content type from response headers
+        const contentType = response.headers['content-type'] || 'image/jpeg';
+        
+        res.set({
+          'Content-Type': contentType,
+          'Content-Length': response.data.length,
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        });
+        
+        res.send(response.data);
+        console.log('✅ Prepared image proxied successfully:', response.data.length, 'bytes');
+        
+      } catch (error) {
+        console.error('❌ Error proxying prepared-image:', error.message);
+        res.status(500).json({ 
+          error: 'Failed to get prepared image',
+          details: error.message 
+        });
       }
     });
 

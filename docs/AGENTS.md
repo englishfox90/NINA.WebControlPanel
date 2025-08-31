@@ -5,7 +5,29 @@
 | `Dashboard.tsx` | ✅ Complete | Layout + navigation | ✅ Config API | Image gallery integration | 🟡 Medium |
 | `SystemStatusWidget.tsx` | ✅ Complete | **Real-time monitoring** | ✅ Cross-platform | None needed | ✅ Done |
 | `RTSPViewer.tsx` | ✅ Complete | **Live video feeds** | ✅ Working streams | Enhanced controls | 🟢 Low |
-| `TargetSchedulerWidget.tsx` | ✅ Complete | **Live project progress** | ✅ SQLite integration | None needed | ✅ Done |
+| `TargetSchedulerWidget.tsx` | ✅ Complete | **Live project progress** | ✅ SQLite integration | None needed |*Last Updated: August 31, 2025 at 14:30 - ImageViewer Architectural Alignment & WebSocket Error Fixes Complete*
+
+## 🆕 Recent Updates (August 31, 2025 Session)
+
+### ImageViewer Architectural Alignment ✅
+- **Issue**: ImageViewer was making direct backend API calls while other widgets used `getApiUrl()` helper
+- **Solution**: Updated ImageViewer to use `getApiUrl('nina/prepared-image?...')` for consistency
+- **Result**: All widgets now follow the same architectural pattern with centralized API configuration
+
+### Event-Driven Image Loading ✅  
+- **Issue**: ImageViewer was fetching images on component mount unnecessarily
+- **Solution**: Removed initial fetch, now purely event-driven (WebSocket IMAGE-SAVE events only)
+- **Result**: Reduced API load and true real-time behavior
+
+### WebSocket Error Handling ✅
+- **Issue**: "data.find is not a function" error in WebSocket message parsing
+- **Solution**: Added robust validation in NINAStatus.tsx to check `equipment` is array before calling `.map()`
+- **Result**: Eliminated WebSocket parsing errors and improved stability
+
+### Interface Architecture Enhancements ✅
+- **Added**: `src/client/src/interfaces/image.ts` with comprehensive ImageStatistics interface
+- **Enhanced**: Backend proxy pattern with proper binary data handling (arraybuffer)
+- **Updated**: Client package.json with proxy configuration for development consistency✅ Done |
 | `TimeAstronomicalWidget.tsx` | ✅ Complete | **Live astronomical data** | ✅ Astronomical API | None needed | ✅ Done |
 | `SessionWidget.tsx` | ✅ Complete | **NINA session monitoring** | ✅ WebSocket integration | None needed | ✅ Done |
 | `NINAStatus.tsx` | ✅ Complete | **Live equipment status** | ✅ NINA API integration | None needed | ✅ Done |
@@ -124,7 +146,6 @@ NINA.WebControlPanel/
 │   └── src/styles/             # Radix UI + CSS
 ├── 🔧 BACKEND (Express.js + SQLite) ✅ ENHANCED STABILITY
 │   ├── config-server.js        # Main API server (port 3001) ✅ REORGANIZED
-│   ├── api-routes.js           # Modular API routes ✅ NEW STRUCTURE
 │   ├── api/                    # Individual route modules ✅ ORGANIZED
 │   │   ├── config.js          # Configuration endpoints
 │   │   ├── system.js          # System monitoring

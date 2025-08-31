@@ -58,7 +58,10 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
       
       // Update the local data efficiently instead of full refresh
       setData(currentData => {
-        if (!currentData) return currentData;
+        if (!currentData || !currentData.equipment || !Array.isArray(currentData.equipment)) {
+          console.warn('❌ Equipment data is not available or not an array, skipping local update');
+          return currentData;
+        }
         
         // Find and update the specific equipment
         const updatedEquipment = currentData.equipment.map(eq => {
