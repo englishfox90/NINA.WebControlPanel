@@ -18,6 +18,9 @@ export * from './system';
 // Configuration interfaces (moved from types)
 export * from './config';
 
+// Image interfaces
+export * from './image';
+
 // Dashboard interfaces (moved from types)
 export * from './dashboard';
 
