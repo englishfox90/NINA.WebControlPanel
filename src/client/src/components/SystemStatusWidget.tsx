@@ -12,57 +12,10 @@ import {
   ReloadIcon
 } from '@radix-ui/react-icons';
 import { getApiUrl } from '../config/api';
-
-interface SystemStatus {
-  timestamp: string;
-  uptime: {
-    system: { seconds: number; formatted: string };
-    process: { seconds: number; formatted: string };
-  };
-  cpu: {
-    model: string;
-    cores: number;
-    usage: number;
-    temperature: number | null;
-  };
-  memory: {
-    total: number;
-    used: number;
-    free: number;
-    usagePercent: number;
-  };
-  disk: {
-    main: {
-      total: number;
-      used: number;
-      free: number;
-      usagePercent: number;
-      filesystem: string;
-    };
-  };
-  network: {
-    interface: string;
-    ip: string;
-    rx_sec: number;
-    tx_sec: number;
-  };
-  os: {
-    platform: string;
-    distro: string;
-    hostname: string;
-  };
-  status: {
-    status: 'healthy' | 'warning' | 'critical';
-    warnings: string[];
-  };
-}
-
-interface SystemStatusProps {
-  hideHeader?: boolean;
-}
+import { SystemStatusAPI, SystemStatusProps } from '../interfaces/system';
 
 const SystemStatusWidget: React.FC<SystemStatusProps> = ({ hideHeader = false }) => {
-  const [systemData, setSystemData] = useState<SystemStatus | null>(null);
+  const [systemData, setSystemData] = useState<SystemStatusAPI | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);

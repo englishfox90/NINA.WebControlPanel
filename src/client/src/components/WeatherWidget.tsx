@@ -10,42 +10,7 @@ import {
 } from '@radix-ui/react-icons';
 import { WiDaySunny } from 'weather-icons-react';
 import { getApiUrl } from '../config/api';
-
-interface WeatherResponse {
-  Response: {
-    AveragePeriod: number;
-    CloudCover: number;
-    DewPoint: number;
-    Humidity: number;
-    Pressure: number;
-    RainRate: string;
-    SkyBrightness: string;
-    SkyQuality: string;
-    SkyTemperature: string;
-    StarFWHM: string;
-    Temperature: number;
-    WindDirection: number;
-    WindGust: string;
-    WindSpeed: number;
-    SupportedActions: string[];
-    Connected: boolean;
-    Name: string;
-    DisplayName: string;
-    Description: string;
-    DriverInfo: string;
-    DriverVersion: string;
-    DeviceId: string;
-  };
-  Error: string;
-  StatusCode: number;
-  Success: boolean;
-  Type: string;
-}
-
-interface WeatherWidgetProps {
-  onRefresh?: () => void;
-  hideHeader?: boolean;
-}
+import type { WeatherResponse, WeatherWidgetProps } from '../interfaces/weather';
 
 const WeatherWidget: React.FC<WeatherWidgetProps> = ({ onRefresh, hideHeader = false }) => {
   const [data, setData] = useState<WeatherResponse | null>(null);

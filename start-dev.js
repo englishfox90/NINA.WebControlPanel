@@ -23,7 +23,9 @@ backend.stderr.on('data', (data) => {
 // Wait a bit, then start frontend
 setTimeout(() => {
   console.log('🎨 Starting frontend React app...');
-  const frontend = exec('npm start', {
+  const isWindows = process.platform === 'win32';
+  const npmCommand = isWindows ? 'npm.cmd start' : 'npm start';
+  const frontend = exec(npmCommand, {
     cwd: path.join(__dirname, 'src', 'client')
   });
 

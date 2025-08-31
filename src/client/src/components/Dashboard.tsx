@@ -5,7 +5,7 @@ import NINAStatus from './NINAStatus';
 import SystemStatusWidget from './SystemStatusWidget';
 import SchedulerWidget from './SchedulerWidget';
 import RTSPViewer from './RTSPViewer';
-import SessionWidget from './SessionWidget';
+import SessionWidgetEnhanced from './SessionWidget/Enhanced';
 import TimeAstronomicalWidget from './TimeAstronomicalWidget';
 import ImageViewerWidget from './ImageViewer';
 import WeatherWidget from './WeatherWidget';
@@ -23,17 +23,11 @@ import {
   CheckIcon,
   GearIcon
 } from '@radix-ui/react-icons';
+import type { NinaConnectionStatus } from '../interfaces/equipment';
 
 // Import react-grid-layout CSS
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-
-// Interface for NINA connection status
-interface NinaConnectionStatus {
-  connected: boolean;
-  message: string;
-  mockMode?: boolean;
-}
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -206,7 +200,7 @@ const Dashboard: React.FC = () => {
       case 'RTSPViewer':
         return <RTSPViewer key={config.id} streams={rtspFeeds} isConnected={true} hideHeader={true} />;
       case 'SessionWidget':
-        return <SessionWidget key={config.id} hideHeader={true} />;
+        return <SessionWidgetEnhanced key={config.id} hideHeader={true} />;
       case 'TimeAstronomicalWidget':
         return <TimeAstronomicalWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       case 'ImageViewer':

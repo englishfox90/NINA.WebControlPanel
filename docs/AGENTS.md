@@ -71,12 +71,14 @@ const fetchEquipmentStatus = async () => {
 ### 🎯 **PROJECT OVERVIEW**
 **Mission**: Full-stack web dashboard for monitoring remote astrophotography equipment running NINA (Nighttime Imaging 'N' Astronomy)
 
-**Current State**: ✅ **PRODUCTION READY + ENHANCED STABILITY**
-- **Phase**: Full Stack Development Complete + Backend Stability Improvements
+**Current State**: ✅ **PRODUCTION READY + ENHANCED STABILITY + WEBSOCKET RESILIENCE**
+- **Phase**: Full Stack Development Complete + Backend Stability Improvements + WebSocket Connection Stability
 - **Architecture**: React 18 + TypeScript + Radix UI + Express.js + SQLite
-- **Status**: All core components implemented with comprehensive stability fixes and API reorganization
+- **Status**: All core components implemented with comprehensive stability fixes, API reorganization, and WebSocket resilience
 - **Backend Status**: ✅ Enhanced with memory leak prevention, graceful error handling, and modular API architecture
-- **Last Updated**: August 30, 2025
+- **WebSocket Status**: ✅ Equipment-aware reconnection, connection deduplication, frontend stability improvements
+- **Interface Architecture**: ✅ Consolidated 700+ lines across 8 specialized interface files
+- **Last Updated**: August 31, 2025
 
 ### 🚨 **CRITICAL STATUS FLAGS**
 - 🚧 **In Progress** - Currently being worked on
@@ -88,9 +90,9 @@ const fetchEquipmentStatus = async () => {
 ### ⚡ **IMMEDIATE PRIORITIES**
 1. **✅ COMPLETE**: Backend Stability - Memory leak prevention, graceful error handling, modular API architecture **PRODUCTION READY**
 2. **✅ COMPLETE**: API Reorganization - Modular route structure, comprehensive error handling, WebSocket improvements
-3. **✅ COMPLETE**: All Core Features - Target Scheduler, NINA Integration, System Monitoring, WebSocket Architecture
-4. **🟡 MEDIUM**: Advanced Image Management - Directory browsing and image history (enhancement)
-5. **🟢 LOW**: Advanced NINA controls and sequence management (future enhancement)
+3. **✅ COMPLETE**: WebSocket Connection Stability - Equipment-aware reconnection, connection deduplication, frontend stability
+4. **✅ COMPLETE**: Interface Architecture - Consolidated 700+ lines across 8 specialized interface files (nina.ts, weather.ts, config.ts, etc.)
+5. **✅ COMPLETE**: All Core Features - Target Scheduler, NINA Integration, System Monitoring, WebSocket Architecture
 
 ### 🔌 **NINA API INTEGRATION STATUS**
 - **API Service**: ✅ `ninaService.js` - Complete implementation with 11 equipment endpoints
@@ -233,9 +235,13 @@ The backend has been completely overhauled to address stability issues that caus
 - **Automatic Cleanup**: Events older than 4 hours automatically purged every 30 seconds
 - **Garbage Collection**: Force GC when available to prevent memory buildup
 
-#### **2. WebSocket Connection Health**
+#### **2. WebSocket Connection Health (Enhanced August 31, 2025)**
+- **Equipment-Aware Reconnection**: 2-second delays for equipment changes vs 5-second for other issues
+- **Connection Deduplication**: Prevents cascading failures during NINA equipment connects/disconnects
+- **Frontend Stability**: 1-second stabilization delay prevents reconnection storms
+- **Unified Architecture**: Single WebSocket connection eliminates duplicate event processing
+- **Production Tested**: Handles FOCUSER-CONNECTED/DISCONNECTED events gracefully without connection loss
 - **Heartbeat Monitoring**: 30-second ping/pong to detect stale connections
-- **Connection Health Checks**: Automatic detection and recovery of dead connections
 - **Client Limits**: Maximum 100 WebSocket clients with automatic cleanup
 - **Graceful Degradation**: Connection failures don't crash the entire system
 
@@ -286,6 +292,32 @@ npm run health               # Check system health
 - **Error Recovery**: Graceful degradation instead of crashes
 - **Monitoring**: Real-time health metrics and crash detection
 - **Response Time**: Sub-second API responses with request timing
+- **WebSocket Stability**: Equipment state changes handled without connection loss
+- **Interface Organization**: 700+ lines consolidated across 8 specialized files
+
+## 🏗️ **INTERFACE ARCHITECTURE (August 31, 2025)**
+
+### **✅ Complete TypeScript Interface Consolidation**
+Successfully reorganized 700+ lines of interfaces from inline definitions to specialized files:
+
+#### **Interface File Structure**
+- **`nina.ts`** (135+ lines) - NINA-specific operations, equipment status, API responses
+- **`weather.ts`** (67 lines) - Weather monitoring, safety systems, flat panel controls  
+- **`config.ts`** - Configuration management, settings modal, system config
+- **`dashboard.ts`** - UI component props, layout definitions, widget configurations
+- **`equipment.ts`** - Core equipment definitions shared across components
+- **`session.ts`** - Session management, tracking, WebSocket event handling
+- **`system.ts`** - System monitoring interfaces, hardware metrics
+- **`websocket.ts`** - WebSocket event types, connection management
+- **`index.ts`** - Unified exports for clean imports
+
+#### **Component File Size Reductions**
+- **NINAStatus.tsx**: Reduced by 40+ lines (moved Equipment interfaces)
+- **WeatherWidget.tsx**: Reduced by 30+ lines (moved WeatherResponse)
+- **SafetyBanner.tsx**: Reduced by 25+ lines (moved safety interfaces)
+- **SettingsModal.tsx**: Reduced by 25+ lines (moved ConfigData interface)
+- **SessionWidget.tsx**: Reduced by 20+ lines (moved session interfaces)
+- **Total Reduction**: 160+ lines across components
 
 ### **🎯 Expected Results**
 - **Before**: Backend crashes after ~20 minutes, memory leaks, stale connections
@@ -675,6 +707,8 @@ This project maintains **two AI agent instruction files**:
 - ❌ Using root directory for temporary documentation
 
 ### 📅 **RECENT UPDATES**
+- **August 31, 2025**: 🔌 **WEBSOCKET CONNECTION STABILITY** - Equipment-aware reconnection, connection deduplication, frontend stability improvements, production-tested with FOCUSER equipment state changes
+- **August 31, 2025**: 🏗️ **INTERFACE ARCHITECTURE CONSOLIDATION** - Reorganized 700+ lines across 8 specialized interface files, reduced component files by 160+ lines, eliminated inline interface definitions
 - **August 30, 2025**: 🛡️ **MAJOR BACKEND STABILITY OVERHAUL** - Memory leak prevention, graceful error handling, modular API architecture, process monitoring, comprehensive WebSocket improvements
 - **August 30, 2025**: 🔧 **API REORGANIZATION** - Modular APIRoutes class, separated concerns, enhanced logging, comprehensive endpoint coverage (25+ APIs)
 - **August 30, 2025**: 📊 **Process Monitoring** - Auto-restart capabilities, health monitoring, graceful shutdown, backend stability scripts
@@ -697,7 +731,7 @@ This project maintains **two AI agent instruction files**:
 
 **🚀 The Astro Observatory Dashboard is a production-ready full-stack application. Focus on NINA API integration to complete the observatory monitoring system!**
 
-*Document Version: 1.3 | Last Updated: August 30, 2025 | Next Review: When major features are added*
+*Document Version: 1.4 | Last Updated: August 31, 2025 | Next Review: When major features are added*
 
 ---
-*Last Synced: August 30, 2025 at 16:45 - Backend Stability & API Reorganization Complete*
+*Last Synced: August 31, 2025 at 08:45 - WebSocket Connection Stability & Interface Architecture Complete*

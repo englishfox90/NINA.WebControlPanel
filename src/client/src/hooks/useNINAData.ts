@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchNINAStatus } from '../services/ninaApi';
-import { NINAStatusResponse } from '../types/nina';
+import { NINAStatusResponse } from '../interfaces/nina';
 
 export const useNINAData = () => {
   const [ninaData, setNinaData] = useState<NINAStatusResponse | null>(null);

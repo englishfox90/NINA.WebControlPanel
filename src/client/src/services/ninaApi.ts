@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
-import { NINAStatusResponse, NINAApiError, NINAEventResponse, NINAEvent } from '../types/nina';
+import { NINAStatusResponse, NINAApiError, NINAEventResponse, NINAEvent } from '../interfaces/nina';
 import { ConfigService } from './configService';
 
 const NINA_API_BASE_URL = process.env.REACT_APP_NINA_API_URL || 'http://localhost:3001/api'; // Our backend server

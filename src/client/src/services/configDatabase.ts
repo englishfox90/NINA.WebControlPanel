@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import { AppConfig } from '../types/config';
+import { ConfigService } from './configService';
+import { AppConfig } from '../interfaces/config';
 
 export class ConfigDatabase {
   private db: Database.Database;

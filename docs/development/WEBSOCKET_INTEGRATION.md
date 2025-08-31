@@ -1,7 +1,36 @@
 # WebSocket Integration Enhancements
 
 ## Overview
-Enhanced the NINA WebControl Panel with efficient WebSocket-based updates for three key widgets, eliminating unnecessary polling and providing real-time responsiveness.
+Enhanced the NINA WebControl Panel with efficient WebSocket-based updates for real-time responsiveness and connection stability improvements.
+
+## Recent Updates (August 31, 2025)
+
+### 🔌 **Connection Stability Improvements**
+Major overhaul of WebSocket connection management to handle NINA equipment state changes:
+
+#### **Equipment-Aware Reconnection Strategy**
+- **2-second delays** for equipment state changes (FOCUSER-CONNECTED/DISCONNECTED)
+- **5-second delays** for other connection issues
+- **Prevents cascading failures** during equipment transitions
+- **Production tested** with actual focuser connect/disconnect events
+
+#### **Frontend Connection Resilience**
+- **1-second stabilization delay** prevents reconnection storms
+- **Connection deduplication** prevents multiple concurrent connections
+- **Proper timer management** eliminates race conditions
+- **shouldReconnect flag** prevents unwanted reconnection attempts
+
+#### **Backend Stability Enhancements**
+- **Intelligent event filtering** prevents duplicate processing
+- **Connection health monitoring** with heartbeat detection
+- **Graceful degradation** during equipment state transitions
+- **Unified WebSocket architecture** eliminates connection conflicts
+
+### **Verified Resolution:**
+✅ Equipment state changes no longer cause WebSocket connection duplication  
+✅ FOCUSER-CONNECTED/DISCONNECTED handled gracefully  
+✅ Single unified WebSocket client maintained throughout equipment changes  
+✅ Real-time functionality preserved during equipment transitions
 
 ## Changes Made
 
@@ -140,6 +169,33 @@ ninaWs.on('message', (data) => {
   broadcastNINAEvent(event.Type, event.Data);
 });
 ```
+
+## Interface Architecture Consolidation (August 31, 2025)
+
+### **TypeScript Interface Organization**
+Consolidated 700+ lines of inline interface definitions into specialized files:
+
+#### **Interface Files Created**
+- **`nina.ts`** (135+ lines) - NINA-specific operations, equipment responses
+- **`weather.ts`** (67 lines) - Weather monitoring, safety systems  
+- **`config.ts`** - Configuration management, settings interfaces
+- **`dashboard.ts`** - UI component props, layout definitions
+- **`equipment.ts`** - Core equipment definitions
+- **`session.ts`** - Session management, WebSocket events
+- **`system.ts`** - System monitoring interfaces
+- **`websocket.ts`** - WebSocket event types, connection management
+- **`index.ts`** - Unified exports for clean imports
+
+#### **Component Improvements**
+- **File Size Reductions**: 160+ lines removed across components
+- **Better Maintainability**: Centralized interface definitions
+- **Type Safety**: Enhanced TypeScript compilation
+- **Clean Imports**: Organized import statements
+
+#### **Weather Icons Integration**
+- **Custom TypeScript Declaration**: `weather-icons-react.d.ts`
+- **40+ Icon Components**: Complete weather icon support
+- **Compilation Fix**: Resolved TypeScript errors
 
 ### Additional Event Types
 - `SEQUENCE_STARTED` / `SEQUENCE_FINISHED`

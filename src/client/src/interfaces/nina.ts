@@ -1,3 +1,5 @@
+import type { EquipmentInfo } from './equipment';
+
 export interface NINAStatus {
   isConnected: boolean;
   isRunning: boolean;
@@ -109,4 +111,27 @@ export interface NINAImageEvent extends NINAEvent {
     HFR: number;
     IsBayered: boolean;
   };
+}
+
+// NINA Status Widget Interfaces
+export interface Equipment extends EquipmentInfo {
+  deviceName: string;
+  // name, connected, status are already in EquipmentInfo
+}
+
+export interface EquipmentResponse {
+  equipment: Equipment[];
+  summary: {
+    connected: number;
+    total: number;
+    allConnected: boolean;
+    status: string;
+  };
+  lastUpdate: string;
+  mockMode?: boolean;
+}
+
+export interface NINAStatusProps {
+  onRefresh?: () => void;
+  hideHeader?: boolean;
 }

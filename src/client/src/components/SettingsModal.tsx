@@ -22,6 +22,8 @@ import {
   FileTextIcon
 } from '@radix-ui/react-icons';
 import { getApiUrl } from '../config/api';
+import type { SettingsModalProps } from '../interfaces/dashboard';
+import type { ConfigData } from '../interfaces/config';
 
 // TypeScript declarations for File System Access API
 declare global {
@@ -35,32 +37,6 @@ declare global {
       excludeAcceptAllOption?: boolean;
     }) => Promise<FileSystemFileHandle[]>;
   }
-}
-
-interface SettingsModalProps {
-  open: boolean;
-  onClose: () => void;
-}
-
-interface ConfigData {
-  nina: {
-    baseUrl: string;
-    apiPort: number;
-    timeout: number;
-    retryAttempts: number;
-  };
-  database: {
-    targetSchedulerPath: string;
-    backupEnabled: boolean;
-    backupInterval: number;
-  };
-  streams: {
-    liveFeed1: string;
-    liveFeed2: string;
-    liveFeed3: string;
-    defaultStream: number;
-    connectionTimeout: number;
-  };
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) => {

@@ -136,3 +136,29 @@ export const DEFAULT_CONFIG: AppConfig = {
     corsEnabled: true
   }
 };
+
+// Settings Modal Configuration Interface (simplified version of AppConfig for UI)
+export interface ConfigData {
+  nina: {
+    baseUrl: string;
+    apiPort: number;
+    timeout: number;
+    retryAttempts: number;
+  };
+  database: {
+    targetSchedulerPath: string;
+    backupEnabled: boolean;
+    backupInterval: number;
+  };
+  streams: {
+    liveFeed1: string;
+    liveFeed2: string;
+    liveFeed3: string;
+    defaultStream: number;
+    connectionTimeout: number;
+  };
+  directories: {
+    liveStackDirectory: string;
+    capturedImagesDirectory: string;
+  };
+}

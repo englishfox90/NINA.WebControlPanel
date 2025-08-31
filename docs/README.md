@@ -58,7 +58,7 @@ A modern, responsive web dashboard for monitoring remote astrophotography equipm
    npm install
    ```
 
-3. **Configure your observatory** (edit `config.json`)
+3. **Configure your observatory** via the web interface at `http://localhost:3001/api/config` or through the dashboard settings
    ```json
    {
      "nina": { 
@@ -93,25 +93,38 @@ The dashboard is fully optimized for mobile devices:
 ## 🔧 Configuration
 
 ### NINA Integration
-Configure your NINA connection in `config.json`:
-```json
-{
-  "nina": {
-    "apiPort": 1888,
-    "baseUrl": "http://172.26.81.152/"
-  }
-}
+Configure your NINA connection through the web interface:
+
+**Option 1: Web API**
+```bash
+# Get current configuration
+curl http://localhost:3001/api/config
+
+# Update NINA connection settings
+curl -X POST http://localhost:3001/api/config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nina.baseUrl": "http://YOUR_NINA_IP/",
+    "nina.apiPort": 1888
+  }'
 ```
 
+**Option 2: Dashboard Settings Panel**
+- Open http://localhost:3000
+- Click Settings (gear icon) 
+- Update NINA connection details
+- Save changes
+
 ### Video Streams
-Add your observatory's RTSP streams:
-```json
-{
-  "streams": {
-    "liveFeed1": "https://live.starfront.tools/allsky/",
-    "liveFeed2": "https://live.starfront.tools/b8/"
-  }
-}
+Add your observatory's RTSP streams via the web interface:
+```bash
+# Update stream URLs
+curl -X POST http://localhost:3001/api/config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "streams.liveFeed1": "https://your-stream-url/",
+    "streams.liveFeed2": "https://your-second-stream/"
+  }'
 ```
 
 ### Image Directories
@@ -184,7 +197,7 @@ NINA.WebControlPanel/
 ├── docs/                         # Documentation
 ├── scripts/                      # Utility scripts
 ├── resources/                    # Development resources
-└── config.json                   # Configuration file
+└── dashboard-config.sqlite        # Configuration database
 ```
 
 ### Available Scripts
@@ -210,7 +223,7 @@ cd src/client && npm run build  # Build React app for production
 - This is fixed! The dashboard now uses platform-specific memory calculations that match Activity Monitor.
 
 **Video streams not loading?**
-- Check your RTSP URLs in `config.json`
+- Check your RTSP URLs in the dashboard settings or via the `/api/config` endpoint
 - Verify network connectivity to your observatory
 - Test streams in VLC or similar player first
 
@@ -578,7 +591,7 @@ The **full-stack observatory dashboard** is now complete and features:
 - **Documentation**: ✅ 95% Complete - This comprehensive README
 
 ### 📁 Custom Configuration Active
-Your personalized `config.json` is configured with:
+Your personalized configuration is stored in the database with:
 ```json
 {
   "nina": { 
@@ -683,7 +696,7 @@ NINA.WebControlPanel/
 ├── 📂 scripts/                    # Utility scripts
 ├── 📂 resources/                  # Development resources
 │   └── dashboard-config.sqlite    # ✅ SQLite database file
-├── 📄 config.json                 # ✅ UPDATED with live URLs and database paths
+├── � dashboard-config.sqlite     # ✅ Database with live URLs and settings
 ├── 📄 schedulerdb.sqlite          # SQLite database (YOUR ORIGINAL FILE)
 ├── 📄 .env                        # Node.js compatibility ✅
 └── 📄 package.json                # ✅ Updated with all dependencies
@@ -844,7 +857,7 @@ open http://localhost:3000  # Should load dashboard
 ### **CRITICAL FILES TO MONITOR**
 - 📄 `src/components/` - All UI components (8/8 modernized)
 - 📄 `src/services/ninaApi.ts` - API integration point
-- 📄 `config.json` - User configuration settings  
+- � `dashboard-config.sqlite` - Configuration database with all settings  
 - 📄 `package.json` - Dependencies and scripts
 - 📄 `README.md` - This documentation
 

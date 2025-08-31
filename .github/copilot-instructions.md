@@ -40,14 +40,17 @@ const icon = "🖥️";
 
 ### TypeScript - Maintain Type Safety
 ```tsx
-// ✅ CORRECT - Use existing types
+// ✅ CORRECT - Use centralized interface system
 interface SystemStatus {
   cpu: { usage: number; temperature: number | null };
   memory: { total: number; used: number; usagePercent: number };
 }
 
-// Import existing types from src/types/
-import { NINAStatus, DashboardConfig } from '../types';
+// Import from organized interface files (as of Aug 31, 2025)
+import { NINAStatusProps, Equipment } from '../interfaces/nina';
+import { WeatherResponse, SafetyBannerProps } from '../interfaces/weather';
+import { ConfigData } from '../interfaces/config';
+import { SessionData } from '../interfaces/session';
 ```
 
 ## 🛡️ **CRITICAL: Enhanced Backend Stability (August 2025)**
@@ -57,6 +60,14 @@ The backend has been completely overhauled for production reliability:
 - **Error Handling**: Graceful recovery prevents process crashes
 - **Modular Architecture**: APIRoutes class with separated concerns
 - **Process Monitoring**: Auto-restart capabilities with health checks
+
+## 🔌 **WebSocket Connection Stability (August 31, 2025)**
+Major improvements to WebSocket connection resilience for equipment state changes:
+- **Equipment-Aware Reconnection**: 2s delays for equipment changes vs 5s for other issues
+- **Connection Deduplication**: Prevents cascading failures during NINA equipment connects/disconnects
+- **Frontend Stability**: 1-second stabilization delay prevents reconnection storms
+- **Unified Architecture**: Single WebSocket connection eliminates duplicate event processing
+- **Production Tested**: Handles FOCUSER-CONNECTED/DISCONNECTED events gracefully without connection loss
 
 ## Current Architecture Status
 
@@ -70,6 +81,18 @@ The backend has been completely overhauled for production reliability:
 - `ImageViewer.tsx` - Real-time NINA image display ✅ WORKING
 - `Settings.tsx` - Database-backed configuration ✅ WORKING
 - `Dashboard.tsx` - Main layout with modular widget system ✅ WORKING
+
+### ✅ Interface Architecture (August 31, 2025 - REORGANIZED)
+Complete TypeScript interface consolidation with 700+ lines organized across specialized files:
+- `src/client/src/interfaces/nina.ts` - NINA-specific operations (135+ lines)
+- `src/client/src/interfaces/weather.ts` - Weather and safety monitoring (67 lines)
+- `src/client/src/interfaces/config.ts` - Configuration management (enhanced)
+- `src/client/src/interfaces/dashboard.ts` - UI component props and layouts
+- `src/client/src/interfaces/equipment.ts` - Core equipment definitions
+- `src/client/src/interfaces/session.ts` - Session management and tracking
+- `src/client/src/interfaces/system.ts` - System monitoring interfaces
+- `src/client/src/interfaces/websocket.ts` - WebSocket event types
+- `src/client/src/interfaces/index.ts` - Unified exports for clean imports
 
 ### Backend APIs Enhanced (25+ Endpoints)
 ```typescript
@@ -171,18 +194,17 @@ useEffect(() => {
 
 ## Configuration Files
 
-### config.json Structure
-```json
-{
-  "nina": { "apiPort": 1888, "baseUrl": "http://172.26.81.152/" },
-  "streams": {
-    "liveFeed1": "https://live.starfront.tools/allsky/",
-    "liveFeed2": "https://live.starfront.tools/b8/"
-  },
-  "directories": {
-    "capturedImagesDirectory": "D:/Observatory/Captured"
-  }
-}
+### Database Configuration
+```javascript
+// All settings stored in SQLite database: src/server/dashboard-config.sqlite
+// Access via ConfigDatabase class:
+const { ConfigDatabase } = require('./src/server/configDatabase.js');
+const db = new ConfigDatabase();
+const config = db.getConfig(); // Get all settings
+
+// Web API endpoints:
+// GET /api/config - Get current configuration
+// POST /api/config - Update configuration values
 ```
 
 ## Common Tasks & Solutions
@@ -353,5 +375,6 @@ When implementing these, follow the established patterns and maintain the produc
 - Priority task updates (🔴🟡🟢)
 - New API endpoints or patterns
 - Development rule changes
+- Interface architecture updates and WebSocket stability improvements
 
-*Last Synced: August 30, 2025 at 16:50 - Backend Stability & API Reorganization Complete
+*Last Updated: August 31, 2025 at 08:45 - WebSocket Connection Stability & Interface Architecture Complete*

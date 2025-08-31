@@ -1,7 +1,8 @@
 // Configuration service module - temporarily disabled
 // This module is being refactored to work with SQLite backend
 
-import { AppConfig } from '../types/config';
+import axios from 'axios';
+import { AppConfig } from '../interfaces/config';
 
 // Placeholder service for compilation
 export class ConfigService {

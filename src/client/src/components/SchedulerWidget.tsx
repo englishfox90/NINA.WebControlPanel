@@ -9,19 +9,22 @@ import {
   ImageIcon,
   ClockIcon
 } from '@radix-ui/react-icons';
-import { useNINAEvent } from '../services/ninaWebSocket';
+import { useSchedulerWebSocket } from '../hooks/useUnifiedWebSocket';
 import { getApiUrl } from '../config/api';
-
-interface TargetSchedulerProps {
-  onRefresh?: () => void;
-  hideHeader?: boolean;
-}
+import type { TargetSchedulerProps } from '../interfaces/dashboard';
 
 export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefresh, hideHeader = false }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastImageSave, setLastImageSave] = useState<string>('');
+
+  // Use enhanced unified WebSocket for scheduler events
+  const { 
+    connected: wsConnected, 
+    onWidgetEvent,
+    lastEvent 
+  } = useSchedulerWebSocket();
 
   const fetchData = useCallback(async () => {
     try {
@@ -40,22 +43,33 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
     }
   }, []);
 
-  // WebSocket event handler for image saves
+  // Enhanced WebSocket event handler for image saves
   const handleImageSaveEvent = useCallback((event: any) => {
-    console.log('Image save event received:', event.Type, event.Data);
-    setLastImageSave(event.Timestamp);
+    console.log('📊 Scheduler image save event received:', event.Type, event.Data);
     
-    // Refresh project progress when new image is saved
-    if (event.Type === 'IMAGE_SAVE' || event.Type === 'IMAGE-SAVE') {
-      console.log('New image saved, refreshing scheduler progress...');
+    // Only process IMAGE-SAVE events with ImageStatistics (ignore calibration images)
+    if (event.Type === 'IMAGE-SAVE' && event.Data?.ImageStatistics) {
+      const imageStats = event.Data.ImageStatistics;
+      console.log('✅ Processing light frame for scheduler progress:', imageStats);
+      
+      setLastImageSave(event.Timestamp);
+      
+      // Refresh project progress when new light frame is saved
+      console.log('📊 New light frame saved, refreshing scheduler progress...');
       fetchData();
+    } else if (event.Type === 'IMAGE-SAVE') {
+      console.log('📊 Ignoring IMAGE-SAVE event without ImageStatistics (likely calibration frame)');
     }
   }, [fetchData]);
 
-  // Subscribe to image save WebSocket events
-  useNINAEvent('IMAGE_SAVE', handleImageSaveEvent);
-  useNINAEvent('IMAGE-SAVE', handleImageSaveEvent);
-  useNINAEvent('EXPOSURE_FINISHED', handleImageSaveEvent); // Also listen for exposure finished
+  // Subscribe to image save WebSocket events using enhanced system
+  useEffect(() => {
+    const unsubscribeWidget = onWidgetEvent(handleImageSaveEvent);
+    
+    return () => {
+      unsubscribeWidget();
+    };
+  }, [onWidgetEvent, handleImageSaveEvent]);
 
   useEffect(() => {
     fetchData();

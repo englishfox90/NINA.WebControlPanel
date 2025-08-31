@@ -1,17 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Badge, Flex, Box, Text, AspectRatio, Card } from '@radix-ui/themes';
 import { VideoIcon, ReloadIcon, ExclamationTriangleIcon } from '@radix-ui/react-icons';
-
-interface RTSPViewerProps {
-  streams: string[];
-  isConnected: boolean;
-  hideHeader?: boolean;
-  stats?: {
-    resolution?: string;
-    frameRate?: string;
-    bitrate?: string;
-  }[];
-}
+import type { RTSPViewerProps } from '../interfaces/dashboard';
 
 const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeader = false, stats }) => {
   const [activeStream, setActiveStream] = useState(0);

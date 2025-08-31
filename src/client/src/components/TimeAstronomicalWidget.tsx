@@ -25,27 +25,15 @@ import {
   Legend
 } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
-import type { TimeAstronomicalData } from '../types/dashboard';
+import type { 
+  TimeAstronomicalData, 
+  TimeAstronomicalWidgetProps, 
+  TimePhase 
+} from '../interfaces/system';
 import { getApiUrl } from '../config/api';
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
-
-interface TimeAstronomicalWidgetProps {
-  onRefresh?: () => void;
-  hideHeader?: boolean;
-}
-
-interface TimePhase {
-  name: string;
-  start: Date;
-  end: Date;
-  color: string;
-  description: string;
-  // Store the real phase times for tooltip display
-  realStart: Date;
-  realEnd: Date;
-}
 
 const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({ 
   onRefresh, 

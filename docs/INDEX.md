@@ -6,8 +6,9 @@ Welcome to the NINA WebControlPanel documentation. This project provides a full-
 
 ### 📖 Core Documentation
 - **[README.md](./README.md)** - Main project documentation and setup guide
+- **[CONFIGURATION.md](./CONFIGURATION.md)** - Database configuration system guide 🔴 **NEW!**
 - **[AGENTS.md](./AGENTS.md)** - AI Agent instructions and project status  
-- **[CURRENT_SESSION_WEBSOCKET.md](./CURRENT_SESSION_WEBSOCKET.md)** - Real-time WebSocket integration and Current Session Widget 🔴 **NEW!**
+- **[CURRENT_SESSION_WEBSOCKET.md](./CURRENT_SESSION_WEBSOCKET.md)** - Real-time WebSocket integration and Current Session Widget
 
 ### 🛠️ Development Guides
 - **[development/PROJECT_STATUS.md](./development/PROJECT_STATUS.md)** - Current project status and roadmap

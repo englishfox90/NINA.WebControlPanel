@@ -6,10 +6,8 @@ import {
   Text, 
   Button, 
   Badge, 
-  Strong,
   Spinner,
   Callout,
-  Grid,
   Separator
 } from '@radix-ui/themes';
 import { 
@@ -18,40 +16,10 @@ import {
   ExclamationTriangleIcon,
   InfoCircledIcon
 } from '@radix-ui/react-icons';
-import { useNINAEvent } from '../services/ninaWebSocket';
+import { useImageViewerWebSocket } from '../hooks/useUnifiedWebSocket';
 import { getApiUrl } from '../config/api';
-
-interface ImageViewerProps {
-  onRefresh?: () => void;
-  hideHeader?: boolean;
-}
-
-interface ImageHistoryItem {
-  Date: string;
-  Filter: string;
-  ExposureTime: number;
-  ImageType: string;
-  CameraName: string;
-  Temperature: number;
-  Gain: number;
-  Offset: number;
-  Mean?: number;
-  StDev?: number;
-  HFR?: number;
-  Stars?: number;
-  Median?: number;
-  TelescopeName?: string;
-  FocalLength?: number;
-  IsBayered?: boolean;
-  RmsText?: string;
-}
-
-interface ImageData {
-  Success: boolean;
-  Response: string; // Base64 encoded image
-  StatusCode: number;
-  Error: string | null;
-}
+import type { ImageHistoryItem, ImageData } from '../interfaces/equipment';
+import type { ImageViewerProps } from '../interfaces/dashboard';
 
 export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideHeader = false }) => {
   const [images, setImages] = useState<ImageHistoryItem[]>([]);
@@ -61,6 +29,11 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
   const [imageLoading, setImageLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastImageSave, setLastImageSave] = useState<string>('');
+
+  // Use enhanced unified WebSocket for image events
+  const { 
+    onWidgetEvent
+  } = useImageViewerWebSocket();
 
   const fetchImageHistory = useCallback(async () => {
     try {
@@ -133,52 +106,47 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
     }
   }, []);
 
-  // WebSocket event handler for image saves
+  // Enhanced WebSocket event handler for image saves
   const handleImageSaveEvent = useCallback((event: any) => {
-    console.log('Image save event received:', event.Type, event.Data);
-    setLastImageSave(event.Timestamp);
+    console.log('📸 Image save event received:', event.Type, event.Data);
     
-    // Refresh image history and latest image when new image is saved
-    if (event.Type === 'IMAGE_SAVE' || event.Type === 'IMAGE-SAVE') {
-      console.log('New image saved, refreshing image history and latest image...');
+    // Only process IMAGE-SAVE events with ImageStatistics (ignore calibration images)
+    if (event.Type === 'IMAGE-SAVE' && event.Data?.ImageStatistics && event.Data.ImageStatistics.index !== undefined) {
+      const imageStats = event.Data.ImageStatistics;
+      console.log('✅ Processing light frame with ImageStatistics:', imageStats);
       
-      // Extract image index from WebSocket event if available
-      let imageIndex = 0; // Default to latest image
-      if (event.Response?.ImageStatistics?.Index !== undefined) {
-        imageIndex = Math.floor(event.Response.ImageStatistics.Index);
-        console.log(`📸 Using image index from WebSocket event: ${imageIndex}`);
-      } else if (event.Data?.ImageStatistics?.Index !== undefined) {
-        imageIndex = Math.floor(event.Data.ImageStatistics.Index);
-        console.log(`📸 Using image index from WebSocket event data: ${imageIndex}`);
+      setLastImageSave(event.Timestamp);
+      
+      let imageIndex = imageStats.index; 
+      
+      // Extract image index from ImageStatistics
+      if (imageStats.Index !== undefined) {
+        imageIndex = Math.floor(imageStats.Index);
+        console.log(`📸 Using image index from ImageStatistics: ${imageIndex}`);
       } else {
-        console.log('📸 No index in WebSocket event, using latest image (index 0)');
+        console.log('📸 No index in ImageStatistics, using latest image (index 0)');
       }
       
       fetchImageHistory();
       fetchLatestImage(imageIndex);
+    } else if (event.Type === 'IMAGE-SAVE') {
+      console.log('📸 Ignoring IMAGE-SAVE event without ImageStatistics (likely calibration frame)');
     }
   }, [fetchImageHistory, fetchLatestImage]);
 
-  // Subscribe to image save WebSocket events
-  useNINAEvent('IMAGE_SAVE', handleImageSaveEvent);
-  useNINAEvent('IMAGE-SAVE', handleImageSaveEvent);
-  useNINAEvent('EXPOSURE_FINISHED', handleImageSaveEvent); // Also listen for exposure finished
+  // Subscribe to image save WebSocket events using enhanced system
+  useEffect(() => {
+    const unsubscribeWidget = onWidgetEvent(handleImageSaveEvent);
+    
+    return () => {
+      unsubscribeWidget();
+    };
+  }, [onWidgetEvent, handleImageSaveEvent]);
 
   useEffect(() => {
     fetchImageHistory();
     fetchLatestImage(0); // Load most recent image initially
   }, [fetchImageHistory, fetchLatestImage]);
-
-  // Global refresh integration
-  useEffect(() => {
-    if (onRefresh) {
-      const handleGlobalRefresh = () => {
-        fetchImageHistory();
-        fetchLatestImage(0); // Load most recent image on manual refresh
-      };
-      // Listen for global refresh events if needed
-    }
-  }, [onRefresh, fetchImageHistory, fetchLatestImage]);
 
   const formatDate = (dateString: string) => {
     try {

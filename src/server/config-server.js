@@ -10,7 +10,7 @@ const WebSocket = require('ws');
 // Import organized components
 const APIRoutes = require('./api');
 const { getConfigDatabase } = require('./configDatabase');
-const SessionStateManager = require('../../scripts/debug/sessionStateManager.fixed');
+const SessionStateManager = require('../services/sessionStateManager');
 const SystemMonitor = require('../services/systemMonitor');
 const NINAService = require('../services/ninaService');
 const AstronomicalService = require('../services/astronomicalService');
@@ -141,12 +141,51 @@ async function initializeServer() {
   const wss = new WebSocket.Server({ server });
   const sessionClients = new Set();
   const ninaClients = new Set();
+  const unifiedClients = new Set(); // New unified client set
 
   // Handle WebSocket connections from frontend
   wss.on('connection', (ws, req) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     
-    if (url.pathname === '/ws/session') {
+    if (url.pathname === '/ws/unified') {
+      console.log('🔌 Frontend unified client connected');
+      unifiedClients.add(ws);
+      
+      // Send initial connection status
+      ws.send(JSON.stringify({
+        type: 'connection',
+        data: {
+          message: 'Connected to unified event stream',
+          sessionState: sessionStateManager.getSessionState(),
+          timestamp: new Date().toISOString()
+        },
+        timestamp: new Date().toISOString()
+      }));
+      
+      ws.on('close', () => {
+        console.log('❌ Frontend unified client disconnected');
+        unifiedClients.delete(ws);
+      });
+      
+      ws.on('error', (error) => {
+        console.error('❌ Frontend unified WebSocket error:', error);
+        unifiedClients.delete(ws);
+      });
+      
+      // Send heartbeat every 20 seconds
+      const heartbeatInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'heartbeat',
+            data: { timestamp: new Date().toISOString() },
+            timestamp: new Date().toISOString()
+          }));
+        } else {
+          clearInterval(heartbeatInterval);
+        }
+      }, 20000);
+      
+    } else if (url.pathname === '/ws/session') {
       console.log('🔌 Frontend session client connected');
       sessionClients.add(ws);
       
@@ -190,18 +229,12 @@ async function initializeServer() {
 
   // Broadcast session updates to all connected frontend clients
   sessionStateManager.on('sessionUpdate', (sessionState) => {
-    const message = JSON.stringify({
-      type: 'sessionUpdate',
-      data: sessionState
-    });
-    
-    sessionClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      } else {
-        sessionClients.delete(client);
-      }
-    });
+    broadcastSessionUpdate(sessionState);
+  });
+
+  // Broadcast NINA events to all connected frontend clients  
+  sessionStateManager.on('ninaEvent', (eventType, eventData) => {
+    broadcastNINAEvent(eventType, eventData);
   });
 
   // Broadcast NINA events to all connected frontend clients
@@ -213,16 +246,56 @@ async function initializeServer() {
         Timestamp: new Date().toISOString(),
         Source: 'NINA',
         Data: eventData
-      }
+      },
+      timestamp: new Date().toISOString()
     });
     
-    console.log('📡 Broadcasting NINA event to', ninaClients.size, 'clients:', eventType);
+    console.log('📡 Broadcasting NINA event to', (ninaClients.size + unifiedClients.size), 'clients:', eventType);
     
+    // Broadcast to original NINA clients (legacy support)
     ninaClients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
       } else {
         ninaClients.delete(client);
+      }
+    });
+
+    // Broadcast to unified clients (new architecture)
+    unifiedClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      } else {
+        unifiedClients.delete(client);
+      }
+    });
+  };
+
+  // Broadcast session updates to unified clients
+  const broadcastSessionUpdate = (sessionData) => {
+    const message = JSON.stringify({
+      type: 'sessionUpdate',
+      data: sessionData,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log('📡 Broadcasting session update to', (sessionClients.size + unifiedClients.size), 'clients');
+    
+    // Broadcast to original session clients (legacy support)
+    sessionClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      } else {
+        sessionClients.delete(client);
+      }
+    });
+
+    // Broadcast to unified clients (new architecture)
+    unifiedClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      } else {
+        unifiedClients.delete(client);
       }
     });
   };
