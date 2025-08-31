@@ -3,13 +3,13 @@
 
 const fs = require('fs');
 const path = require('path');
-const { getConfigDatabase } = require('../src/server/configDatabase');
+const { getConfigDatabase } = require('../../src/server/configDatabase');
 
 class ConfigValidator {
   constructor() {
     this.errors = [];
     this.warnings = [];
-    this.projectRoot = path.resolve(__dirname, '..');
+    this.projectRoot = path.resolve(__dirname, '../..');
   }
 
   // Validate entire system configuration
