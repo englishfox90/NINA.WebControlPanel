@@ -11,21 +11,34 @@ class AstronomicalRoutes {
     // Time and astronomical data endpoint
     app.get('/api/time/astronomical', async (req, res) => {
       try {
-        const serverTime = new Date().toISOString();
-        const browserTime = req.query.browserTime || serverTime;
-        const timeZoneOffset = parseInt(req.query.timeZoneOffset) || 0;
-        const now = new Date();
-        const browserDate = new Date(browserTime);
-        const timeDifference = Math.abs(now.getTime() - browserDate.getTime());
-        const isDifferent = timeDifference > 60000; // More than 1 minute difference
-        
-        // Get observatory location from configuration
+        // Get observatory location from configuration first to get timezone
         const config = this.configDatabase.getConfig();
         const location = config.observatory?.location || {
           latitude: 40.7128,
           longitude: -74.006,
           timezone: 'America/New_York'
         };
+        
+        // Create server time in the observatory's timezone
+        const now = new Date();
+        const serverTimeLocal = now.toLocaleString('en-US', { 
+          timeZone: location.timezone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+        
+        // Also provide ISO format in local timezone for consistency
+        const serverTime = new Date(now.toLocaleString('en-US', { timeZone: location.timezone })).toISOString();
+        const browserTime = req.query.browserTime || serverTime;
+        const timeZoneOffset = parseInt(req.query.timeZoneOffset) || 0;
+        const browserDate = new Date(browserTime);
+        const timeDifference = Math.abs(now.getTime() - browserDate.getTime());
+        const isDifferent = timeDifference > 60000; // More than 1 minute difference
         
         console.log(`🌅 Fetching astronomical data for location: ${location.latitude}, ${location.longitude}`);
         
@@ -43,6 +56,8 @@ class AstronomicalRoutes {
         const response = {
           time: {
             serverTime,
+            serverTimeLocal,
+            serverTimezone: location.timezone,
             browserTime,
             timeZoneOffset,
             isDifferent
@@ -53,10 +68,28 @@ class AstronomicalRoutes {
         res.json(response);
       } catch (error) {
         console.error('Error getting astronomical data:', error);
+        // Get timezone from config for fallback as well
+        const config = this.configDatabase.getConfig();
+        const timezone = config.observatory?.location?.timezone || 'America/New_York';
+        
+        const now = new Date();
+        const serverTimeLocal = now.toLocaleString('en-US', { 
+          timeZone: timezone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+        
         // Fallback data structure to prevent frontend errors
         const fallbackResponse = {
           time: {
-            serverTime: new Date().toISOString(),
+            serverTime: new Date(now.toLocaleString('en-US', { timeZone: timezone })).toISOString(),
+            serverTimeLocal,
+            serverTimezone: timezone,
             browserTime: req.query.browserTime || new Date().toISOString(),
             timeZoneOffset: parseInt(req.query.timeZoneOffset) || 0,
             isDifferent: false
