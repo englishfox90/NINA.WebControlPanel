@@ -1,6 +1,6 @@
 # 🚀 Production Setup & Long-term Reliability Guide
 
-**Last Updated**: August 30, 2025  
+**Last Updated**: August 31, 2025  
 **Project**: NINA WebControlPanel v1.0.0
 
 ## 📋 Quick Start for Production Deployment
@@ -28,40 +28,57 @@ npm run deploy
 # - Installs production dependencies
 # - Builds React application for production
 # - Configures production environment
-# - Starts server with process management
+# - Starts server with auto-restart process management
 ```
 
 ### **3. Monitor System Health**
 ```powershell
-# Start continuous health monitoring
-npm run health
+# Check deployment status
+npm run status
 
-# Monitors every minute:
-# - CPU, memory, disk usage
-# - Application response time
-# - Database connectivity
-# - Network endpoint health
-# - Generates alerts for critical issues
+# Start continuous health monitoring (optional)
+npm run monitor
+
+# Quick health check
+npm run health
 ```
 
 ## 🔧 Production Management Commands
 
 | Command | Purpose | Use Case |
 |---------|---------|----------|
-| `npm run start:prod` | Start production server | First-time production launch |
-| `npm run stop` | Stop production server | Graceful shutdown |
+| `npm run deploy` | Full production deployment | Initial deployment |
+| `npm run status` | Check production server status | Verify deployment health |
 | `npm run restart` | Restart production server | After configuration changes |
-| `npm run status` | Check server status | Health verification |
-| `npm run health` | Start health monitor | Long-term monitoring |
+| `npm run monitor` | Start real-time monitoring | Continuous health tracking |
+| `npm run health` | Backend health check | Quick status verification |
 
 ## 🏗️ Architecture for Long-term Reliability
 
-### **Process Management**
-- **Auto-restart** on crashes with exponential backoff
-- **PID file management** for clean process tracking
-- **Graceful shutdown** handling for SIGINT/SIGTERM
-- **Log rotation** with timestamped daily files
-- **PM2 support** when available for advanced process management
+### **Process Management (Auto-Restart System)**
+The ProcessManager provides enterprise-grade reliability:
+
+```javascript
+// Auto-restart on any crash with 5-second delay
+if (code !== 0) { 
+  setTimeout(() => this.startServer(), 5000); 
+}
+```
+
+**Key Features:**
+- **Automatic crash recovery** - Infinite restart attempts on failures
+- **5-second restart delay** - Prevents rapid restart loops  
+- **PID file management** - Clean process tracking and status monitoring
+- **Graceful shutdown** - Proper cleanup on SIGINT/SIGTERM signals
+- **Environment variables** - Full production environment propagation
+- **Exit code monitoring** - Only restarts on unexpected failures (code !== 0)
+
+**Production Commands:**
+```powershell
+npm run status    # Check if production server is running
+npm run restart   # Gracefully restart production server  
+npm run monitor   # Real-time health monitoring
+```
 
 ### **Database Reliability**
 - **SQLite WAL mode** for better concurrent access

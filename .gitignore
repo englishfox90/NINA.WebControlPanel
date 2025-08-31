@@ -66,6 +66,11 @@ Desktop.ini
 resources/
 dashboard-config.sqlite
 
+# Production deployment files
+*.pid
+production-env.json
+product.config.json
+
 # Backup files
 *.backup
 *.bak
