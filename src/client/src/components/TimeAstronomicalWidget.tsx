@@ -58,13 +58,24 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
       const result = await response.json();
       setData(result);
       
-      // Calculate server time offset for accurate time display
-      if (result.time?.serverTime) {
+      // Use server's local time directly instead of calculating offset
+      if (result.time?.serverTimeLocal && result.time?.serverTimezone) {
+        console.log(`⏰ Server timezone: ${result.time.serverTimezone}`);
+        console.log(`⏰ Server local time: ${result.time.serverTimeLocal}`);
+        
+        // Parse the server's local time and create initial offset for clock sync
+        const serverLocalTime = new Date(result.time.serverTimeLocal);
+        const browserTime = new Date();
+        const initialOffset = serverLocalTime.getTime() - browserTime.getTime();
+        setServerTimeOffset(initialOffset);
+        console.log(`⏰ Initial server time sync offset: ${initialOffset}ms`);
+      } else if (result.time?.serverTime) {
+        // Fallback to old method if new fields aren't available
         const serverTime = new Date(result.time.serverTime);
         const browserTime = new Date();
         const offset = serverTime.getTime() - browserTime.getTime();
         setServerTimeOffset(offset);
-        console.log(`⏰ Server time offset: ${offset}ms (${Math.round(offset / 1000)}s)`);
+        console.log(`⏰ Fallback server time offset: ${offset}ms (${Math.round(offset / 1000)}s)`);
       }
     } catch (err) {
       console.error('Error fetching astronomical data:', err);

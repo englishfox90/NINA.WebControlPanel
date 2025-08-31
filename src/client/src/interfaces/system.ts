@@ -192,6 +192,9 @@ export interface WeatherData {
 // Time and Astronomical Widget Types (moved from dashboard.ts)
 export interface TimeData {
   serverTime: string;
+  serverTimeLocal?: string;
+  serverTimezone?: string;
+  serverTimezoneOffsetMinutes?: number;
   browserTime: string;
   timeZoneOffset: number;
   isDifferent: boolean;

@@ -32,8 +32,13 @@ class AstronomicalRoutes {
           hour12: false
         });
         
-        // Also provide ISO format in local timezone for consistency
-        const serverTime = new Date(now.toLocaleString('en-US', { timeZone: location.timezone })).toISOString();
+        // Calculate timezone offset in minutes for the observatory location
+        const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+        const localDate = new Date(now.toLocaleString('en-US', { timeZone: location.timezone }));
+        const timezoneOffsetMinutes = (utcDate.getTime() - localDate.getTime()) / (1000 * 60);
+        
+        // Also provide ISO format in UTC for consistency
+        const serverTime = now.toISOString();
         const browserTime = req.query.browserTime || serverTime;
         const timeZoneOffset = parseInt(req.query.timeZoneOffset) || 0;
         const browserDate = new Date(browserTime);
@@ -58,6 +63,7 @@ class AstronomicalRoutes {
             serverTime,
             serverTimeLocal,
             serverTimezone: location.timezone,
+            serverTimezoneOffsetMinutes: timezoneOffsetMinutes,
             browserTime,
             timeZoneOffset,
             isDifferent

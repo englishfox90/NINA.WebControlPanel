@@ -262,8 +262,26 @@ class APIRoutes {
           hour12: false
         });
         
+        // Calculate timezone offset in minutes for the observatory location
+        const formatter = new Intl.DateTimeFormat('en', {
+          timeZone: location.timezone,
+          timeZoneName: 'longOffset'
+        });
+        const offsetString = formatter.formatToParts(now).find(part => part.type === 'timeZoneName')?.value || '';
+        const timezoneOffsetMinutes = offsetString ? parseTimezoneOffset(offsetString) : 0;
+        
+        // Helper function to parse timezone offset string like "GMT-4" to minutes
+        function parseTimezoneOffset(offsetStr) {
+          const match = offsetStr.match(/GMT([+-])(\d{1,2}):?(\d{2})?/);
+          if (!match) return 0;
+          const sign = match[1] === '+' ? -1 : 1; // Note: reversed because we want offset FROM UTC
+          const hours = parseInt(match[2], 10);
+          const minutes = parseInt(match[3] || '0', 10);
+          return sign * (hours * 60 + minutes);
+        }
+        
         // Calculate if server and browser times are significantly different (more than 1 minute)
-        const serverTime = new Date(now.toLocaleString('en-US', { timeZone: location.timezone })).toISOString();
+        const serverTime = now.toISOString(); // Keep as UTC for consistency
         const browserDate = new Date(browserTime);
         const timeDifference = Math.abs(now.getTime() - browserDate.getTime());
         const isDifferent = timeDifference > 60000; // More than 1 minute difference
@@ -286,6 +304,7 @@ class APIRoutes {
             serverTime,
             serverTimeLocal,
             serverTimezone: location.timezone,
+            serverTimezoneOffsetMinutes: timezoneOffsetMinutes,
             browserTime,
             timeZoneOffset,
             isDifferent
@@ -329,9 +348,10 @@ class APIRoutes {
         
         res.json({
           time: {
-            serverTime: new Date(fallbackNow.toLocaleString('en-US', { timeZone: timezone })).toISOString(),
+            serverTime: fallbackNow.toISOString(),
             serverTimeLocal: fallbackServerTimeLocal,
             serverTimezone: timezone,
+            serverTimezoneOffsetMinutes: (new Date().getTimezoneOffset() * -1),
             browserTime: req.headers['x-browser-time'] || new Date().toISOString(),
             timeZoneOffset: parseInt(req.headers['x-timezone-offset'] || '0'),
             isDifferent: false
