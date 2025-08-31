@@ -35,7 +35,7 @@ class APIRoutes {
     this.systemRoutes = new SystemRoutes(systemMonitor);
     this.schedulerRoutes = new SchedulerRoutes(this.targetSchedulerDb);
     this.astronomicalRoutes = new AstronomicalRoutes(astronomicalService, configDatabase);
-    this.ninaRoutes = new NINARoutes(ninaService, sessionStateManager);
+    this.ninaRoutes = new NINARoutes(ninaService, sessionStateManager, configDatabase);
     this.dashboardRoutes = new DashboardRoutes(configDatabase);
     
     console.log('🔧 Modular API Routes initialized with all services');

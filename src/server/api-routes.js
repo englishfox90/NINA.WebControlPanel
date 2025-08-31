@@ -168,11 +168,42 @@ class APIRoutes {
         }
 
         const projects = this.targetSchedulerDb.getProjectProgress();
+        
+        // Get current session state to identify shooting target
+        let currentTarget = null;
+        try {
+          const sessionState = this.sessionStateManager.getSessionState();
+          if (sessionState?.target?.name && sessionState?.target?.project && !sessionState?.target?.isExpired) {
+            currentTarget = {
+              name: sessionState.target.name,
+              project: sessionState.target.project
+            };
+          }
+        } catch (error) {
+          console.warn('Could not get current target from session state:', error.message);
+        }
+        
+        // Mark projects that are currently being shot
+        const enrichedProjects = projects.map(project => ({
+          ...project,
+          isCurrentlyActive: currentTarget && 
+            (project.name === currentTarget.project || 
+             project.targets?.some(t => t.name === currentTarget.name))
+        }));
+        
+        // Sort projects to show currently active ones first
+        enrichedProjects.sort((a, b) => {
+          if (a.isCurrentlyActive && !b.isCurrentlyActive) return -1;
+          if (!a.isCurrentlyActive && b.isCurrentlyActive) return 1;
+          return 0; // Keep original order for same priority
+        });
+
         res.json({ 
-          projects,
+          projects: enrichedProjects,
           lastUpdate: new Date().toISOString(),
-          totalProjects: projects.length,
-          activeProjects: projects.filter(p => p.state === 1).length
+          totalProjects: enrichedProjects.length,
+          activeProjects: enrichedProjects.filter(p => p.state === 1).length,
+          currentTarget
         });
       } catch (error) {
         console.error('Error getting scheduler progress:', error);
@@ -559,6 +590,63 @@ class APIRoutes {
         console.error('Error getting NINA camera info:', error);
         res.status(500).json({ 
           error: 'Failed to get NINA camera info',
+          details: error.message 
+        });
+      }
+    });
+
+    // Proxy NINA prepared-image endpoint
+    app.get('/api/nina/prepared-image', async (req, res) => {
+      try {
+        const config = this.configDatabase.getConfig();
+        const ninaApiUrl = `${config.nina.baseUrl}:${config.nina.apiPort}`;
+        
+        // Build query parameters from request
+        const queryParams = new URLSearchParams();
+        if (req.query.resize) queryParams.set('resize', req.query.resize);
+        if (req.query.size) queryParams.set('size', req.query.size);
+        if (req.query.autoPrepare) queryParams.set('autoPrepare', req.query.autoPrepare);
+        
+        const preparedImageUrl = `${ninaApiUrl}/v2/api/prepared-image?${queryParams.toString()}`;
+        console.log('📸 Proxying prepared-image request to:', preparedImageUrl);
+        
+        // Use axios for HTTP request instead of fetch
+        const axios = require('axios');
+        const response = await axios.get(preparedImageUrl, {
+          responseType: 'arraybuffer',
+          timeout: 30000, // 30 second timeout
+          validateStatus: function (status) {
+            return status < 500; // Don't throw on 4xx errors
+          }
+        });
+        
+        if (response.status === 404) {
+          return res.status(404).json({
+            error: 'No prepared image available',
+            message: 'NINA has no prepared image ready yet'
+          });
+        }
+        
+        if (response.status !== 200) {
+          throw new Error(`NINA API error: ${response.status} ${response.statusText}`);
+        }
+        
+        // Get content type from response headers
+        const contentType = response.headers['content-type'] || 'image/jpeg';
+        
+        res.set({
+          'Content-Type': contentType,
+          'Content-Length': response.data.length,
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        });
+        
+        res.send(response.data);
+        console.log('✅ Prepared image proxied successfully:', response.data.length, 'bytes');
+        
+      } catch (error) {
+        console.error('❌ Error proxying prepared-image:', error.message);
+        res.status(500).json({ 
+          error: 'Failed to get prepared image',
           details: error.message 
         });
       }
