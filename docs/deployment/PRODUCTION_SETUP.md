@@ -53,6 +53,18 @@ npm run health
 | `npm run monitor` | Start real-time monitoring | Continuous health tracking |
 | `npm run health` | Backend health check | Quick status verification |
 
+### **Process Cleanup (When Needed)**
+```powershell
+# Stop production server gracefully
+node scripts/deployment/process-manager.js stop
+
+# Force kill all Node.js processes if needed
+taskkill /f /im node.exe
+
+# Note: Some processes may require administrator privileges
+# Run PowerShell as Administrator if you get "Access is denied" errors
+```
+
 ## 🏗️ Architecture for Long-term Reliability
 
 ### **Process Management (Auto-Restart System)**

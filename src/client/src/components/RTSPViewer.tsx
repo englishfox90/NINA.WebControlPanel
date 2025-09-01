@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Badge, Flex, Box, Text, AspectRatio, Card } from '@radix-ui/themes';
-import { VideoIcon, ReloadIcon, ExclamationTriangleIcon } from '@radix-ui/react-icons';
+import { Button, Badge, Flex, Box, Text, AspectRatio, Card, Dialog, IconButton } from '@radix-ui/themes';
+import { VideoIcon, ReloadIcon, ExclamationTriangleIcon, Cross2Icon, EnterFullScreenIcon } from '@radix-ui/react-icons';
 import type { RTSPViewerProps } from '../interfaces/dashboard';
 
 const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeader = false, stats }) => {
@@ -10,7 +10,11 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
   const [imgLoading, setImgLoading] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [naturalDimensions, setNaturalDimensions] = useState<{width: number, height: number} | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [modalImgSrc, setModalImgSrc] = useState<string>('');
+  const [modalImgLoading, setModalImgLoading] = useState(true);
   const imgRef = useRef<HTMLImageElement>(null);
+  const modalImgRef = useRef<HTMLImageElement>(null);
 
   // Update image source when streams change
   useEffect(() => {
@@ -24,6 +28,19 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
       return () => clearInterval(interval);
     }
   }, [streams, activeStream]);
+
+  // Separate effect for modal image refresh
+  useEffect(() => {
+    if (isDialogOpen && streams[activeStream]) {
+      const updateModalImg = () => {
+        setModalImgSrc(`${streams[activeStream]}?t=${Date.now()}`);
+      };
+      
+      updateModalImg(); // Update immediately when modal opens
+      const interval = setInterval(updateModalImg, 60000); // Refresh every minute
+      return () => clearInterval(interval);
+    }
+  }, [isDialogOpen, streams, activeStream]);
 
   // Determine optimal container sizing based on content
   const getStreamType = (streamIndex: number) => {
@@ -131,6 +148,22 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
     setConnectionStatus('error');
   };
 
+  const handleImageClick = () => {
+    if (connectionStatus === 'connected' && !imgLoading) {
+      setIsDialogOpen(true);
+      setModalImgLoading(true);
+      // Modal image will be updated by the useEffect when dialog opens
+    }
+  };
+
+  const handleModalImageLoad = () => {
+    setModalImgLoading(false);
+  };
+
+  const handleModalImageError = () => {
+    setModalImgLoading(false);
+  };
+
   if (!streams.length) {
     return (
       <Card>
@@ -235,9 +268,14 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
                 ref={imgRef}
                 src={imgSrc}
                 alt={`Live Stream ${activeStream + 1}`}
-                style={getImageStyle(getStreamType(activeStream))}
+                style={{
+                  ...getImageStyle(getStreamType(activeStream)),
+                  cursor: connectionStatus === 'connected' && !imgLoading ? 'pointer' : 'default'
+                }}
                 onLoad={handleImageLoad}
                 onError={handleImageError}
+                onClick={handleImageClick}
+                title={connectionStatus === 'connected' && !imgLoading ? 'Click to view fullscreen' : undefined}
               />
 
               {/* Connection Error State */}
@@ -290,8 +328,146 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
           >
             LIVE
           </Badge>
+
+          {/* Fullscreen Icon Overlay */}
+          {connectionStatus === 'connected' && !imgLoading && !isTransitioning && (
+            <IconButton
+              size="2"
+              variant="soft"
+              style={{
+                position: 'absolute',
+                bottom: '8px',
+                right: '8px',
+                zIndex: 1,
+                opacity: 0.8,
+                cursor: 'pointer'
+              }}
+              onClick={handleImageClick}
+              title="View fullscreen"
+            >
+              <EnterFullScreenIcon />
+            </IconButton>
+          )}
         </Box>
       </Box>
+
+      {/* Fullscreen Dialog Modal */}
+      <Dialog.Root open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog.Content 
+          style={{ 
+            maxWidth: '95vw', 
+            maxHeight: '95vh', 
+            width: 'auto',
+            height: 'auto',
+            padding: '16px',
+            backgroundColor: 'var(--color-panel-solid)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden' // Prevent any scroll
+          }}
+        >
+          <Dialog.Title>
+            <Flex align="center" justify="between" mb="3" style={{ flexShrink: 0 }}>
+              <Flex align="center" gap="2">
+                <VideoIcon width="20" height="20" />
+                <Text size="4" weight="bold">Live Stream - Camera {activeStream + 1}</Text>
+                <Badge color="red" size="1">LIVE</Badge>
+              </Flex>
+              <Dialog.Close>
+                <IconButton variant="ghost" size="2">
+                  <Cross2Icon />
+                </IconButton>
+              </Dialog.Close>
+            </Flex>
+          </Dialog.Title>
+
+          <Box 
+            style={{
+              position: 'relative',
+              flex: '1',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 0, // Allow flex item to shrink below content size
+              overflow: 'hidden',
+              padding: '8px' // Add some padding to prevent tight edges
+            }}
+          >
+            {modalImgLoading && (
+              <Flex 
+                align="center" 
+                justify="center" 
+                gap="2"
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 2
+                }}
+              >
+                <ReloadIcon 
+                  width="32" 
+                  height="32" 
+                  className="loading-spinner"
+                  style={{ color: 'var(--accent-9)' }}
+                />
+                <Text size="3" color="gray">Loading fullscreen view...</Text>
+              </Flex>
+            )}
+
+            <img
+              ref={modalImgRef}
+              src={modalImgSrc}
+              alt={`Live Stream ${activeStream + 1} - Fullscreen`}
+              style={{
+                maxWidth: 'calc(100% - 16px)', // Account for container padding
+                maxHeight: 'calc(100% - 16px)', // Account for container padding
+                width: 'auto',
+                height: 'auto',
+                borderRadius: 'var(--radius-3)',
+                opacity: modalImgLoading ? 0.3 : 1,
+                transition: 'opacity 0.3s ease-in-out',
+                objectFit: 'contain', // This preserves aspect ratio and shows full image
+                objectPosition: 'center', // Centers the image within container
+                display: 'block'
+              }}
+              onLoad={handleModalImageLoad}
+              onError={handleModalImageError}
+            />
+          </Box>
+
+          {/* Modal Stream Info - Only show if there's space */}
+          {stats && stats[activeStream] && (
+            <Box style={{ flexShrink: 0, maxHeight: '120px', overflow: 'auto' }}>
+              <Flex direction="column" gap="2" mt="3" p="3" style={{ 
+                backgroundColor: 'var(--color-surface-raised)',
+                borderRadius: 'var(--radius-2)'
+              }}>
+                <Text size="2" weight="bold" color="gray">Stream Information</Text>
+                {stats[activeStream]?.resolution && stats[activeStream].resolution !== 'Unknown' && (
+                  <Flex justify="between">
+                    <Text size="2" color="gray">Resolution</Text>
+                    <Text size="2" weight="medium">{stats[activeStream].resolution}</Text>
+                  </Flex>
+                )}
+                {stats[activeStream]?.frameRate && stats[activeStream].frameRate !== 'Unknown' && (
+                  <Flex justify="between">
+                    <Text size="2" color="gray">Frame Rate</Text>
+                    <Text size="2" weight="medium">{stats[activeStream].frameRate}</Text>
+                  </Flex>
+                )}
+                {stats[activeStream]?.bitrate && stats[activeStream].bitrate !== 'Unknown' && (
+                  <Flex justify="between">
+                    <Text size="2" color="gray">Bitrate</Text>
+                    <Text size="2" weight="medium">{stats[activeStream].bitrate}</Text>
+                  </Flex>
+                )}
+              </Flex>
+            </Box>
+          )}
+        </Dialog.Content>
+      </Dialog.Root>
 
       {/* Stream Info */}
       {stats && stats[activeStream] && (
