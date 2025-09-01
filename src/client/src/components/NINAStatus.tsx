@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { Card, Flex, Text, Badge } from '@radix-ui/themes';
 import { 
   GearIcon, 
@@ -11,7 +11,7 @@ import { useNINAStatusWebSocket } from '../hooks/useUnifiedWebSocket';
 import { getApiUrl } from '../config/api';
 import type { Equipment, EquipmentResponse, NINAStatusProps } from '../interfaces/nina';
 
-const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }) => {
+const NINAStatus: React.FC<NINAStatusProps> = memo(({ onRefresh, hideHeader = false }) => {
   const [data, setData] = useState<EquipmentResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -236,6 +236,6 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
       </Flex>
     </Card>
   );
-};
+});
 
 export default NINAStatus;

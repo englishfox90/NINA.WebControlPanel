@@ -291,8 +291,9 @@ const Dashboard: React.FC = () => {
       {/* Safety Banner for Observatory Monitoring */}
       <SafetyBanner />
 
-      {/* Mobile Layout - Dynamic widget rendering */}
-      <div className="mobile-only">
+      {/* Conditional Layout - Render only mobile OR desktop, not both */}
+      {isMobile ? (
+        /* Mobile Layout */
         <Flex direction="column" gap="4" p="4">
           {widgetConfig.map((config) => (
             <div key={config.id}>
@@ -300,63 +301,61 @@ const Dashboard: React.FC = () => {
             </div>
           ))}
         </Flex>
-      </div>
-
-      {/* Desktop Layout - React Grid Layout */}
-      <Box className="desktop-only" style={{ padding: '1.5rem' }}>
-        {layoutLoading ? (
-          <Flex align="center" justify="center" style={{ minHeight: '400px' }}>
-            <ReloadIcon className="loading-spinner" />
-            <Text ml="2">Loading layout...</Text>
-          </Flex>
-        ) : (
-          <ResponsiveGridLayout
-            {...gridLayoutProps}
-            {...responsiveProps}
-            layouts={{
-              lg: getGridLayout(widgetConfig),
-              md: getGridLayout(widgetConfig),
-              sm: getGridLayout(widgetConfig),
-              xs: getGridLayout(widgetConfig),
-              xxs: getGridLayout(widgetConfig)
-            }}
-            onLayoutChange={handleLayoutChange}
-            isDraggable={isEditMode}
-            isResizable={isEditMode}
-            draggableHandle={isEditMode ? ".drag-handle" : ".disabled-drag-handle"}
-            margin={[24, 24]}
-            containerPadding={[0, 0]}
-          >
-            {widgetConfig.map((config) => (
-              <div key={config.layout.i} className={`widget-container ${isEditMode ? 'edit-mode' : 'view-mode'}`}>
-                {isEditMode && (
-                  <div className="drag-handle">
-                    <Flex align="center" gap="2">
-                      <DragHandleDots2Icon width="14" height="14" />
-                      <Text size="2" weight="medium">{config.title}</Text>
-                    </Flex>
+      ) : (
+        /* Desktop Layout - React Grid Layout */
+        <Box style={{ padding: '1.5rem' }}>
+          {layoutLoading ? (
+            <Flex align="center" justify="center" style={{ minHeight: '400px' }}>
+              <ReloadIcon className="loading-spinner" />
+              <Text ml="2">Loading layout...</Text>
+            </Flex>
+          ) : (
+            <ResponsiveGridLayout
+              {...gridLayoutProps}
+              {...responsiveProps}
+              layouts={{
+                lg: getGridLayout(widgetConfig),
+                md: getGridLayout(widgetConfig),
+                sm: getGridLayout(widgetConfig),
+                xs: getGridLayout(widgetConfig),
+                xxs: getGridLayout(widgetConfig)
+              }}
+              onLayoutChange={handleLayoutChange}
+              isDraggable={isEditMode}
+              isResizable={isEditMode}
+              draggableHandle={isEditMode ? ".drag-handle" : ".disabled-drag-handle"}
+              margin={[24, 24]}
+              containerPadding={[0, 0]}
+            >
+              {widgetConfig.map((config) => (
+                <div key={config.layout.i} className={`widget-container ${isEditMode ? 'edit-mode' : 'view-mode'}`}>
+                  {isEditMode && (
+                    <div className="drag-handle">
+                      <Flex align="center" gap="2">
+                        <DragHandleDots2Icon width="14" height="14" />
+                        <Text size="2" weight="medium">{config.title}</Text>
+                      </Flex>
+                    </div>
+                  )}
+                  {!isEditMode && (
+                    <div className="widget-header">
+                      <Text size="2" weight="medium" style={{ padding: '8px 12px' }}>{config.title}</Text>
+                    </div>
+                  )}
+                  <div className={`widget-content ${isEditMode ? 'with-header' : 'with-header'}`}>
+                    {renderWidget(config)}
                   </div>
-                )}
-                {!isEditMode && (
-                  <div className="widget-header">
-                    <Text size="2" weight="medium" style={{ padding: '8px 12px' }}>{config.title}</Text>
-                  </div>
-                )}
-                <div className={`widget-content ${isEditMode ? 'with-header' : 'with-header'}`}>
-                  {renderWidget(config)}
+                  {isEditMode && (
+                    <div className="react-resizable-handle react-resizable-handle-se">
+                      <CornerBottomRightIcon />
+                    </div>
+                  )}
                 </div>
-                {isEditMode && (
-                  <div className="react-resizable-handle react-resizable-handle-se">
-                    <CornerBottomRightIcon />
-                  </div>
-                )}
-              </div>
-            ))}
-          </ResponsiveGridLayout>
-        )}
-      </Box>
-      
-      {/* Settings Modal */}
+              ))}
+            </ResponsiveGridLayout>
+          )}
+        </Box>
+      )}      {/* Settings Modal */}
       <SettingsModal 
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
