@@ -83,9 +83,15 @@ async function initializeServer() {
   const ninaService = new NINAService();
   const astronomicalService = new AstronomicalService();
   
-  // Initialize target scheduler service
+  // Initialize target scheduler service with database path from config
   const { TargetSchedulerService } = require('../services/targetSchedulerService');
-  const dbPath = path.join(__dirname, '../../resources/schedulerdb.sqlite');
+  const schedulerPath = configDatabase.getConfigValue('database.targetSchedulerPath', '../../resources/schedulerdb.sqlite');
+  console.log('🔍 Loading Target Scheduler from database config:', schedulerPath);
+  
+  // Resolve path relative to project root
+  const dbPath = path.resolve(__dirname, '../..', schedulerPath);
+  console.log('🔍 Resolved Target Scheduler path:', dbPath);
+  
   const targetSchedulerService = new TargetSchedulerService(dbPath);
   
   console.log('🔭 NINA Service configured: ' + ninaService.fullUrl);
@@ -129,9 +135,17 @@ async function initializeServer() {
   // Register all API routes
   apiRoutes.register(app);
 
-  // 404 handler
-  app.use('*', (req, res) => {
-    res.status(404).json({ error: 'Endpoint not found' });
+  // Serve static files from React build
+  const buildPath = path.join(__dirname, '..', '..', 'build');
+  app.use(express.static(buildPath));
+
+  // Serve React app for all non-API routes
+  app.get('*', (req, res) => {
+    // Don't serve React app for API routes
+    if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
+      return res.status(404).json({ error: 'Endpoint not found' });
+    }
+    res.sendFile(path.join(buildPath, 'index.html'));
   });
 
   // Create HTTP server

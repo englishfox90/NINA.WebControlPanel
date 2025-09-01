@@ -10,9 +10,9 @@ const os = require('os');
 
 class ProcessManager {
   constructor() {
-    this.configPath = path.join(__dirname, '..', 'src', 'server');
-    this.logDir = path.join(__dirname, '..', 'logs');
-    this.pidFile = path.join(__dirname, '..', 'nina-webcontrol.pid');
+    this.configPath = path.join(__dirname, '..', '..', 'src', 'server');
+    this.logDir = path.join(__dirname, '..', '..', 'logs');
+    this.pidFile = path.join(__dirname, '..', '..', 'nina-webcontrol.pid');
     
     // Ensure log directory exists
     if (!fs.existsSync(this.logDir)) {
@@ -29,6 +29,11 @@ class ProcessManager {
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe']
     });
+
+    // Check if process started successfully
+    if (!serverProcess || !serverProcess.pid) {
+      throw new Error('Failed to start server process - process is undefined or has no PID');
+    }
 
     // Write PID for management
     fs.writeFileSync(this.pidFile, serverProcess.pid.toString());

@@ -4,6 +4,8 @@
 node_modules/
 /.pnp
 .pnp.js
+package-lock.json
+yarn.lock
 
 # Testing
 /coverage
@@ -65,6 +67,7 @@ Desktop.ini
 # Development resources (databases, samples, etc.)
 resources/
 dashboard-config.sqlite
+.pid
 
 # Backup files
 *.backup
