@@ -60,25 +60,13 @@ class ProductionDeployment {
   async installDependencies() {
     console.log('📦 Step 2: Installing production dependencies...');
     
-    // Check if dependencies are already installed
-    const nodeModulesExists = fs.existsSync(path.join(this.projectRoot, 'node_modules'));
-    const clientNodeModulesExists = fs.existsSync(path.join(this.projectRoot, 'src/client/node_modules'));
+    // Install root dependencies
+    await this.runCommand('npm ci --production', this.projectRoot);
     
-    if (!nodeModulesExists) {
-      // Install root dependencies only if missing
-      await this.runCommand('npm install', this.projectRoot);
-    } else {
-      console.log('   Root dependencies already installed, skipping...');
-    }
+    // Install client dependencies and build
+    await this.runCommand('npm ci', path.join(this.projectRoot, 'src/client'));
     
-    if (!clientNodeModulesExists) {
-      // Install client dependencies only if missing
-      await this.runCommand('npm install', path.join(this.projectRoot, 'src/client'));
-    } else {
-      console.log('   Client dependencies already installed, skipping...');
-    }
-    
-    console.log('✅ Dependencies verified');
+    console.log('✅ Dependencies installed');
   }
 
   async buildProduction() {
@@ -135,20 +123,42 @@ class ProductionDeployment {
     process.env.NODE_ENV = 'production';
     process.env.BUILD_DIR = this.buildDir;
     
-    // Use built-in process manager (skip PM2 due to Windows permission issues)
-    console.log('   Using built-in process manager (PM2 skipped due to Windows permissions)');
-    
+    // Start server with PM2 if available, otherwise as background process
     try {
+      await this.runCommand('pm2 --version', this.projectRoot);
+      
+      // PM2 is available - use it for process management
+      const pm2Config = {
+        name: 'nina-webcontrol',
+        script: serverScript,
+        cwd: this.projectRoot,
+        env: {
+          NODE_ENV: 'production',
+          PORT: process.env.PORT || 3001,
+          BUILD_DIR: this.buildDir
+        },
+        log_file: path.join(this.logsDir, 'combined.log'),
+        error_file: path.join(this.logsDir, 'error.log'),
+        out_file: path.join(this.logsDir, 'out.log'),
+        time: true,
+        instances: 1,
+        autorestart: true,
+        max_restarts: 10,
+        min_uptime: '5s'
+      };
+      
+      const pm2ConfigPath = path.join(this.projectRoot, 'ecosystem.config.js');
+      fs.writeFileSync(pm2ConfigPath, `module.exports = { apps: [${JSON.stringify(pm2Config, null, 2)}] };`);
+      
+      await this.runCommand('pm2 start ecosystem.config.js', this.projectRoot);
+      console.log('✅ Production server started with PM2');
+      
+    } catch (error) {
+      // PM2 not available - use built-in process manager
       const ProcessManager = require('./process-manager');
       const pm = new ProcessManager();
       pm.startServer();
       console.log('✅ Production server started with built-in process manager');
-    } catch (error) {
-      // Fallback - just log the command to run
-      console.log('⚠️ Process manager not available. To start manually, run:');
-      console.log(`   cd ${this.projectRoot}`);
-      console.log('   npm run server');
-      console.log('✅ Production build ready for manual startup');
     }
   }
 

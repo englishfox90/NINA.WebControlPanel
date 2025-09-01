@@ -34,17 +34,6 @@ class ConfigRoutes {
       }
     });
 
-    // Update configuration (PUT method for settings modal)
-    app.put('/api/config', (req, res) => {
-      try {
-        this.configDatabase.setConfig(req.body);
-        res.json({ success: true, message: 'Configuration updated successfully' });
-      } catch (error) {
-        console.error('Error setting config:', error);
-        res.status(500).json({ error: 'Failed to set configuration' });
-      }
-    });
-
     // Export configuration
     app.get('/api/config/export', (req, res) => {
       try {

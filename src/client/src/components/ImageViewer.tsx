@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Card, 
   Box, 
@@ -18,7 +18,7 @@ import { getApiUrl } from '../config/api';
 import type { ImageViewerProps } from '../interfaces/dashboard';
 import type { ImageStatistics } from '../interfaces/image';
 
-export const ImageViewerWidget: React.FC<ImageViewerProps> = memo(({ onRefresh, hideHeader = false }) => {
+export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideHeader = false }) => {
   const [latestImage, setLatestImage] = useState<string | null>(null);
   const [imageStats, setImageStats] = useState<ImageStatistics | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
@@ -334,6 +334,6 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = memo(({ onRefresh, 
       </Flex>
     </Card>
   );
-});
+};
 
 export default ImageViewerWidget;

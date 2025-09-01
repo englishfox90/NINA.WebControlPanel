@@ -64,23 +64,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
       setLoading(true);
       setError(null);
       
-      console.log('🔧 Fetching config from:', getApiUrl('config'));
       const response = await fetch(getApiUrl('config'));
-      
-      console.log('📡 Config response status:', response.status);
-      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
-        throw new Error(errorData.error || `Failed to load configuration: ${response.status}`);
+        throw new Error(`Failed to load configuration: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('✅ Config loaded successfully:', Object.keys(data));
       setConfig(data);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load configuration';
-      console.error('❌ Error loading configuration:', errorMessage);
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : 'Failed to load configuration');
+      console.error('Error loading configuration:', err);
     } finally {
       setLoading(false);
     }
@@ -102,8 +95,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
-        throw new Error(errorData.error || `Failed to save configuration: ${response.status}`);
+        throw new Error(`Failed to save configuration: ${response.status}`);
       }
       
       setSuccess(true);

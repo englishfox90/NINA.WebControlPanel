@@ -3,7 +3,7 @@
  * A clean, modular implementation that combines all session widget functionality
  */
 
-import React, { memo } from 'react';
+import React from 'react';
 import { Card, Flex } from '@radix-ui/themes';
 import type { SessionWidgetProps } from '../../interfaces/session';
 
@@ -16,7 +16,7 @@ import { SessionStatus } from './SessionStatus';
 import { SessionLoading, SessionError, SessionIdle } from './SessionStates';
 import { getSessionStatus } from './utils';
 
-const SessionWidget: React.FC<SessionWidgetProps> = memo(({
+const SessionWidget: React.FC<SessionWidgetProps> = ({
   enableEnhancedMode = false,
   showSessionWindow = true,
   enableTimezoneFormatting = true,
@@ -112,6 +112,6 @@ const SessionWidget: React.FC<SessionWidgetProps> = memo(({
       </Flex>
     </Card>
   );
-});
+};
 
 export default SessionWidget;

@@ -390,7 +390,6 @@ const TimeAstronomicalWidget: React.FC<TimeAstronomicalWidgetProps> = ({
   const getChartOptions = () => ({
     responsive: true,
     maintainAspectRatio: false,
-    animation: false, // Disable animations for better performance
     circumference: 180, // Half doughnut
     rotation: 270, // Start from top
     plugins: {

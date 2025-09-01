@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Flex, Box, Text, Badge, Progress, Button, HoverCard, Separator, Heading } from '@radix-ui/themes';
 import { 
   TargetIcon, 
@@ -13,7 +13,7 @@ import { useSchedulerWebSocket } from '../hooks/useUnifiedWebSocket';
 import { getApiUrl } from '../config/api';
 import type { TargetSchedulerProps } from '../interfaces/dashboard';
 
-export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = memo(({ onRefresh, hideHeader = false }) => {
+export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefresh, hideHeader = false }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -385,7 +385,7 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = memo(({ onR
       </Flex>
     </Card>
   );
-});
+};
 
 export default TargetSchedulerWidget;
 

@@ -85,26 +85,8 @@ async function initializeServer() {
   
   // Initialize target scheduler service
   const { TargetSchedulerService } = require('../services/targetSchedulerService');
-  const config = configDatabase.getConfig();
-  const configuredDbPath = config.database.targetSchedulerPath;
-  
-  let targetSchedulerService = null;
-  if (configuredDbPath) {
-    try {
-      // Use configured path if it's absolute, otherwise resolve relative to project root
-      const dbPath = path.isAbsolute(configuredDbPath) ? 
-        configuredDbPath : 
-        path.join(__dirname, '../..', configuredDbPath);
-      
-      console.log(`🔍 Using configured Target Scheduler database path: ${dbPath}`);
-      targetSchedulerService = new TargetSchedulerService(dbPath);
-    } catch (error) {
-      console.warn(`⚠️ Could not connect to configured scheduler database: ${error.message}`);
-      console.log('📊 Target Scheduler widget will show "No database configured"');
-    }
-  } else {
-    console.log('📊 No Target Scheduler database configured - widget will show offline status');
-  }
+  const dbPath = path.join(__dirname, '../../resources/schedulerdb.sqlite');
+  const targetSchedulerService = new TargetSchedulerService(dbPath);
   
   console.log('🔭 NINA Service configured: ' + ninaService.fullUrl);
   
@@ -147,28 +129,10 @@ async function initializeServer() {
   // Register all API routes
   apiRoutes.register(app);
 
-  // Serve React build files in production
-  if (process.env.NODE_ENV === 'production') {
-    const buildDir = process.env.BUILD_DIR || path.join(__dirname, '../../build');
-    console.log(`📁 Serving React build files from: ${buildDir}`);
-    
-    // Serve static files
-    app.use(express.static(buildDir));
-    
-    // Handle React Router - send all non-API requests to index.html
-    app.get('*', (req, res) => {
-      if (!req.path.startsWith('/api')) {
-        res.sendFile(path.join(buildDir, 'index.html'));
-      } else {
-        res.status(404).json({ error: 'API endpoint not found' });
-      }
-    });
-  } else {
-    // 404 handler for development mode
-    app.use('*', (req, res) => {
-      res.status(404).json({ error: 'Endpoint not found' });
-    });
-  }
+  // 404 handler
+  app.use('*', (req, res) => {
+    res.status(404).json({ error: 'Endpoint not found' });
+  });
 
   // Create HTTP server
   const server = http.createServer(app);
