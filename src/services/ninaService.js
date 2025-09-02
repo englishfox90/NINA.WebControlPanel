@@ -679,6 +679,48 @@ class NINAService {
       throw new Error(`Failed to get session data: ${error.message}`);
     }
   }
+
+  async getGuiderGraph() {
+    try {
+      console.log('🎯 Fetching NINA guider graph data...');
+      
+      // Get guider graph data from NINA API
+      const response = await this.makeRequest('/equipment/guider/graph');
+      
+      // Validate response
+      if (!response || !response.Success) {
+        throw new Error(response?.Error || 'Failed to fetch guider graph data');
+      }
+
+      // Get guider status for connection info
+      const guiderStatus = await this.makeRequest('/equipment/guider/info');
+      const guider = guiderStatus?.Response || {};
+
+      // Process guide steps with step numbers (no timestamps)
+      const guideSteps = (response.Response?.GuideSteps || []).map((step, index) => ({
+        ...step,
+        stepNumber: index + 1 // Use step number instead of timestamp
+      }));
+
+      const result = {
+        ...response,
+        Response: {
+          ...response.Response,
+          GuideSteps: guideSteps
+        },
+        timestamp: Date.now(),
+        connected: guider.Connected || false,
+        isGuiding: guider.IsGuiding || false
+      };
+
+      console.log(`✅ Guider graph data retrieved: ${guideSteps.length} steps, RMS: ${response.Response?.RMS?.TotalText || 'N/A'}`);
+      return result;
+
+    } catch (error) {
+      console.warn('⚠️ NINA guider graph unavailable:', error.message);
+      return null; // Return null instead of mock data
+    }
+  }
 }
 
 module.exports = NINAService;

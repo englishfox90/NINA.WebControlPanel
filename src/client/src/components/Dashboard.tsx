@@ -9,6 +9,7 @@ import SessionWidgetEnhanced from './SessionWidget/Enhanced';
 import TimeAstronomicalWidget from './TimeAstronomicalWidget';
 import ImageViewerWidget from './ImageViewer';
 import WeatherWidget from './WeatherWidget';
+import GuiderGraphWidget from './GuiderGraphWidget';
 import SafetyBanner from './SafetyBanner';
 import { SettingsModal } from './SettingsModal';
 import WidgetService, { WidgetConfig } from '../services/widgetService';
@@ -207,6 +208,8 @@ const Dashboard: React.FC = () => {
         return <ImageViewerWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       case 'WeatherWidget':
         return <WeatherWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
+      case 'GuiderGraphWidget':
+        return <GuiderGraphWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       default:
         return <div key={config.id}>Unknown widget: {config.component}</div>;
     }

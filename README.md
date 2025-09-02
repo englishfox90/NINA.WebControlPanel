@@ -1,4 +1,7 @@
-# 🔭 NINA WebControlPanel
+# 🔭 NINA WebControlPan- 📡 **Session Monitoring** - Real-time NINA session tracking via WebSocket ✅
+- **Image Viewer** - Real-time NINA image display with WebSocket integration ✅
+- 📊 **Guider Graph** - Professional PHD2/NINA guiding performance monitoring with step-based visualization ✅
+- ⚙️ **Settings Management** - Comprehensive configuration modal with file picker ✅
 
 A modern, full-stack web dashboard for monitoring and controlling remote astrophotography equipment running [NINA (Nighttime Imaging 'N' Astronomy)](https://nighttime-imaging.eu/).
 
@@ -161,9 +164,37 @@ The dashboard features a modular widget system with database-driven configuratio
 - **Time & Astronomical Data** ✅ - Server time sync, twilight phases, and moon phase tracking
 - **Current Session** ✅ - Real-time NINA session monitoring with WebSocket integration
 - **Image Viewer** ✅ - Real-time NINA captured images with WebSocket integration and metadata display
+- **Guider Graph** ✅ - Professional guiding performance monitoring with real-time PHD2/NINA data visualization
 - **Settings Modal** ✅ - Comprehensive configuration interface with native file picker
 
 All widgets are responsive with Radix UI components and feature professional fallback when services unavailable.
+
+### 📊 **Guider Graph Widget** - Professional Astrophotography Monitoring
+
+**Latest Addition**: The Guider Graph Widget provides professional guiding performance monitoring with real-time visualization of PHD2/NINA guiding data, matching the functionality of professional astronomy applications.
+
+#### **Key Features**:
+- **Step-Based X-Axis** - Professional step numbering (#1, #2, #3...) like NINA and PHD2, not time-based
+- **Event-Driven Operation** - Activates only between GUIDER-START and GUIDER-STOP WebSocket events  
+- **Real NINA Data Only** - No mock data fallback; displays "Guiding hasn't started yet" when inactive
+- **Intelligent Polling** - 5-second refresh during active guiding, paused when not guiding
+- **Professional Styling** - Radix UI color palette with enhanced contrast for dark themes
+
+#### **Technical Implementation**:
+- **Chart.js Integration** - Linear scale X-axis with step-based progression for professional UX
+- **WebSocket Events** - GUIDER-START/GUIDER-STOP event detection for state management
+- **NINA API Endpoint** - `/api/nina/guider-graph` connecting to NINA's `/v2/api/equipment/guider/graph`
+- **TypeScript Support** - Complete interface definitions in `nina.ts` for type safety
+- **Responsive Design** - Mobile-friendly chart with proper scaling and touch interactions
+
+#### **User Experience**:
+```
+🎯 Inactive State: "Guiding hasn't started yet" - Clean, professional messaging
+📊 Active State: Real-time guiding data with step-based progression
+🔄 Automatic State Management: Seamless transitions during guiding sessions
+```
+
+The widget provides the same professional experience as NINA's built-in guiding graph, with real-time updates and no unnecessary data when guiding is inactive.
 
 ## 🌐 API Integration
 
@@ -171,9 +202,11 @@ All widgets are responsive with Radix UI components and feature professional fal
 - **Endpoint**: `http://172.26.81.152:1888/`
 - **Backend Service**: Complete `ninaService.js` with 25+ equipment and system endpoints
 - **Equipment Types**: Camera, Mount, Focuser, Filter Wheel, Guider, Rotator, Switch, Flat Panel, Weather, Dome, Safety Monitor
-- **Enhanced Features**: Session data, image history, event monitoring, camera information
+- **Enhanced Features**: Session data, image history, event monitoring, camera information, **guider graph visualization**
+- **New Endpoints**: `/api/nina/guider-graph` - Real-time PHD2/NINA guiding performance data
 - **Error Handling**: Graceful degradation with comprehensive connection status reporting
-- **Mock Data**: Professional fallback equipment data when NINA unavailable
+- **Event-Driven Updates**: WebSocket integration for GUIDER-START/GUIDER-STOP events
+- **Mock Data**: Professional fallback equipment data when NINA unavailable (guider graph shows user-friendly "not started" message)
 
 ### Target Scheduler Database ✅ **COMPLETE**
 - **Database**: `resources/schedulerdb.sqlite` with live project data
@@ -259,4 +292,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Project Status**: ✅ **PRODUCTION READY + ENHANCED STABILITY** - Complete astrophotography dashboard with enhanced backend stability, comprehensive monitoring, and modular architecture | **Last Updated**: August 30, 2025
+**Project Status**: ✅ **PRODUCTION READY + ENHANCED STABILITY** - Complete astrophotography dashboard with enhanced backend stability, comprehensive monitoring, modular architecture, and professional guider graph widget | **Last Updated**: September 2, 2025

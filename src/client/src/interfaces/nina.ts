@@ -135,3 +135,63 @@ export interface NINAStatusProps {
   onRefresh?: () => void;
   hideHeader?: boolean;
 }
+
+// Guider Graph Widget Interfaces
+export interface GuideStep {
+  Id: number;                    // Step ID
+  IdOffsetLeft: number;         // Left offset
+  IdOffsetRight: number;        // Right offset
+  RADistanceRaw: number;        // Raw RA distance
+  RADistanceRawDisplay: number; // Display RA distance
+  RADuration: number;           // RA correction duration
+  DECDistanceRaw: number;       // Raw Dec distance
+  DECDistanceRawDisplay: number;// Display Dec distance
+  DECDuration: number;          // Dec correction duration
+  Dither: string;              // Dither event marker
+  timestamp?: number;           // Computed timestamp for chart
+}
+
+export interface GuiderRMSStats {
+  RA: number;           // RA RMS error
+  Dec: number;          // Dec RMS error  
+  Total: number;        // Total RMS
+  RAText: string;       // Formatted RA RMS
+  DecText: string;      // Formatted Dec RMS
+  TotalText: string;    // Formatted total RMS
+  PeakRAText: string;   // Peak RA error text
+  PeakDecText: string;  // Peak Dec error text
+  Scale: number;        // Pixel scale
+  PeakRA: number;       // Peak RA error
+  PeakDec: number;      // Peak Dec error
+  DataPoints: number;   // Number of data points
+}
+
+export interface GuiderGraphResponse {
+  Response: {
+    RMS: GuiderRMSStats;
+    Interval: number;       // Guide interval (seconds)
+    MaxY: number;          // Chart max Y axis
+    MinY: number;          // Chart min Y axis
+    MaxDurationY: number;  // Max duration Y axis
+    MinDurationY: number;  // Min duration Y axis
+    GuideSteps: GuideStep[]; // Array of guide steps
+    HistorySize: number;   // Number of steps stored
+    PixelScale: number;    // Arcsec per pixel
+    Scale: number;         // Chart scale
+  };
+  Error: string;
+  StatusCode: number;
+  Success: boolean;
+  Type: string;
+}
+
+export interface GuiderGraphData extends GuiderGraphResponse {
+  timestamp: number;     // Add fetch timestamp
+  connected: boolean;    // Guider connection status
+  isGuiding: boolean;    // Active guiding status
+}
+
+export interface GuiderGraphWidgetProps {
+  onRefresh?: () => void;
+  hideHeader?: boolean;
+}

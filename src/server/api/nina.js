@@ -53,6 +53,20 @@ class NINARoutes {
       }
     });
 
+    // Guider graph endpoint
+    app.get('/api/nina/guider-graph', async (req, res) => {
+      try {
+        const guiderGraph = await this.ninaService.getGuiderGraph();
+        res.json(guiderGraph);
+      } catch (error) {
+        console.error('Error getting guider graph:', error);
+        res.status(500).json({ 
+          error: 'Failed to fetch guider graph data',
+          details: error.message 
+        });
+      }
+    });
+
     // Session data endpoint
     app.get('/api/nina/session', async (req, res) => {
       try {
