@@ -150,12 +150,14 @@ class EventProcessor extends EventEmitter {
     return {
       name: event.TargetName || null,
       project: event.ProjectName || null,
-      ra: event.RA || null,
-      dec: event.Dec || null,
-      raString: event.RAString || null,
-      decString: event.DecString || null,
+      ra: event.RA || event.Coordinates?.RA || null,
+      dec: event.Dec || event.Coordinates?.Dec || null,
+      raString: event.RAString || event.Coordinates?.RAString || null,
+      decString: event.DecString || event.Coordinates?.DecString || null,
       rotation: event.Rotation || null,
       targetEndTime: event.TargetEndTime || null,
+      // Store the full coordinates object for backward compatibility
+      coordinates: event.Coordinates || null,
       time: eventTime.toISOString(),
       originalEvent: event
     };

@@ -17,9 +17,13 @@ export const SessionTarget: React.FC<SessionTargetProps> = ({ sessionData }) => 
   
   if (!targetInfo?.name) return null;
 
-  // Handle both enhanced and legacy target formats
-  const raString = targetInfo.raString || targetInfo.coordinates?.raString;
-  const decString = targetInfo.decString || targetInfo.coordinates?.decString;
+  // Handle both enhanced and legacy target formats, plus TS-TARGETSTART event format
+  const raString = targetInfo.raString || 
+                   targetInfo.coordinates?.raString || 
+                   targetInfo.Coordinates?.RAString;
+  const decString = targetInfo.decString || 
+                    targetInfo.coordinates?.decString || 
+                    targetInfo.Coordinates?.DecString;
 
   return (
     <Flex direction="column" gap="2" mb="3">

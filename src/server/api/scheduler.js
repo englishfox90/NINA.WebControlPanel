@@ -16,11 +16,43 @@ class SchedulerRoutes {
 
         const projects = this.targetSchedulerDb.getProjectProgress();
         
+        // Get current session target to determine which project is currently active
+        let currentTargetName = null;
+        try {
+          const sessionStateManager = req.app.locals.sessionStateManager;
+          if (sessionStateManager) {
+            const sessionState = sessionStateManager.getCurrentSessionState();
+            currentTargetName = sessionState?.target?.name || 
+                               sessionState?.target?.TargetName;
+          }
+        } catch (error) {
+          console.log('Could not determine current target from session:', error.message);
+        }
+
+        // Mark project as currently active if its target matches the current session target
+        const enhancedProjects = projects.map(project => ({
+          ...project,
+          isCurrentlyActive: currentTargetName && 
+                            project.targets?.some(target => 
+                              target.name === currentTargetName ||
+                              target.name === currentTargetName?.trim()
+                            )
+        }));
+
+        // Sort projects: currently active first, then by priority, then by completion
+        enhancedProjects.sort((a, b) => {
+          if (a.isCurrentlyActive && !b.isCurrentlyActive) return -1;
+          if (!a.isCurrentlyActive && b.isCurrentlyActive) return 1;
+          if (b.priority !== a.priority) return b.priority - a.priority;
+          return b.totalCompletion - a.totalCompletion;
+        });
+        
         res.json({
-          projects: projects,
+          projects: enhancedProjects,
           lastUpdate: new Date().toISOString(),
-          totalProjects: projects.length,
-          activeProjects: projects.filter(p => p.state === 1).length
+          totalProjects: enhancedProjects.length,
+          activeProjects: enhancedProjects.filter(p => p.state === 1).length,
+          currentTarget: currentTargetName
         });
       } catch (error) {
         console.error('Error getting scheduler progress:', error);

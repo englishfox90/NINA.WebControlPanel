@@ -10,6 +10,7 @@ import type { SessionWidgetProps } from '../../interfaces/session';
 // Modular components
 import { useSessionData } from './useSessionData';
 import { SessionHeader } from './SessionHeader';
+import { SessionAlerts } from './SessionAlerts';
 import { SessionTarget } from './SessionTarget';
 import { SessionActivity } from './SessionActivity';
 import { SessionStatus } from './SessionStatus';
@@ -100,6 +101,9 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({
           enableTimezoneFormatting={enableTimezoneFormatting}
           showSessionWindow={showSessionWindow}
         />
+
+        {/* Critical Session Alerts */}
+        <SessionAlerts sessionData={sessionData} />
 
         {/* Current Target */}
         <SessionTarget sessionData={sessionData} />
