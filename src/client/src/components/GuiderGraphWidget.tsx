@@ -16,7 +16,9 @@ import {
   Title,
   Tooltip,
   Legend,
-  TimeScale
+  TimeScale,
+  LineController,
+  BarController
 } from 'chart.js';
 import { Chart } from 'react-chartjs-2'; // Using generic Chart for mixed types
 import 'chartjs-adapter-date-fns'; // For time-based X-axis
@@ -33,7 +35,9 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  TimeScale
+  TimeScale,
+  LineController,
+  BarController
 );
 
 const GuiderGraphWidget: React.FC<GuiderGraphWidgetProps> = ({ 

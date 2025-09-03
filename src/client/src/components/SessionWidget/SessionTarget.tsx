@@ -20,9 +20,11 @@ export const SessionTarget: React.FC<SessionTargetProps> = ({ sessionData }) => 
   // Handle both enhanced and legacy target formats, plus TS-TARGETSTART event format
   const raString = targetInfo.raString || 
                    targetInfo.coordinates?.raString || 
+                   targetInfo.coordinates?.RAString || // Add uppercase support
                    targetInfo.Coordinates?.RAString;
   const decString = targetInfo.decString || 
                     targetInfo.coordinates?.decString || 
+                    targetInfo.coordinates?.DecString || // Add uppercase support
                     targetInfo.Coordinates?.DecString;
 
   return (

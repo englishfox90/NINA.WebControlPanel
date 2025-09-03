@@ -95,13 +95,18 @@ class SessionStateProcessor extends EventEmitter {
     const nowTime = now.getTime();
     let startIndex = -1;
     let endIndex = -1;
-    let sessionType = null; // 'sequence', 'flats', or 'darks'
+    let sessionType = null; // 'sequence', 'target', 'flats', or 'darks'
 
-    // Find the most recent session start
+    // Find the most recent session start - prioritize target sessions over sequences
     for (let i = sortedEvents.length - 1; i >= 0; i--) {
       const event = sortedEvents[i];
       if (event.parsedTime.getTime() <= nowTime) {
-        if (event.Event === 'SEQUENCE-STARTING') {
+        // Target sessions (highest priority - can run for days)
+        if (event.Event === 'TS-TARGETSTART' || event.Event === 'TS-NEWTARGETSTART') {
+          startIndex = i;
+          sessionType = 'target';
+          break;
+        } else if (event.Event === 'SEQUENCE-STARTING') {
           startIndex = i;
           sessionType = 'sequence';
           break;
@@ -121,6 +126,15 @@ class SessionStateProcessor extends EventEmitter {
       }
     }
 
+    // Fallback: Check for recent imaging activity (IMAGE-SAVE events within last 30 minutes)
+    if (startIndex === -1) {
+      const recentImagingSession = this.findRecentImagingActivity(sortedEvents, now);
+      if (recentImagingSession.hasActiveSession) {
+        console.log('🔄 Detected active session from recent imaging activity');
+        return { ...recentImagingSession, sessionType: 'imaging' };
+      }
+    }
+
     if (startIndex === -1) {
       return { hasActiveSession: false, startIndex: -1, endIndex: -1 };
     }
@@ -128,10 +142,24 @@ class SessionStateProcessor extends EventEmitter {
     // Find corresponding end event after that start
     for (let i = startIndex + 1; i < sortedEvents.length; i++) {
       const event = sortedEvents[i];
-      if ((sessionType === 'sequence' && event.Event === 'SEQUENCE-FINISHED') ||
+      if ((sessionType === 'target' && this.isTargetEndEvent(event, sortedEvents[startIndex])) ||
+          (sessionType === 'sequence' && event.Event === 'SEQUENCE-FINISHED') ||
           (sessionType === 'flats' && event.Event === 'FLAT-COVER-OPENED')) {
         endIndex = i;
         break;
+      }
+    }
+
+    // For target sessions, also check if the target has expired based on TargetEndTime
+    if (sessionType === 'target' && endIndex === -1) {
+      const targetStartEvent = sortedEvents[startIndex];
+      if (targetStartEvent.TargetEndTime) {
+        const targetEndTime = new Date(targetStartEvent.TargetEndTime);
+        if (now > targetEndTime) {
+          console.log(`🎯 Target session expired: scheduled until ${targetStartEvent.TargetEndTime}`);
+          // Mark as ended even though no explicit end event was found
+          return { hasActiveSession: false, startIndex, endIndex: -1, sessionType };
+        }
       }
     }
 
@@ -141,6 +169,21 @@ class SessionStateProcessor extends EventEmitter {
       endIndex,
       sessionType
     };
+  }
+
+  // Helper method to determine if an event marks the end of a target session
+  isTargetEndEvent(event, targetStartEvent) {
+    // Explicit target end events
+    if (event.Event === 'TS-TARGETEND' || event.Event === 'TS-TARGETFINISHED') {
+      return true;
+    }
+    
+    // New target start effectively ends the previous target
+    if (event.Event === 'TS-TARGETSTART' || event.Event === 'TS-NEWTARGETSTART') {
+      return event.TargetName !== targetStartEvent.TargetName;
+    }
+    
+    return false;
   }
 
   findDarkCaptureSession(sortedEvents, now) {
@@ -205,6 +248,44 @@ class SessionStateProcessor extends EventEmitter {
     return { hasActiveSession: false, startIndex: -1, endIndex: -1 };
   }
 
+  // Find recent imaging activity to detect active sessions even without explicit start events
+  findRecentImagingActivity(sortedEvents, now) {
+    const nowTime = now.getTime();
+    const activityWindow = 30 * 60 * 1000; // 30 minutes
+    
+    let recentImageEvents = [];
+    
+    // Find recent IMAGE-SAVE events for LIGHT frames
+    for (let i = sortedEvents.length - 1; i >= 0; i--) {
+      const event = sortedEvents[i];
+      const timeDiff = nowTime - event.parsedTime.getTime();
+      
+      // Only look at events within the activity window
+      if (timeDiff > activityWindow) break;
+      
+      if (event.Event === 'IMAGE-SAVE' && 
+          event.ImageStatistics && 
+          event.ImageStatistics.ImageType === 'LIGHT') {
+        recentImageEvents.push({ index: i, event, timeDiff });
+      }
+    }
+    
+    // If we have recent light frame captures, consider this an active session
+    if (recentImageEvents.length > 0) {
+      // Find the earliest recent image as session start
+      const startIndex = recentImageEvents[recentImageEvents.length - 1].index;
+      console.log(`🔄 Found ${recentImageEvents.length} recent light frames, considering session active since ${sortedEvents[startIndex].Time}`);
+      
+      return {
+        hasActiveSession: true,
+        startIndex: startIndex,
+        endIndex: -1 // No end event found, session is ongoing
+      };
+    }
+    
+    return { hasActiveSession: false, startIndex: -1, endIndex: -1 };
+  }
+
   extractSessionSlice(sortedEvents, boundaries) {
     if (boundaries.endIndex === -1) {
       return sortedEvents.slice(boundaries.startIndex);
@@ -264,12 +345,15 @@ class SessionStateProcessor extends EventEmitter {
   processSafetyState(events) {
     let safe = { isSafe: null, time: null };
     
-    for (const event of events) {
+    // Process events in reverse order to get the LATEST safety state
+    for (let i = events.length - 1; i >= 0; i--) {
+      const event = events[i];
       if (event.Event === 'SAFETY-CHANGED' && 'IsSafe' in event) {
         safe = {
           isSafe: event.IsSafe,
           time: event.Time
         };
+        break; // Take the first (most recent) safety event and stop
       }
     }
     

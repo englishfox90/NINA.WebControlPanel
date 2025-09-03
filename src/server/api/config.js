@@ -2,14 +2,37 @@
 const express = require('express');
 
 class ConfigRoutes {
-  constructor(configDatabase) {
+  constructor(configDatabase, sessionStateManager = null) {
     this.configDatabase = configDatabase;
+    this.sessionStateManager = sessionStateManager; // Add sessionStateManager access
   }
 
   register(app) {
-    // Health check endpoint
+    // Enhanced health check endpoint with backend status
     app.get('/api/config/health', (req, res) => {
-      res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+      const health = { 
+        status: 'healthy', 
+        timestamp: new Date().toISOString(),
+        backend: {
+          initialized: false,
+          ninaConnected: false,
+          eventCount: 0,
+          lastUpdate: null
+        }
+      };
+      
+      // Add backend connection status if available
+      if (this.sessionStateManager) {
+        const sessionState = this.sessionStateManager.getSessionState();
+        health.backend = {
+          initialized: this.sessionStateManager.isInitialized,
+          ninaConnected: sessionState.connectionStatus || false,
+          eventCount: sessionState.eventCount || 0,
+          lastUpdate: sessionState.lastUpdate
+        };
+      }
+      
+      res.json(health);
     });
 
     // Get configuration

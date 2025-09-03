@@ -145,17 +145,31 @@ class SessionStateManager extends EventEmitter {
     try {
       console.log('🔄 Initializing SessionStateManager...');
       
-      // Seed with event history
+      // Seed with event history for baseline
       await this.seedEventHistory();
       
-      // Process initial session state
-      this.processSessionState();
-      
-      // Connect to NINA WebSocket
+      console.log('[BACKEND] 📡 Connecting to NINA WebSocket...');
+      // Connect to NINA WebSocket FIRST
       await this.webSocketManager.connect();
       
+      // Add connection status logging
+      const isConnected = this.webSocketManager.isConnected;
+      console.log(`[BACKEND] 🔌 NINA WebSocket connection status: ${isConnected ? 'Connected' : 'Disconnected'}`);
+      
+      if (isConnected) {
+        console.log('[BACKEND] ✅ Backend is now actively monitoring NINA events');
+        // Get fresh event history now that we're connected
+        console.log('[BACKEND] 🔄 Refreshing event history with latest data...');
+        await this.seedEventHistory();
+      } else {
+        console.log('[BACKEND] ⚠️ Backend started but NINA WebSocket connection failed');
+      }
+      
+      // THEN process initial session state (now with fresh data if connected)
+      this.processSessionState();
+      
       this.isInitialized = true;
-      console.log('[BACKEND] ✅ SessionStateManager initialized');
+      console.log('[BACKEND] ✅ SessionStateManager initialized with', this.events.length, 'cached events');
       
       this.emit('initialized');
       
@@ -253,9 +267,15 @@ class SessionStateManager extends EventEmitter {
       // Update session state if changed
       const stateChanged = JSON.stringify(processedState) !== JSON.stringify(this.sessionState);
       
+      // Include recent events for debugging and client access
+      const recentEvents = this.events.slice(-50); // Last 50 events
+      
       this.sessionState = {
         ...processedState,
-        lastUpdate: now.toISOString()
+        lastUpdate: now.toISOString(),
+        events: recentEvents, // Add recent events to session state
+        eventCount: this.events.length, // Total event count for debugging
+        connectionStatus: this.webSocketManager.isConnected // WebSocket status (property, not function)
       };
       
       console.log('🔄 Session state updated:', this.sessionState.isActive ? 'Active' : 'Idle');

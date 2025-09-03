@@ -122,6 +122,9 @@ async function initializeServer() {
     next();
   });
 
+  // Make sessionStateManager available to all routes via app.locals
+  app.locals.sessionStateManager = sessionStateManager;
+  
   // Initialize API routes with services
   const apiRoutes = new APIRoutes(
     configDatabase,

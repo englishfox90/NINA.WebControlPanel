@@ -21,7 +21,7 @@ class SchedulerRoutes {
         try {
           const sessionStateManager = req.app.locals.sessionStateManager;
           if (sessionStateManager) {
-            const sessionState = sessionStateManager.getCurrentSessionState();
+            const sessionState = sessionStateManager.getSessionState(); // Fix: use correct method name
             currentTargetName = sessionState?.target?.name || 
                                sessionState?.target?.TargetName;
           }

@@ -31,7 +31,7 @@ class APIRoutes {
     }
     
     // Initialize route modules
-    this.configRoutes = new ConfigRoutes(configDatabase);
+    this.configRoutes = new ConfigRoutes(configDatabase, sessionStateManager); // Pass sessionStateManager
     this.systemRoutes = new SystemRoutes(systemMonitor);
     this.schedulerRoutes = new SchedulerRoutes(this.targetSchedulerDb);
     this.astronomicalRoutes = new AstronomicalRoutes(astronomicalService, configDatabase);
