@@ -135,6 +135,15 @@ class SessionStateProcessor extends EventEmitter {
       }
     }
 
+    // Final fallback: Check for recent guiding activity (GUIDER-START within reasonable time)
+    if (startIndex === -1) {
+      const guidingSession = this.findRecentGuidingActivity(sortedEvents, now);
+      if (guidingSession.hasActiveSession) {
+        console.log('🔄 Detected active session from recent guiding activity');
+        return { ...guidingSession, sessionType: 'guiding' };
+      }
+    }
+
     if (startIndex === -1) {
       return { hasActiveSession: false, startIndex: -1, endIndex: -1 };
     }
@@ -150,15 +159,71 @@ class SessionStateProcessor extends EventEmitter {
       }
     }
 
-    // For target sessions, also check if the target has expired based on TargetEndTime
+    // For target sessions, check if the target has expired based on TargetEndTime
+    // TargetEndTime is in NINA server local time, use config timezone for proper comparison
     if (sessionType === 'target' && endIndex === -1) {
       const targetStartEvent = sortedEvents[startIndex];
       if (targetStartEvent.TargetEndTime) {
-        const targetEndTime = new Date(targetStartEvent.TargetEndTime);
-        if (now > targetEndTime) {
-          console.log(`🎯 Target session expired: scheduled until ${targetStartEvent.TargetEndTime}`);
-          // Mark as ended even though no explicit end event was found
-          return { hasActiveSession: false, startIndex, endIndex: -1, sessionType };
+        try {
+          // Get the NINA server timezone from configuration
+          // TargetEndTime should be interpreted in the NINA server's timezone
+          const ninaTimezone = process.env.NINA_TIMEZONE || 'America/Chicago'; // Default fallback
+          
+          // Parse TargetEndTime as if it's in the NINA server timezone
+          // Note: This requires proper timezone handling. For now, we'll use a simpler approach
+          // and rely on the timezone offset from the event times themselves.
+          const eventTimeStr = targetStartEvent.Time;
+          const targetEndTimeStr = targetStartEvent.TargetEndTime;
+          
+          // Extract timezone from the event time to apply to TargetEndTime
+          const timezoneMatch = eventTimeStr.match(/([+-]\d{2}:\d{2})$/);
+          let targetEndTime;
+          
+          if (timezoneMatch) {
+            // Apply the same timezone offset to TargetEndTime
+            const timezoneOffset = timezoneMatch[1];
+            targetEndTime = new Date(targetEndTimeStr + timezoneOffset);
+            console.log(`🕐 Target end time: ${targetEndTimeStr} (NINA local) = ${targetEndTime.toISOString()} (UTC)`);
+          } else {
+            // Fallback: assume TargetEndTime is in the same timezone as system
+            targetEndTime = new Date(targetEndTimeStr);
+            console.log(`🕐 Target end time: ${targetEndTimeStr} (assumed local)`);
+          }
+          
+          if (now > targetEndTime) {
+            // Check for recent imaging activity that indicates session is still active
+            const recentActivityWindow = 30 * 60 * 1000; // 30 minutes
+            let hasRecentActivity = false;
+            
+            for (let i = sortedEvents.length - 1; i >= 0; i--) {
+              const event = sortedEvents[i];
+              const eventTime = event.parsedTime.getTime();
+              const timeSinceEvent = now.getTime() - eventTime;
+              
+              if (timeSinceEvent > recentActivityWindow) break;
+              
+              // Look for active imaging indicators
+              if (event.Event === 'IMAGE-SAVE' || 
+                  event.Event === 'GUIDER-START' || 
+                  event.Event === 'TS-TARGETSTART' ||
+                  event.Event === 'TS-NEWTARGETSTART') {
+                hasRecentActivity = true;
+                break;
+              }
+            }
+            
+            if (!hasRecentActivity) {
+              console.log(`🎯 Target session expired: scheduled until ${targetStartEvent.TargetEndTime} (NINA time), no recent activity`);
+              return { hasActiveSession: false, startIndex, endIndex: -1, sessionType };
+            } else {
+              console.log(`🎯 Target session past scheduled end (${targetStartEvent.TargetEndTime} NINA time) but has recent activity - keeping active`);
+            }
+          } else {
+            console.log(`🎯 Target session still active: scheduled until ${targetStartEvent.TargetEndTime} (NINA time)`);
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to parse TargetEndTime, ignoring expiration check:', error.message);
+          // Continue as if no TargetEndTime was provided
         }
       }
     }
@@ -249,6 +314,54 @@ class SessionStateProcessor extends EventEmitter {
   }
 
   // Find recent imaging activity to detect active sessions even without explicit start events
+  findRecentGuidingActivity(sortedEvents, now) {
+    const nowTime = now.getTime();
+    const guidingWindow = 60 * 60 * 1000; // 60 minutes - guiding sessions can run longer
+    
+    let recentGuiderEvents = [];
+    
+    // Find recent GUIDER-START events
+    for (let i = sortedEvents.length - 1; i >= 0; i--) {
+      const event = sortedEvents[i];
+      const timeDiff = nowTime - event.parsedTime.getTime();
+      
+      // Only look at events within the guiding window
+      if (timeDiff > guidingWindow) break;
+      
+      if (event.Event === 'GUIDER-START' || event.Event === 'GUIDER-RESUMED') {
+        recentGuiderEvents.push({ index: i, event, timeDiff });
+      }
+    }
+    
+    // If we have recent guider start, check if it's still active (no recent GUIDER-STOP)
+    if (recentGuiderEvents.length > 0) {
+      const latestGuiderStart = recentGuiderEvents[0];
+      
+      // Check for GUIDER-STOP events after the latest start
+      let guidingStoppedAfter = false;
+      for (let i = latestGuiderStart.index + 1; i < sortedEvents.length; i++) {
+        const event = sortedEvents[i];
+        if (event.Event === 'GUIDER-STOP' || event.Event === 'GUIDER-PAUSED') {
+          guidingStoppedAfter = true;
+          break;
+        }
+      }
+      
+      // If guiding started recently and hasn't stopped, consider it an active session
+      if (!guidingStoppedAfter) {
+        console.log(`🔄 Found recent guider activity, considering session active since ${sortedEvents[latestGuiderStart.index].Time}`);
+        
+        return {
+          hasActiveSession: true,
+          startIndex: latestGuiderStart.index,
+          endIndex: -1 // No end event found, session is ongoing
+        };
+      }
+    }
+    
+    return { hasActiveSession: false, startIndex: -1, endIndex: -1 };
+  }
+
   findRecentImagingActivity(sortedEvents, now) {
     const nowTime = now.getTime();
     const activityWindow = 30 * 60 * 1000; // 30 minutes

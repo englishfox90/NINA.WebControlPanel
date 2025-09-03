@@ -30,35 +30,48 @@ class WebSocketManager extends EventEmitter {
     // Clean up existing connection first
     this.cleanup(false);
     
-    try {
-      // Get NINA configuration
-      const config = this.ninaService.configDb.getConfig();
-      const baseUrl = config.nina.baseUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      const wsUrl = `ws://${baseUrl}:${config.nina.apiPort}/v2/socket`;
-      
-      console.log(`🔌 Connecting to NINA WebSocket: ${wsUrl}`);
-      
-      this.wsConnection = new WebSocket(wsUrl, {
-        handshakeTimeout: 10000,
-        perMessageDeflate: false
-      });
-      
-      // Set up connection event handlers
-      this.setupWebSocketHandlers();
-      
-    } catch (error) {
-      console.error('❌ Failed to create NINA WebSocket connection:', error);
-      this.scheduleReconnect();
-    }
+    return new Promise((resolve, reject) => {
+      try {
+        // Get NINA configuration
+        const config = this.ninaService.configDb.getConfig();
+        const baseUrl = config.nina.baseUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+        const wsUrl = `ws://${baseUrl}:${config.nina.apiPort}/v2/socket`;
+        
+        console.log(`🔌 Connecting to NINA WebSocket: ${wsUrl}`);
+        
+        this.wsConnection = new WebSocket(wsUrl, {
+          handshakeTimeout: 10000,
+          perMessageDeflate: false
+        });
+        
+        // Connection timeout
+        const timeout = setTimeout(() => {
+          console.log('⏱️ WebSocket connection timeout');
+          resolve(); // Don't reject - allow continuation with limited functionality
+        }, 10000);
+        
+        // Set up connection event handlers with Promise resolution
+        this.setupWebSocketHandlers(resolve, reject, timeout);
+        
+      } catch (error) {
+        console.error('❌ Failed to create NINA WebSocket connection:', error);
+        this.scheduleReconnect();
+        resolve(); // Don't reject - allow continuation
+      }
+    });
   }
 
-  setupWebSocketHandlers() {
+  setupWebSocketHandlers(resolve = null, reject = null, timeout = null) {
     if (!this.wsConnection || this.isDestroyed) return;
 
     this.wsConnection.on('open', () => {
       console.log('✅ Connected to NINA WebSocket');
       this.reconnectAttempts = 0;
       this.lastHeartbeat = Date.now();
+      
+      // Clear timeout and resolve promise if provided
+      if (timeout) clearTimeout(timeout);
+      if (resolve) resolve();
       
       // Send SUBSCRIBE message as required by NINA WebSocket API
       // Add a small delay to ensure WebSocket is fully ready
@@ -97,12 +110,26 @@ class WebSocketManager extends EventEmitter {
     this.wsConnection.on('close', (code, reason) => {
       console.log(`❌ NINA WebSocket connection closed (code: ${code}, reason: ${reason})`);
       this.stopHeartbeat();
+      
+      // Clear timeout and resolve promise if connection failed during initial connect
+      if (timeout) {
+        clearTimeout(timeout);
+        if (resolve) resolve(); // Don't reject - allow continuation
+      }
+      
       this.emit('disconnected', { code, reason });
       this.scheduleReconnect();
     });
 
     this.wsConnection.on('error', (error) => {
       console.error('❌ NINA WebSocket error:', error.message);
+      
+      // Clear timeout and resolve promise if connection failed during initial connect
+      if (timeout) {
+        clearTimeout(timeout);
+        if (resolve) resolve(); // Don't reject - allow continuation
+      }
+      
       this.emit('error', error);
     });
 
