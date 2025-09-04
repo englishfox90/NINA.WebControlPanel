@@ -222,62 +222,6 @@ class NINARoutes {
         });
       }
     });
-
-    // Session state endpoint (using SessionStateManager)
-    app.get('/api/nina/session-state', async (req, res) => {
-      try {
-        if (!this.sessionStateManager) {
-          return res.status(503).json({ error: 'Session state manager not available' });
-        }
-        
-        const sessionState = this.sessionStateManager.getSessionState();
-        res.json({
-          Response: sessionState,
-          Success: true,
-          Error: null,
-          StatusCode: 200,
-          Type: 'API'
-        });
-      } catch (error) {
-        console.error('Error getting session state:', error);
-        res.status(500).json({
-          Response: null,
-          Success: false,
-          Error: error.message,
-          StatusCode: 500,
-          Type: 'API'
-        });
-      }
-    });
-
-    // Refresh session state
-    app.post('/api/nina/session-state/refresh', async (req, res) => {
-      try {
-        if (!this.sessionStateManager) {
-          return res.status(503).json({ error: 'Session state manager not available' });
-        }
-        
-        await this.sessionStateManager.refreshSessionState();
-        const sessionState = this.sessionStateManager.getSessionState();
-        
-        res.json({
-          Response: sessionState,
-          Success: true,
-          Error: null,
-          StatusCode: 200,
-          Type: 'API'
-        });
-      } catch (error) {
-        console.error('Error refreshing session state:', error);
-        res.status(500).json({
-          Response: null,
-          Success: false,
-          Error: error.message,
-          StatusCode: 500,
-          Type: 'API'
-        });
-      }
-    });
   }
 }
 

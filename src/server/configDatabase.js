@@ -54,6 +54,9 @@ class ConfigDatabase {
       END;
     `);
 
+    // Initialize session schema
+    this.initializeSessionSchema();
+
     // Initialize default configuration if empty
     const count = this.db.prepare('SELECT COUNT(*) as count FROM config').get();
     if (count.count === 0) {
@@ -68,6 +71,12 @@ class ConfigDatabase {
       // For existing databases, check for missing default widgets and add them
       this.ensureDefaultWidgets();
     }
+  }
+
+  // Initialize session management schema
+  initializeSessionSchema() {
+    const SessionSchema = require('./database/sessionSchema');
+    new SessionSchema(this.db);
   }
 
   getDefaultWidgets() {

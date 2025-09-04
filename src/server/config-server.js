@@ -10,7 +10,9 @@ const WebSocket = require('ws');
 // Import organized components
 const APIRoutes = require('./api');
 const { getConfigDatabase } = require('./configDatabase');
-const SessionStateManager = require('../services/sessionStateManager');
+// const SessionStateManager = require('../services/sessionStateManager'); // DISABLED: Using only new modular system
+const UnifiedSessionManager = require('./session/UnifiedSessionManager');
+const SessionAPIRoutes = require('./session/SessionAPIRoutes');
 const SystemMonitor = require('../services/systemMonitor');
 const NINAService = require('../services/ninaService');
 const AstronomicalService = require('../services/astronomicalService');
@@ -59,9 +61,14 @@ async function gracefulShutdown() {
       });
     }
     
-    if (sessionStateManager) {
-      console.log('💥 Destroying SessionStateManager...');
-      sessionStateManager.destroy();
+    // if (sessionStateManager) {
+    //   console.log('💥 Destroying SessionStateManager...');
+    //   sessionStateManager.destroy();
+    // }
+    
+    if (unifiedSessionManager) {
+      console.log('💥 Destroying UnifiedSessionManager...');
+      unifiedSessionManager.destroy();
     }
     
     console.log('✅ Configuration API server shutdown complete');
@@ -96,9 +103,18 @@ async function initializeServer() {
   
   console.log('🔭 NINA Service configured: ' + ninaService.fullUrl);
   
-  // Initialize SessionStateManager
-  const sessionStateManager = new SessionStateManager(ninaService);
-  await sessionStateManager.initialize();
+  // Initialize SessionStateManager (legacy support) - DISABLED
+  // const sessionStateManager = new SessionStateManager(ninaService);
+  // await sessionStateManager.initialize();
+  const sessionStateManager = null; // Placeholder to avoid undefined errors
+  
+  // Initialize UnifiedSessionManager (new architecture)
+  const unifiedSessionManager = new UnifiedSessionManager(configDatabase, ninaService);
+  console.log('🔧 Created UnifiedSessionManager, starting initialization...');
+  await unifiedSessionManager.initialize();
+  console.log('✅ UnifiedSessionManager initialization completed');
+  
+  console.log('✅ Unified session manager initialized (legacy disabled)');
   
   // Initialize Express app
   const app = express();
@@ -122,8 +138,9 @@ async function initializeServer() {
     next();
   });
 
-  // Make sessionStateManager available to all routes via app.locals
-  app.locals.sessionStateManager = sessionStateManager;
+  // Make session manager available to all routes
+  // app.locals.sessionStateManager = sessionStateManager; // Legacy - DISABLED
+  app.locals.unifiedSessionManager = unifiedSessionManager; // New
   
   // Initialize API routes with services
   const apiRoutes = new APIRoutes(
@@ -132,11 +149,16 @@ async function initializeServer() {
     ninaService,
     astronomicalService,
     targetSchedulerService,
-    sessionStateManager
+    null // sessionStateManager - DISABLED: Using unified system only
   );
+  
+  // Initialize new session API routes
+  console.log('🔧 Creating SessionAPIRoutes with unifiedSessionManager:', unifiedSessionManager ? 'VALID' : 'NULL');
+  const sessionAPIRoutes = new SessionAPIRoutes(unifiedSessionManager);
   
   // Register all API routes
   apiRoutes.register(app);
+  sessionAPIRoutes.register(app);
 
   // Serve static files from React build
   const buildPath = path.join(__dirname, '..', '..', 'build');
@@ -173,9 +195,16 @@ async function initializeServer() {
         type: 'connection',
         data: {
           message: 'Connected to unified event stream',
-          sessionState: sessionStateManager.getSessionState(),
           timestamp: new Date().toISOString()
         },
+        timestamp: new Date().toISOString()
+      }));
+      
+      // Send initial unified session data
+      const initialSessionData = unifiedSessionManager.getCurrentSessionData();
+      ws.send(JSON.stringify({
+        type: 'unifiedSession',
+        data: initialSessionData,
         timestamp: new Date().toISOString()
       }));
       
@@ -209,7 +238,7 @@ async function initializeServer() {
       // Send current session state immediately
       ws.send(JSON.stringify({
         type: 'sessionUpdate',
-        data: sessionStateManager.getSessionState()
+        data: unifiedSessionManager.getCurrentSessionData() // CHANGED: Using unified system instead of legacy
       }));
       
       ws.on('close', () => {
@@ -244,13 +273,22 @@ async function initializeServer() {
     }
   });
 
-  // Broadcast session updates to all connected frontend clients
-  sessionStateManager.on('sessionUpdate', (sessionState) => {
-    broadcastSessionUpdate(sessionState);
+  // Broadcast session updates to all connected frontend clients (legacy) - DISABLED
+  // sessionStateManager.on('sessionUpdate', (sessionState) => {
+  //   broadcastSessionUpdate(sessionState);
+  // });
+
+  // Broadcast NINA events to all connected frontend clients (legacy) - DISABLED
+  // sessionStateManager.on('ninaEvent', (eventType, eventData) => {
+  //   broadcastNINAEvent(eventType, eventData);
+  // });
+
+  // Broadcast updates from UnifiedSessionManager (new architecture)
+  unifiedSessionManager.on('sessionUpdate', (sessionData) => {
+    broadcastUnifiedSessionUpdate(sessionData);
   });
 
-  // Broadcast NINA events to all connected frontend clients  
-  sessionStateManager.on('ninaEvent', (eventType, eventData) => {
+  unifiedSessionManager.on('ninaEvent', (eventType, eventData) => {
     broadcastNINAEvent(eventType, eventData);
   });
 
@@ -288,7 +326,7 @@ async function initializeServer() {
     });
   };
 
-  // Broadcast session updates to unified clients
+  // Broadcast session updates to unified clients (legacy format)
   const broadcastSessionUpdate = (sessionData) => {
     const message = JSON.stringify({
       type: 'sessionUpdate',
@@ -317,6 +355,24 @@ async function initializeServer() {
     });
   };
 
+  // Broadcast unified session updates (new format)
+  const broadcastUnifiedSessionUpdate = (sessionData) => {
+    const message = JSON.stringify({
+      type: 'unifiedSession',
+      data: sessionData,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Only broadcast to unified clients (new architecture)
+    unifiedClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      } else {
+        unifiedClients.delete(client);
+      }
+    });
+  };
+
   // Start server
   server.listen(PORT, () => {
     console.log('✅ All services initialized successfully');
@@ -330,11 +386,11 @@ async function initializeServer() {
   });
 
   // Return server components for cleanup
-  return { server, wss, sessionStateManager };
+  return { server, wss, sessionStateManager: null, unifiedSessionManager };
 }
 
 // Global references for cleanup
-let server, wss, sessionStateManager;
+let server, wss, sessionStateManager, unifiedSessionManager;
 
 // Initialize server
 initializeServer()
@@ -342,6 +398,7 @@ initializeServer()
     server = components.server;
     wss = components.wss;
     sessionStateManager = components.sessionStateManager;
+    unifiedSessionManager = components.unifiedSessionManager;
   })
   .catch((error) => {
     console.error('💥 Failed to initialize server:', error);

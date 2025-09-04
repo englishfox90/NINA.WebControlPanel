@@ -186,8 +186,16 @@ class SessionStateManager extends EventEmitter {
       
       if (eventHistoryResponse?.Success && Array.isArray(eventHistoryResponse.Response)) {
         this.events = eventHistoryResponse.Response
-          .filter(event => event && event.Time)
-          .slice(0, 500); // Limit initial seed
+          .filter(event => event && event.Time);
+          // REMOVED: .slice(0, 500); // Allow processing of all events for accurate safety state
+        
+        // DEBUG: Check for safety events in old SessionStateManager
+        const safetyEvents = this.events.filter(e => e.Event === 'SAFETY-CHANGED');
+        console.log(`🔍 OLD SessionStateManager found ${safetyEvents.length} safety events in ${this.events.length} total events`);
+        const lastSafetyEvent = safetyEvents[safetyEvents.length - 1];
+        if (lastSafetyEvent) {
+          console.log(`🔍 OLD SessionStateManager last safety event: Time=${lastSafetyEvent.Time}, IsSafe=${lastSafetyEvent.IsSafe}`);
+        }
         
         console.log(`📚 Seeded with ${this.events.length} historical events`);
       } else {
