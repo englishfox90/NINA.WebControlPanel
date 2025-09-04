@@ -461,6 +461,14 @@ import { formatDate } from '../utils/helpers';
 - Implement loading states for better UX
 - Error boundaries for crash prevention
 
+### **Performance Optimization (Added September 3, 2025)**
+- **Service Modularization**: Split complex widgets into specialized services (e.g., astronomical services)
+- **API Call Optimization**: Use initialization flags to prevent duplicate calls during component mounting
+- **Memory Efficiency**: Keep component files under 500 lines through service separation
+- **Chart Optimization**: Use memoization for expensive chart data processing
+- **Throttling**: Implement API call throttling (2+ second intervals) to prevent network spam
+- **WebSocket Efficiency**: Use WebSocket event filtering to avoid unnecessary API calls
+
 ### **Accessibility**
 - Semantic HTML structure
 - Proper ARIA labels on interactive elements
@@ -479,6 +487,6 @@ import { formatDate } from '../utils/helpers';
 
 **All new widgets MUST follow this standard format. Existing widgets should be gradually updated to match this pattern for consistency and maintainability.**
 
-**Last Updated:** August 29, 2025  
-**Format Version:** 1.1  
+**Last Updated:** September 3, 2025  
+**Format Version:** 1.2 (Performance Optimization Update)  
 **Status:** Production Standard
