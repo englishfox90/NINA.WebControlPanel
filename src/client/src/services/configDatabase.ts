@@ -49,7 +49,8 @@ export class ConfigDatabase {
         apiPort: 1888,
         baseUrl: "http://172.26.81.152/",
         timeout: 5000,
-        retryAttempts: 3
+        retryAttempts: 3,
+        guiderExposureDuration: 2.0
       },
       database: {
         targetSchedulerPath: "./schedulerdb.sqlite",
@@ -184,7 +185,8 @@ export class ConfigDatabase {
         apiPort: this.getConfigValue('nina.apiPort', 1888),
         baseUrl: this.getConfigValue('nina.baseUrl', 'http://172.26.81.152/'),
         timeout: this.getConfigValue('nina.timeout', 5000),
-        retryAttempts: this.getConfigValue('nina.retryAttempts', 3)
+        retryAttempts: this.getConfigValue('nina.retryAttempts', 3),
+        guiderExposureDuration: this.getConfigValue('nina.guiderExposureDuration', 2.0)
       },
       database: {
         targetSchedulerPath: this.getConfigValue('database.targetSchedulerPath', './schedulerdb.sqlite'),

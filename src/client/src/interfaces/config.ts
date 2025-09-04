@@ -5,6 +5,7 @@ export interface NINAConfig {
   baseUrl: string;
   timeout: number;
   retryAttempts: number;
+  guiderExposureDuration: number; // seconds
 }
 
 export interface DatabaseConfig {
@@ -84,7 +85,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     apiPort: 1888,
     baseUrl: "http://localhost",
     timeout: 5000,
-    retryAttempts: 3
+    retryAttempts: 3,
+    guiderExposureDuration: 2.0
   },
   database: {
     targetSchedulerPath: "./schedulerdb.sqlite",

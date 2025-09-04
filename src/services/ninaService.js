@@ -702,6 +702,11 @@ class NINAService {
         stepNumber: index + 1 // Use step number instead of timestamp
       }));
 
+      // Determine if guiding is actively happening
+      const hasRecentSteps = guideSteps.length > 0;
+      const hasValidRMS = response.Response?.RMS?.Total > 0;
+      const isGuidingActive = guider.IsGuiding || (hasRecentSteps && hasValidRMS);
+
       const result = {
         ...response,
         Response: {
@@ -710,10 +715,12 @@ class NINAService {
         },
         timestamp: Date.now(),
         connected: guider.Connected || false,
-        isGuiding: guider.IsGuiding || false
+        isGuiding: isGuidingActive
       };
 
-      console.log(`✅ Guider graph data retrieved: ${guideSteps.length} steps, RMS: ${response.Response?.RMS?.TotalText || 'N/A'}`);
+      const stepCount = guideSteps.length;
+      const rmsText = response.Response?.RMS?.TotalText || 'N/A';
+      console.log(`✅ Guider graph data retrieved: ${stepCount} steps, RMS: ${rmsText}, Active: ${isGuidingActive}`);
       return result;
 
     } catch (error) {

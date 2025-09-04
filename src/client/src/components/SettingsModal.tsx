@@ -10,12 +10,10 @@ import {
   Separator,
   Callout,
   Spinner,
-  TextField,
-  Badge
+  TextField
 } from '@radix-ui/themes';
 import {
   GearIcon,
-  Cross2Icon,
   CheckIcon,
   ExclamationTriangleIcon,
   InfoCircledIcon,
@@ -377,6 +375,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
                           />
                         </Box>
                       </Flex>
+
+                      <Separator />
+
+                      <Box>
+                        <Text as="label" size="2" weight="medium" mb="1">
+                          Guider Exposure Duration (seconds)
+                        </Text>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          max="30.0"
+                          value={(config?.nina as any)?.guiderExposureDuration?.toString() || ''}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig('nina.guiderExposureDuration', parseFloat(e.target.value) || 2.0)}
+                          placeholder="2.0"
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid var(--gray-6)',
+                            borderRadius: '6px',
+                            fontSize: '14px',
+                            backgroundColor: 'var(--color-background)',
+                            color: 'var(--gray-12)'
+                          }}
+                        />
+                        <Text size="1" color="gray" mt="1">
+                          Duration of each guider exposure. Used for time-based chart scaling and refresh rates.
+                        </Text>
+                      </Box>
                     </Flex>
                   </Box>
                 </Card>

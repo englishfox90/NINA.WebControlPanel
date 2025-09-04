@@ -13,7 +13,8 @@ export class ConfigService {
         apiPort: 1888,
         baseUrl: "http://172.26.81.152/",
         timeout: 5000,
-        retryAttempts: 3
+        retryAttempts: 3,
+        guiderExposureDuration: 2.0
       },
       database: {
         targetSchedulerPath: "./schedulerdb.sqlite",

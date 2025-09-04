@@ -588,6 +588,23 @@ class APIRoutes {
         });
       }
     });
+
+    // Get guider graph data for real-time monitoring
+    app.get('/api/nina/guider-graph', async (req, res) => {
+      try {
+        const guiderData = await this.ninaService.getGuiderGraph();
+        res.json(guiderData);
+      } catch (error) {
+        console.error('❌ Error getting guider graph data:', error.message);
+        res.status(500).json({ 
+          Success: false,
+          Response: null,
+          Error: error.message,
+          StatusCode: 500,
+          Type: 'API'
+        });
+      }
+    });
   }
 
   // Dashboard widget management API routes
