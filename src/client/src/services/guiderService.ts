@@ -1,8 +1,9 @@
-// Guider Service - Handles guider data fetching and WebSocket management
-// Modularized from GuiderGraphWidget to keep component files under 500 LOC
+// Guider Service - Handles guider data fetching using unified WebSocket system
+// Updated to use unified session WebSocket instead of separate connection
 
 import { GuiderGraphResponse } from '../interfaces/nina';
 import { getApiUrl } from '../config/api';
+import { unifiedWebSocket } from './unifiedWebSocket';
 
 export interface GuiderState {
   data: GuiderGraphResponse | null;
@@ -22,14 +23,13 @@ export interface GuiderEventData {
 }
 
 export class GuiderService {
-  private ws: WebSocket | null = null;
   private eventCallbacks: ((event: GuiderEventData) => void)[] = [];
   private dataCallbacks: ((state: GuiderState) => void)[] = [];
   private pollInterval: NodeJS.Timeout | null = null;
-  private reconnectTimeout: NodeJS.Timeout | null = null;
   private lastFetchTime: number = 0;
   private fetchThrottle: number = 2000; // Minimum 2 seconds between API calls
-  private isInitialized: boolean = false; // Prevent WebSocket events during initial load
+  private isInitialized: boolean = false; // Prevent duplicate events during initial load
+  private sessionUpdateHandler: (sessionData: any) => void;
   
   private state: GuiderState = {
     data: null,
@@ -42,7 +42,11 @@ export class GuiderService {
 
   constructor(exposureDuration: number = 2.0) {
     this.state.exposureDuration = exposureDuration;
-    this.initializeWebSocket();
+    
+    // Bind event handler for session updates
+    this.sessionUpdateHandler = this.handleUnifiedSessionUpdate.bind(this);
+    
+    this.initializeUnifiedWebSocket();
   }
 
   // Subscribe to guider events
@@ -73,99 +77,76 @@ export class GuiderService {
     return { ...this.state };
   }
 
-  // Initialize WebSocket connection
-  private initializeWebSocket(): void {
-    try {
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//${window.location.hostname}:3001/ws/unified`;
-      
-      this.ws = new WebSocket(wsUrl);
-      
-      this.ws.onopen = () => {
-        console.log('🔌 Guider WebSocket connected');
-        this.clearReconnectTimeout();
-      };
-
-      this.ws.onmessage = (event) => {
-        this.handleWebSocketMessage(event);
-      };
-
-      this.ws.onclose = () => {
-        console.log('❌ Guider WebSocket disconnected');
-        this.scheduleReconnect();
-      };
-
-      this.ws.onerror = (error) => {
-        console.error('🚨 Guider WebSocket error:', error);
-      };
-
-    } catch (error) {
-      console.error('Failed to initialize WebSocket:', error);
-      this.scheduleReconnect();
-    }
-  }
-
-  // Handle WebSocket messages
-  private handleWebSocketMessage(event: MessageEvent): void {
-    try {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'nina-event' && data.data?.Type?.startsWith('GUIDER-')) {
-        const eventType = data.data.Type as GuiderEventType;
-        const eventData: GuiderEventData = {
-          type: eventType,
-          timestamp: data.data.Timestamp || new Date().toISOString(),
-          data: data.data.Data
-        };
-
-        console.log('🎯 Guider event received:', eventType);
-        
-        // Update internal state
-        this.updateStateFromEvent(eventType);
-        
-        // Notify event listeners
-        this.eventCallbacks.forEach(callback => callback(eventData));
-        
-        // Only refresh data for connection events, not for every guide step
-        // Also prevent fetches during initial load to avoid duplicate calls
-        if ((eventType.includes('CONNECTED') || eventType.includes('DISCONNECTED')) && this.isInitialized) {
-          const delay = eventType.includes('CONNECTED') ? 2000 : 500;
-          setTimeout(() => {
-            this.fetchGuiderData();
-          }, delay);
-        }
-        // For START/STOP events, just update polling without immediate fetch
-        else {
-          this.updatePolling();
-          this.notifyStateChange();
-        }
-      }
-    } catch (err) {
-      console.warn('Error parsing WebSocket message:', err);
-    }
-  }
-
-  // Update state based on guider events
-  private updateStateFromEvent(eventType: GuiderEventType): void {
-    switch (eventType) {
-      case 'GUIDER-CONNECTED':
-        this.state.guiderConnected = true;
-        break;
-      case 'GUIDER-DISCONNECTED':
-        this.state.guiderConnected = false;
-        this.state.isGuidingActive = false;
-        break;
-      case 'GUIDER-START':
-        this.state.isGuidingActive = true;
-        break;
-      case 'GUIDER-STOP':
-        this.state.isGuidingActive = false;
-        break;
-    }
+  // Manual method to force guiding state (for testing)
+  public forceGuidingState(isGuiding: boolean): void {
+    console.log(`🔧 GuiderService: Manually forcing guiding state to: ${isGuiding}`);
+    const wasGuiding = this.state.isGuidingActive;
+    this.state.isGuidingActive = isGuiding;
+    this.state.guiderConnected = true;
     
+    console.log(`🔄 GuiderService: Force update polling: ${wasGuiding} → ${this.state.isGuidingActive}`);
     this.updatePolling();
     this.notifyStateChange();
   }
+
+  // Initialize unified WebSocket connection
+  private initializeUnifiedWebSocket(): void {
+    console.log('🔌 GuiderService: Connecting to unified WebSocket...');
+    
+    // Connect to unified WebSocket
+    unifiedWebSocket.connect();
+    
+    // Subscribe to unified session updates - this is all we need for guiding status
+    unifiedWebSocket.on('session:update', this.sessionUpdateHandler);
+
+    // Add connection status logging
+    unifiedWebSocket.on('connect', () => {
+      console.log('✅ GuiderService: Unified WebSocket connected');
+    });
+
+    unifiedWebSocket.on('disconnect', () => {
+      console.log('❌ GuiderService: Unified WebSocket disconnected');
+    });
+
+    console.log('✅ GuiderService: Connected to unified WebSocket, listening for session updates');
+  }
+
+  // Handle unified session updates - this provides all guiding state information
+  private handleUnifiedSessionUpdate(sessionData: any): void {
+    console.log('🎯 GuiderService received WebSocket session update:', {
+      sessionData: sessionData,
+      dataKeys: Object.keys(sessionData || {}),
+      hasIsGuiding: sessionData?.isGuiding !== undefined,
+      guidingValue: sessionData?.isGuiding,
+      hasDataIsGuiding: sessionData?.data?.isGuiding !== undefined,
+      dataGuidingValue: sessionData?.data?.isGuiding,
+      currentGuidingState: this.state.isGuidingActive
+    });
+
+    if (!sessionData) {
+      console.log('⚠️ GuiderService: No session data received in WebSocket update');
+      return;
+    }
+
+    // Check multiple possible data structures
+    const isGuiding = sessionData?.isGuiding || sessionData?.data?.isGuiding || false;
+    
+    // Update state from unified session data - this is the single source of truth
+    const wasGuiding = this.state.isGuidingActive;
+    this.state.isGuidingActive = Boolean(isGuiding);
+    
+    // Assume guider is connected if we have guiding data in the session
+    this.state.guiderConnected = isGuiding !== undefined;
+
+    console.log(`🎯 GuiderService: Guiding state updated via WebSocket: ${wasGuiding} → ${this.state.isGuidingActive}`);
+
+    // Always update polling when we receive a WebSocket update
+    console.log(`🔄 GuiderService: Updating polling due to WebSocket update...`);
+    this.updatePolling();
+    this.notifyStateChange();
+  }
+
+
 
   // Fetch guider data from API with throttling to prevent duplicate calls
   async fetchGuiderData(): Promise<void> {
@@ -191,29 +172,22 @@ export class GuiderService {
       
       if (!data || data === null) {
         this.state.data = null;
-        this.state.guiderConnected = false;
-        this.state.isGuidingActive = false;
         this.state.error = 'No guider data available from NINA';
       } else {
         this.state.data = data;
-        this.state.guiderConnected = data.connected || false;
-        
-        // Detect active guiding from data presence and RMS values
-        const hasRecentData = data.Response?.GuideSteps?.length > 0;
-        const hasValidRMS = data.Response?.RMS?.Total > 0;
-        this.state.isGuidingActive = data.isGuiding || (hasRecentData && hasValidRMS);
-        
         this.state.error = null;
         
-        // Log guiding state for debugging (reduced frequency)
-        console.log(`✅ Guider Status: Connected=${this.state.guiderConnected}, Active=${this.state.isGuidingActive}, Steps=${data.Response?.GuideSteps?.length || 0}, RMS=${data.Response?.RMS?.Total || 0}`);
+        // Log data fetch for debugging
+        console.log(`📊 Guider data fetched: Steps=${data.Response?.GuideSteps?.length || 0}, RMS=${data.Response?.RMS?.Total || 0}`);
       }
+      
+      // Note: guiderConnected and isGuidingActive are now managed by unified session updates only
       
     } catch (err) {
       this.state.error = err instanceof Error ? err.message : 'Unknown error';
-      this.state.guiderConnected = false;
-      this.state.isGuidingActive = false;
       this.state.data = null;
+      
+      // Note: guiderConnected and isGuidingActive are managed by unified session updates only
     } finally {
       this.state.loading = false;
       this.updatePolling();
@@ -231,24 +205,17 @@ export class GuiderService {
     }
 
     // Start polling if guider is connected (more aggressive during active guiding)
-    if (this.state.guiderConnected) {
-      let refreshInterval: number;
-      
-      if (this.state.isGuidingActive) {
-        // During active guiding: 1.5x exposure duration
-        refreshInterval = Math.round(this.state.exposureDuration * 1.5 * 1000);
-        console.log(`🔄 Starting active guiding data polling (${refreshInterval}ms interval, exposure: ${this.state.exposureDuration}s)`);
-      } else {
-        // When connected but not actively guiding: check every 10 seconds for status changes
-        refreshInterval = 10000;
-        console.log(`🔄 Starting guider connection monitoring (${refreshInterval}ms interval)`);
-      }
+    // Start polling if actively guiding to get latest guide steps data
+    if (this.state.isGuidingActive) {
+      // During active guiding: 1.5x exposure duration for fresh guide data
+      const refreshInterval = Math.round(this.state.exposureDuration * 1.5 * 1000);
+      console.log(`🔄 Starting active guiding data polling (${refreshInterval}ms interval, exposure: ${this.state.exposureDuration}s)`);
       
       this.pollInterval = setInterval(() => {
         this.fetchGuiderData();
       }, refreshInterval);
     } else {
-      console.log('📡 Guider disconnected, polling stopped');
+      console.log('📡 Guiding inactive, polling stopped (session updates provide status)');
     }
   }
 
@@ -257,29 +224,47 @@ export class GuiderService {
     this.dataCallbacks.forEach(callback => callback(this.getState()));
   }
 
-  // Schedule WebSocket reconnection
-  private scheduleReconnect(): void {
-    this.clearReconnectTimeout();
-    this.reconnectTimeout = setTimeout(() => {
-      console.log('🔄 Attempting WebSocket reconnection...');
-      this.initializeWebSocket();
-    }, 5000);
-  }
-
-  // Clear reconnect timeout
-  private clearReconnectTimeout(): void {
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-      this.reconnectTimeout = null;
-    }
-  }
-
   // Initialize and fetch initial data
   async initialize(): Promise<void> {
-    console.log('🚀 Initializing GuiderService with single API call');
+    console.log('🚀 GuiderService: Initializing with single API call');
+    
+    // First, check current session state to get initial guiding status
+    try {
+      console.log('📡 GuiderService: Fetching initial session state...');
+      const sessionResponse = await fetch(getApiUrl('nina/session-state'));
+      if (!sessionResponse.ok) {
+        throw new Error(`HTTP ${sessionResponse.status}: ${sessionResponse.statusText}`);
+      }
+      
+      const sessionData = await sessionResponse.json();
+      console.log('🎯 GuiderService: Raw session response:', sessionData);
+      
+      // Check for both possible session data structures
+      const isGuiding = sessionData?.isGuiding || sessionData?.data?.isGuiding || false;
+      
+      console.log('🎯 GuiderService: Initial session state loaded:', {
+        isGuiding: isGuiding,
+        hasSessionData: !!sessionData,
+        dataStructure: Object.keys(sessionData || {})
+      });
+      
+      // Update initial state from session
+      this.state.isGuidingActive = Boolean(isGuiding);
+      this.state.guiderConnected = isGuiding !== undefined;
+      console.log(`🎯 GuiderService: Initial guiding state set to: ${this.state.isGuidingActive}`);
+      
+    } catch (error) {
+      console.error('❌ GuiderService: Could not load initial session state:', error);
+      // Fallback - assume not guiding initially
+      this.state.isGuidingActive = false;
+      this.state.guiderConnected = false;
+    }
+    
+    // Then fetch guider data
     await this.fetchGuiderData();
-    this.isInitialized = true; // Mark as initialized to allow WebSocket events
-    console.log('✅ GuiderService initialized, WebSocket events now enabled');
+    this.isInitialized = true; // Mark as initialized
+    
+    console.log('✅ GuiderService: Initialization complete, WebSocket events enabled');
   }
 
   // Cleanup resources
@@ -289,12 +274,8 @@ export class GuiderService {
       this.pollInterval = null;
     }
 
-    this.clearReconnectTimeout();
-
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
+    // Remove listener from unified WebSocket
+    unifiedWebSocket.off('session:update', this.sessionUpdateHandler);
 
     this.eventCallbacks = [];
     this.dataCallbacks = [];

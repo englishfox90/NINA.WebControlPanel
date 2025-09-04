@@ -163,27 +163,40 @@ CREATE TABLE session_state (
 
 ## Widget Integration TODOs
 
-### Priority Tasks
+### ✅ **COMPLETED: Task 1 - Guider Widget Migration**
 
-**1. Update Guider Widget to Use Unified Session**
-- [ ] Modify guider widget to listen to `is_guiding` field in unified session message
-- [ ] Use `guiding_state` and `guiding_rms` for display
-- [ ] Remove old direct NINA API calls for guider data
+**COMPLETED** ✅ (September 4, 2025)
+- ✅ Modified GuiderService to use unified WebSocket session updates instead of separate connection
+- ✅ Updated `/api/nina/session-state` endpoint to return unified session format with `isGuiding` field
+- ✅ GuiderService now bootstraps initial state from API, then listens to WebSocket for real-time updates
+- ✅ Eliminated redundant WebSocket connection - GuiderService uses single unified connection
+- ✅ Enhanced error handling and debug logging for session state detection
+- ✅ Guider graph now polls API every ~3 seconds when `isGuiding: true` from unified session
+
+**Key Learning**: The bootstrap pattern is essential - widgets must:
+1. **Load initial state** from API endpoint during initialization  
+2. **Listen for updates** via WebSocket unified session messages
+3. **Use same data format** between API and WebSocket for consistency
+
+### Remaining Priority Tasks
 
 **2. Update Recent Image Widget**  
 - [ ] Use `last_image_path` and `last_image_timestamp` from unified session
 - [ ] Listen for `IMAGE-SAVED` events in `recent_events` array
 - [ ] Remove old image polling mechanisms
+- [ ] Apply bootstrap pattern: initial state from API + WebSocket updates
 
 **3. Update Session Widget Display**
 - [ ] Show `target_name`, `session_state`, and `duration` from unified session
 - [ ] Display `start_time` and `end_time` for session timeline
 - [ ] Use `session_stats` for exposure progress indicators
+- [ ] Apply bootstrap pattern: initial state from API + WebSocket updates
 
 **4. Update Target Scheduler Widget**
 - [ ] Listen for `target_name` changes to detect active sessions
 - [ ] Use `target_coordinates` for current target display
 - [ ] Integrate with session `start_time`/`end_time` for scheduling
+- [ ] Apply bootstrap pattern: initial state from API + WebSocket updates
 
 **5. Remove Legacy Session Management**
 - [ ] Delete `src/services/sessionStateManager.js` (legacy)

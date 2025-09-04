@@ -543,28 +543,28 @@ class APIRoutes {
       }
     });
 
-    // Get current session state
-    app.get('/api/nina/session-state', async (req, res) => {
-      try {
-        const sessionState = this.sessionStateManager.getSessionState();
-        res.json({
-          Success: true,
-          Response: sessionState,
-          Error: '',
-          StatusCode: 200,
-          Type: 'API'
-        });
-      } catch (error) {
-        console.error('❌ Error getting session state:', error.message);
-        res.status(500).json({ 
-          Success: false,
-          Response: null,
-          Error: error.message,
-          StatusCode: 500,
-          Type: 'API'
-        });
-      }
-    });
+    // DEPRECATED: Get current session state (now handled by SessionAPIRoutes)
+    // app.get('/api/nina/session-state', async (req, res) => {
+    //   try {
+    //     const sessionState = this.sessionStateManager.getSessionState();
+    //     res.json({
+    //       Success: true,
+    //       Response: sessionState,
+    //       Error: '',
+    //       StatusCode: 200,
+    //       Type: 'API'
+    //     });
+    //   } catch (error) {
+    //     console.error('❌ Error getting session state:', error.message);
+    //     res.status(500).json({ 
+    //       Success: false,
+    //       Response: null,
+    //       Error: error.message,
+    //       StatusCode: 500,
+    //       Type: 'API'
+    //     });
+    //   }
+    // });
 
     // Refresh session state manually
     app.post('/api/nina/session-state/refresh', async (req, res) => {

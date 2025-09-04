@@ -29,7 +29,7 @@ class SessionAPIRoutes {
       }
     });
 
-    // Get session state for WebSocket connection (backward compatibility)
+    // Get session state for WebSocket connection (unified format)
     app.get('/api/nina/session-state', async (req, res) => {
       try {
         // Debug session manager availability
@@ -41,13 +41,16 @@ class SessionAPIRoutes {
         }
 
         const sessionData = this.sessionManager.getCurrentSessionData();
+        console.log('🎯 Returning unified session for API request:', {
+          target: sessionData?.target?.name,
+          isGuiding: sessionData?.isGuiding,
+          activity: sessionData?.activity
+        });
         
-        // Convert to legacy format for backward compatibility
-        const legacyFormat = this.convertToLegacyFormat(sessionData);
-        
-        res.json(legacyFormat);
+        // Return unified format (same as WebSocket message data)
+        res.json(sessionData || {});
       } catch (error) {
-        console.error('❌ Error getting legacy session state:', error);
+        console.error('❌ Error getting unified session state:', error);
         res.status(500).json({
           success: false,
           error: error.message
