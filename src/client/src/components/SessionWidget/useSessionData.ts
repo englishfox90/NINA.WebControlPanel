@@ -1,119 +1,142 @@
-/**
- * Session Widget Data Hook
- * Handles all data fetching, WebSocket connections, and state management
- * Updated to use unified session WebSocket system with bootstrap pattern
- */
-
 import { useState, useEffect, useCallback } from 'react';
-import { getApiUrl } from '../../config/api';
-import { useUnifiedWebSocket } from '../../hooks/useUnifiedWebSocket';
-import type { SessionData, LegacySessionState, EnhancedSessionState } from '../../interfaces/session';
+import { SessionData } from '../../interfaces/session';
+import { useSessionWebSocket } from '../../hooks/useUnifiedWebSocket';
 
-export interface UseSessionDataReturn {
-  sessionData: SessionData | LegacySessionState | EnhancedSessionState | null;
-  loading: boolean;
-  error: string | null;
-  refreshing: boolean;
-  wsConnected: boolean;
-  refresh: () => Promise<void>;
+interface SessionEvent {
+  id: string;
+  type: string;
+  data: any;
+  timestamp: Date;
 }
 
-export const useSessionData = (enableEnhancedMode = false): UseSessionDataReturn => {
-  const [sessionData, setSessionData] = useState<SessionData | LegacySessionState | EnhancedSessionState | null>(null);
+interface UseSessionDataOptions {
+  enableEnhancedMode?: boolean;
+  refreshInterval?: number;
+}
+
+interface UseSessionDataReturn {
+  sessionData: SessionData | null;
+  events: SessionEvent[];
+  loading: boolean;
+  error: string | null;
+  lastUpdate: Date | null;
+  refreshData: () => Promise<void>;
+  wsConnected: boolean;
+  refreshing: boolean;
+}
+
+/**
+ * Custom hook for session data management using unified WebSocket system
+ * Eliminates duplicate API calls by using the existing WebSocket infrastructure
+ */
+const useSessionData = (options: UseSessionDataOptions = {}): UseSessionDataReturn => {
+  const { enableEnhancedMode = false } = options;
+  
+  // State management
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [events, setEvents] = useState<SessionEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Use the unified WebSocket system with bootstrap pattern
-  const { 
-    connected: wsConnected,
-    onSessionUpdate
-  } = useUnifiedWebSocket();
-
-  // Bootstrap: Load initial session state from unified session API
-  const loadInitialSessionState = useCallback(async () => {
+  
+  // Use the unified WebSocket system
+  const { connected: wsConnected, onSessionUpdate } = useSessionWebSocket();
+  
+  // Manual refresh function (for user-initiated refresh)
+  const refreshData = useCallback(async () => {
     try {
-      console.log(`📊 Loading initial session state (${enableEnhancedMode ? 'Enhanced' : 'Standard'})...`);
-      setLoading(true);
+      setRefreshing(true);
       setError(null);
-
-      const response = await fetch(getApiUrl('nina/session-state'));
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch session state: ${response.statusText}`);
+      if (enableEnhancedMode) {
+        console.log('🔄 Manual session data refresh requested');
       }
       
-      const unifiedSession = await response.json();
-      console.log(`📊 Initial session state loaded:`, {
-        isActive: unifiedSession.isActive,
-        target: unifiedSession.target?.name,
-        activity: unifiedSession.activity,
-        enabledMode: enableEnhancedMode ? 'Enhanced' : 'Standard'
-      });
+      const response = await fetch('/api/nina/session-state');
       
-      setSessionData(unifiedSession);
-      setLoading(false);
+      if (!response.ok) {
+        throw new Error(`Session API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data && (data.data || data.target)) {
+        setSessionData(data.data || data);
+        setLastUpdate(new Date());
+        setLoading(false);
+        
+        if (enableEnhancedMode) {
+          console.log('✅ Manual session refresh successful:', data);
+        }
+      }
       
     } catch (err) {
-      console.error('❌ Failed to load initial session state:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load session state');
-      setLoading(false);
-    }
-  }, [enableEnhancedMode]);
-
-  // Handle unified session updates from WebSocket
-  const handleUnifiedSessionUpdate = useCallback((unifiedSession: any) => {
-    console.log(`📡 Unified session WebSocket update received:`, {
-      isActive: unifiedSession.isActive,
-      target: unifiedSession.target?.name,
-      activity: unifiedSession.activity,
-      mode: enableEnhancedMode ? 'Enhanced' : 'Standard'
-    });
-    
-    setSessionData(unifiedSession);
-    setError(null);
-    
-    // If we were loading, we're no longer loading since we got data
-    if (loading) {
-      setLoading(false);
-    }
-  }, [enableEnhancedMode, loading]);
-
-  // Bootstrap: Initialize on mount
-  useEffect(() => {
-    console.log(`� SessionWidget initializing (${enableEnhancedMode ? 'Enhanced' : 'Standard'}) - loading initial state and subscribing to updates`);
-    
-    // Load initial state
-    loadInitialSessionState();
-    
-    // Subscribe to real-time session updates
-    const unsubscribeSession = onSessionUpdate(handleUnifiedSessionUpdate);
-    
-    return () => {
-      console.log(`📊 SessionWidget cleanup (${enableEnhancedMode ? 'Enhanced' : 'Standard'}) - unsubscribing from session updates`);
-      unsubscribeSession();
-    };
-  }, [loadInitialSessionState, onSessionUpdate, handleUnifiedSessionUpdate]);
-
-  // Public refresh function (manual refresh using bootstrap method)
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await loadInitialSessionState();
-      console.log(`🔄 Session data refreshed (${enableEnhancedMode ? 'Enhanced' : 'Standard'})`);
-    } catch (error) {
-      console.error('❌ Error refreshing session data:', error);
+      console.error('❌ Session data refresh failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to refresh session data');
     } finally {
       setRefreshing(false);
     }
-  }, [loadInitialSessionState, enableEnhancedMode]);
-
+  }, [enableEnhancedMode]);
+  
+  // Handle session updates from unified WebSocket
+  useEffect(() => {
+    if (!wsConnected) {
+      if (enableEnhancedMode) {
+        console.log('🔌 Session WebSocket not connected, loading initial data...');
+      }
+      // Load initial data when WebSocket is not connected
+      refreshData();
+      return;
+    }
+    
+    if (enableEnhancedMode) {
+      console.log('🔌 Session WebSocket connected, subscribing to updates...');
+    }
+    
+    const unsubscribe = onSessionUpdate((data: any) => {
+      if (enableEnhancedMode) {
+        console.log('� Session update received:', data);
+      }
+      
+      setSessionData(data);
+      setLastUpdate(new Date());
+      setError(null);
+      setLoading(false);
+      
+      // Add to events list
+      const newEvent: SessionEvent = {
+        id: Date.now().toString(),
+        type: 'session_update',
+        data: data,
+        timestamp: new Date()
+      };
+      
+      setEvents(prev => [newEvent, ...prev].slice(0, 25));
+    });
+    
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [wsConnected, onSessionUpdate, refreshData, enableEnhancedMode]);
+  
+  // Initial data load
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+  
   return {
     sessionData,
+    events,
     loading,
     error,
-    refreshing,
+    lastUpdate,
+    refreshData,
     wsConnected,
-    refresh
+    refreshing
   };
 };
+
+export default useSessionData;

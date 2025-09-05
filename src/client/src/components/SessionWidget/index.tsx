@@ -8,7 +8,7 @@ import { Card, Flex } from '@radix-ui/themes';
 import type { SessionWidgetProps } from '../../interfaces/session';
 
 // Modular components
-import { useSessionData } from './useSessionData';
+import useSessionData from './useSessionData';
 import { SessionHeader } from './SessionHeader';
 import { SessionAlerts } from './SessionAlerts';
 import { SessionTarget } from './SessionTarget';
@@ -29,14 +29,14 @@ const SessionWidget: React.FC<SessionWidgetProps> = ({
     sessionData,
     loading,
     error,
-    refreshing,
+    refreshData,
     wsConnected,
-    refresh
-  } = useSessionData(enableEnhancedMode);
+    refreshing
+  } = useSessionData({ enableEnhancedMode });
 
   // Handle refresh with callback
   const handleRefresh = async () => {
-    await refresh();
+    await refreshData();
     onRefresh?.();
   };
 

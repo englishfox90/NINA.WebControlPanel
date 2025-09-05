@@ -6,6 +6,18 @@ class SessionAPIRoutes {
     console.log('🔧 SessionAPIRoutes constructor called with:', unifiedSessionManager ? 'VALID sessionManager' : 'NULL sessionManager');
     this.sessionManager = unifiedSessionManager;
     console.log('🔧 SessionAPIRoutes this.sessionManager set to:', this.sessionManager ? 'VALID' : 'NULL');
+    
+    // Session state caching to prevent duplicate API calls
+    this.sessionCache = null;
+    this.sessionCacheTimestamp = 0;
+    this.CACHE_DURATION_MS = 1000; // 1 second cache duration
+  }
+
+  // Cache invalidation method - call when session data changes
+  invalidateCache() {
+    this.sessionCache = null;
+    this.sessionCacheTimestamp = 0;
+    console.log('🗑️ Session cache invalidated');
   }
 
   // Register session API routes
@@ -29,7 +41,7 @@ class SessionAPIRoutes {
       }
     });
 
-    // Get session state for WebSocket connection (unified format)
+    // Get session state for WebSocket connection (unified format) with caching
     app.get('/api/nina/session-state', async (req, res) => {
       try {
         // Debug session manager availability
@@ -40,12 +52,25 @@ class SessionAPIRoutes {
           });
         }
 
+        // Check cache first to prevent duplicate API calls
+        const now = Date.now();
+        if (this.sessionCache && (now - this.sessionCacheTimestamp) < this.CACHE_DURATION_MS) {
+          console.log('📦 Returning cached session state (avoiding duplicate call)');
+          return res.json(this.sessionCache);
+        }
+
+        // Get fresh session data
         const sessionData = this.sessionManager.getCurrentSessionData();
+        console.log('🎯 Returning active session for target:', sessionData?.target?.name);
         console.log('🎯 Returning unified session for API request:', {
           target: sessionData?.target?.name,
           isGuiding: sessionData?.isGuiding,
           activity: sessionData?.activity
         });
+        
+        // Update cache
+        this.sessionCache = sessionData || {};
+        this.sessionCacheTimestamp = now;
         
         // Return unified format (same as WebSocket message data)
         res.json(sessionData || {});
@@ -62,6 +87,10 @@ class SessionAPIRoutes {
     app.post('/api/session/refresh', async (req, res) => {
       try {
         console.log('🔄 Manual session refresh requested via API');
+        
+        // Invalidate cache before refresh
+        this.invalidateCache();
+        
         const sessionData = await this.sessionManager.refresh();
         
         res.json({

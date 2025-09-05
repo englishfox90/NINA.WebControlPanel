@@ -33,19 +33,6 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
   // Bootstrap pattern: Session state management
   const [sessionData, setSessionData] = useState<any>(null);
 
-  const loadInitialSessionState = useCallback(async () => {
-    try {
-      const response = await fetch(getApiUrl('nina/session-state'));
-      if (response.ok) {
-        const session = await response.json();
-        setSessionData(session);
-        console.log('📊 Scheduler loaded initial session state:', session?.target?.name);
-      }
-    } catch (err) {
-      console.warn('📊 Scheduler failed to load initial session state:', err);
-    }
-  }, []);
-
   const fetchData = useCallback(async (reason = 'manual') => {
     // Throttle API calls - minimum 3 seconds between calls
     const now = Date.now();
@@ -111,9 +98,6 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
 
   // Subscribe to unified WebSocket events
   useEffect(() => {
-    // Bootstrap: Load initial session state
-    loadInitialSessionState();
-    
     // Subscribe to NINA events (IMAGE-SAVE, SEQUENCE-FINISHED)
     const unsubscribeNINA = onNINAEvent(handleWidgetEvent);
     
@@ -129,7 +113,7 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
       unsubscribeNINA();
       unifiedWebSocket.off('session:update', handleSessionEvent);
     };
-  }, [onNINAEvent, handleWidgetEvent, handleUnifiedSessionUpdate, loadInitialSessionState]);
+  }, [onNINAEvent, handleWidgetEvent, handleUnifiedSessionUpdate]);
 
   // Initial data load
   useEffect(() => {
