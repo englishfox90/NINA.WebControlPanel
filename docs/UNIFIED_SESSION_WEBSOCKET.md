@@ -189,12 +189,21 @@ CREATE TABLE session_state (
 
 **Key Learning**: NINA's prepared-image API eliminates need for path tracking - the API always returns the most recent image, making the widget implementation cleaner and more reliable.
 
-### Remaining Priority Tasks
+### ✅ **COMPLETED: Task 3 - Session Widget Display Migration**
 
-**3. Update Session Widget Display**
-- [ ] Update all data points away from the older session WS, and move to the unifiedSession WS object
-- [ ] Remove logic and access to the older APIs no longer needed
-- [ ] Apply bootstrap pattern: initial state from API + WebSocket updates
+**COMPLETED** ✅ (September 4, 2025)
+- ✅ Applied bootstrap pattern: SessionWidget loads initial session state from `/api/nina/session-state` using unified session format
+- ✅ Unified WebSocket integration: Migrated from legacy `useSessionWebSocket` to direct `useUnifiedWebSocket` for session updates
+- ✅ Removed redundant API logic: Eliminated old session WebSocket connection and unnecessary API polling
+- ✅ Data format compatibility: Existing utility functions (`getSessionStatus`, `extractTargetInfo`, etc.) already support unified session format
+- ✅ Real-time updates: SessionWidget now receives live session updates via `session:update` WebSocket events
+- ✅ Enhanced error handling: Better error states and debug logging for session state detection
+- ✅ Maintains feature parity: All existing SessionWidget functionality preserved (target info, activity, status, alerts)
+- ✅ Performance optimization: Eliminated duplicate network requests by using single unified data source
+
+**Key Learning**: The SessionWidget's modular utility architecture made migration seamless - utility functions like `extractTargetInfo` and `getSessionStatus` already handled the unified session format through the `isActive` and `target` properties.
+
+### Remaining Priority Tasks
 
 **4. Update Target Scheduler Widget**
 - [ ] Listen for `target_name` changes to detect active sessions
