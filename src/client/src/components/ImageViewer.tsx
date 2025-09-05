@@ -13,7 +13,7 @@ import {
   CameraIcon, 
   InfoCircledIcon
 } from '@radix-ui/react-icons';
-import { useImageViewerWebSocket } from '../hooks/useUnifiedWebSocket';
+import { useUnifiedWebSocket } from '../hooks/useUnifiedWebSocket';
 import { getApiUrl } from '../config/api';
 import type { ImageViewerProps } from '../interfaces/dashboard';
 import type { ImageStatistics } from '../interfaces/image';
@@ -23,14 +23,15 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
   const [imageStats, setImageStats] = useState<ImageStatistics | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastImageSave, setLastImageSave] = useState<string>('');
+  const [isImagingSession, setIsImagingSession] = useState<boolean>(false);
+  const [sessionData, setSessionData] = useState<any>(null);
 
   // Add throttling to prevent duplicate API calls
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const FETCH_THROTTLE_MS = 2000; // 2 second minimum between fetches
 
-  // Use unified WebSocket for IMAGE-SAVE events
-  const { onWidgetEvent } = useImageViewerWebSocket();
+  // Use unified WebSocket for session updates and IMAGE-SAVED events
+  const { onSessionUpdate } = useUnifiedWebSocket();
 
   // Fetch latest image from prepared-image endpoint with throttling
   const fetchPreparedImage = useCallback(async () => {
@@ -118,62 +119,134 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
     }
   }, [latestImage, lastFetchTime, imageLoading]);
 
-  // Handle WebSocket events - only IMAGE-SAVE, ignore IMAGE-PREPARED
-  const handleImageSaveEvent = useCallback((event: any) => {
-    console.log('📸 WebSocket event received:', event.Type, event);
-    
-    // Only process IMAGE-SAVE events (ignore IMAGE-PREPARED)
-    if (event.Type !== 'IMAGE-SAVE') {
-      console.log(`📸 Ignoring ${event.Type} event - only processing IMAGE-SAVE events`);
-      return;
+  // Bootstrap: Load initial session state to check if we're in an imaging session
+  const loadInitialSessionState = useCallback(async () => {
+    try {
+      console.log('📸 Loading initial session state for ImageViewer...');
+      const response = await fetch(getApiUrl('nina/session-state'));
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch session state: ${response.statusText}`);
+      }
+      
+      const sessionState = await response.json();
+      console.log('📸 Initial session state loaded:', {
+        isActive: sessionState.isActive,
+        target: sessionState.target?.name,
+        activity: sessionState.activity
+      });
+      
+      setSessionData(sessionState);
+      
+      // Check if we're in an active imaging session
+      const isActiveSession = sessionState.isActive && 
+                             sessionState.activity?.subsystem === 'imaging' &&
+                             sessionState.activity?.state !== 'idle';
+      
+      setIsImagingSession(isActiveSession);
+      
+      // If we're in an active imaging session, fetch the latest image
+      if (isActiveSession) {
+        console.log('📸 Active imaging session detected, fetching latest image');
+        await fetchPreparedImage();
+      } else {
+        console.log('📸 No active imaging session, waiting for session updates');
+      }
+      
+    } catch (err) {
+      console.error('❌ Failed to load initial session state:', err);
+      setError('Failed to load session state');
     }
-    
-    // Validate ImageStatistics are present
-    if (!event.Data?.ImageStatistics) {
-      console.log('📸 IMAGE-SAVE event missing ImageStatistics, ignoring');
-      return;
-    }
-
-    const stats = event.Data.ImageStatistics;
-    console.log('📊 Processing IMAGE-SAVE with statistics:', stats);
-    
-    // Store image statistics from WebSocket event
-    setImageStats({
-      ExposureTime: stats.ExposureTime || 0,
-      ImageType: stats.ImageType || 'UNKNOWN',
-      Filter: stats.Filter || 'N/A',
-      Temperature: stats.Temperature || 0,
-      CameraName: stats.CameraName || 'Unknown Camera',
-      Date: event.Timestamp || new Date().toISOString(),
-      Gain: stats.Gain || 0,
-      Offset: stats.Offset || 0,
-      HFR: stats.HFR || 0,
-      Stars: stats.Stars || 0,
-      Mean: stats.Mean || 0,
-      StDev: stats.StDev || 0,
-      TelescopeName: stats.TelescopeName || 'Unknown Telescope',
-      RmsText: stats.RmsText || 'N/A'
-    });
-    
-    setLastImageSave(event.Timestamp);
-    
-    // Fetch the prepared image after receiving IMAGE-SAVE event
-    // Small delay to ensure NINA has processed the image
-    setTimeout(() => {
-      fetchPreparedImage();
-    }, 1000);
   }, [fetchPreparedImage]);
 
-  // Subscribe to IMAGE-SAVE WebSocket events
+  // Handle unified session updates
+  const handleSessionUpdate = useCallback((unifiedSession: any) => {
+    console.log('📸 WebSocket session update received:', {
+      isActive: unifiedSession.isActive,
+      target: unifiedSession.target?.name,
+      activity: unifiedSession.activity
+    });
+    
+    setSessionData(unifiedSession);
+    
+    // Check if we're in an active imaging session
+    const isActiveSession = unifiedSession.isActive && 
+                           unifiedSession.activity?.subsystem === 'imaging' &&
+                           unifiedSession.activity?.state !== 'idle';
+    
+    setIsImagingSession(isActiveSession);
+    
+    // Look for IMAGE-SAVED events in recent_events
+    if (unifiedSession.events && Array.isArray(unifiedSession.events)) {
+      const imageSaveEvents = unifiedSession.events.filter((event: any) => 
+        event.eventType === 'IMAGE-SAVED' || event.eventType === 'IMAGE-SAVE'
+      );
+      
+      if (imageSaveEvents.length > 0) {
+        const latestImageEvent = imageSaveEvents[imageSaveEvents.length - 1];
+        console.log('📸 Found IMAGE-SAVE event in session update:', latestImageEvent);
+        handleImageSaveEvent(latestImageEvent);
+      }
+    }
+  }, []);
+
+  // Handle IMAGE-SAVE events (from unified session or direct events)
+  const handleImageSaveEvent = useCallback((event: any) => {
+    console.log('📸 Processing IMAGE-SAVE event:', event);
+    
+    // Extract image statistics from the event
+    const stats = event.enrichedData?.ImageStatistics || event.ImageStatistics || event.Data?.ImageStatistics;
+    
+    if (stats) {
+      console.log('📊 Processing IMAGE-SAVE with statistics:', stats);
+      
+      // Store image statistics from event
+      setImageStats({
+        ExposureTime: stats.ExposureTime || 0,
+        ImageType: stats.ImageType || 'UNKNOWN',
+        Filter: stats.Filter || 'N/A',
+        Temperature: stats.Temperature || 0,
+        CameraName: stats.CameraName || 'Unknown Camera',
+        Date: event.timestamp || event.Timestamp || new Date().toISOString(),
+        Gain: stats.Gain || 0,
+        Offset: stats.Offset || 0,
+        HFR: stats.HFR || 0,
+        Stars: stats.Stars || 0,
+        Mean: stats.Mean || 0,
+        StDev: stats.StDev || 0,
+        TelescopeName: stats.TelescopeName || 'Unknown Telescope',
+        RmsText: stats.RmsText || 'N/A'
+      });
+      
+      // Fetch the prepared image after receiving IMAGE-SAVE event
+      // Small delay to ensure NINA has processed the image
+      setTimeout(() => {
+        fetchPreparedImage();
+      }, 1000);
+    } else {
+      console.log('📸 IMAGE-SAVE event missing ImageStatistics, only fetching image');
+      // Still fetch the image even without stats
+      setTimeout(() => {
+        fetchPreparedImage();
+      }, 1000);
+    }
+  }, [fetchPreparedImage]); // Add missing dependency
+
+  // Subscribe to unified session updates on mount
   useEffect(() => {
-    console.log('🔌 Subscribing to IMAGE-SAVE events');
-    const unsubscribe = onWidgetEvent(handleImageSaveEvent);
+    console.log('� ImageViewer initializing - loading session state and subscribing to updates');
+    
+    // Bootstrap: Load initial state
+    loadInitialSessionState();
+    
+    // Subscribe to real-time session updates
+    const unsubscribeSession = onSessionUpdate(handleSessionUpdate);
     
     return () => {
-      console.log('🔌 Unsubscribing from IMAGE-SAVE events');
-      unsubscribe();
+      console.log('� ImageViewer cleanup - unsubscribing from session updates');
+      unsubscribeSession();
     };
-  }, [onWidgetEvent, handleImageSaveEvent]);
+  }, [loadInitialSessionState, onSessionUpdate, handleSessionUpdate]);
 
   // Clean up object URLs on unmount
   useEffect(() => {
@@ -206,9 +279,14 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
             <Flex align="center" gap="2">
               <CameraIcon />
               <Text size="3" weight="medium">Latest NINA Image</Text>
-              {lastImageSave && (
+              {isImagingSession && (
                 <Badge variant="soft" color="green" size="1">
-                  Live Updates
+                  Live Session
+                </Badge>
+              )}
+              {sessionData?.target?.name && (
+                <Badge variant="soft" color="blue" size="1">
+                  {sessionData.target.name}
                 </Badge>
               )}
             </Flex>
@@ -229,10 +307,21 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
         {!latestImage && !imageLoading && !error && (
           <Flex direction="column" align="center" gap="3" py="8">
             <CameraIcon width="32" height="32" color="gray" />
-            <Text size="3" color="gray" weight="medium">No image available yet</Text>
-            <Text size="2" color="gray" style={{ textAlign: 'center', maxWidth: '300px' }}>
-              Images will appear here automatically when NINA captures new photos
-            </Text>
+            {isImagingSession ? (
+              <>
+                <Text size="3" color="gray" weight="medium">Waiting for next image...</Text>
+                <Text size="2" color="gray" style={{ textAlign: 'center', maxWidth: '300px' }}>
+                  Active imaging session detected. Images will appear here when NINA captures new photos.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text size="3" color="gray" weight="medium">No active imaging session</Text>
+                <Text size="2" color="gray" style={{ textAlign: 'center', maxWidth: '300px' }}>
+                  Images will appear here automatically when NINA starts an imaging session
+                </Text>
+              </>
+            )}
           </Flex>
         )}
 
@@ -293,6 +382,14 @@ export const ImageViewerWidget: React.FC<ImageViewerProps> = ({ onRefresh, hideH
                       <Text size="1" color="gray">
                         {imageStats.CameraName} • {imageStats.TelescopeName}
                       </Text>
+                      
+                      {/* Session context from unified session */}
+                      {sessionData?.target?.name && (
+                        <Text size="1" color="gray">
+                          Target: {sessionData.target.name}
+                          {sessionData.target.project && ` (${sessionData.target.project})`}
+                        </Text>
+                      )}
                       
                       <Flex justify="between" mt="2">
                         <Flex direction="column" gap="1">

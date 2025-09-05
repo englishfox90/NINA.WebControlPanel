@@ -81,8 +81,6 @@ The `unifiedSession` WebSocket message contains all session data in a single, co
     "current_filter": "Luminance",
     "filter_timestamp": "2025-09-04T08:15:00.000Z",
     "total_images": 45,
-    "last_image_path": "/path/to/latest/image.fits",
-    "last_image_timestamp": "2025-09-04T12:33:45.000Z",
     "exposure_time": 300,
     "camera_temperature": -10.5,
     "recent_events": [
@@ -153,7 +151,6 @@ CREATE TABLE session_state (
   is_guiding INTEGER,
   current_filter TEXT,
   total_images INTEGER,
-  last_image_path TEXT,
   exposure_time INTEGER,
   camera_temperature REAL,
   session_data TEXT,
@@ -178,29 +175,35 @@ CREATE TABLE session_state (
 2. **Listen for updates** via WebSocket unified session messages
 3. **Use same data format** between API and WebSocket for consistency
 
+### ✅ **COMPLETED: Task 2 - Recent Image Widget Migration**
+
+**COMPLETED** ✅ (September 4, 2025)
+- ✅ Applied bootstrap pattern: ImageViewer loads initial session state from `/api/nina/session-state` to detect active imaging sessions
+- ✅ Enhanced session awareness: Widget now knows when we're in an active imaging session vs idle state
+- ✅ Unified WebSocket integration: Subscribes to `session:update` events for real-time session state changes  
+- ✅ IMAGE-SAVED event handling: Processes events from unified session `recent_events` array and direct WebSocket events
+- ✅ NINA API integration: Continues using prepared-image endpoint (no need for `last_image_path` tracking as NINA API always returns latest)
+- ✅ Enhanced UI feedback: Shows "Live Session" badge and target name when in active imaging session
+- ✅ Session context in image details: Displays target name and project information from unified session data
+- ✅ Improved default states: Different messages for "active session waiting for images" vs "no active session"
+
+**Key Learning**: NINA's prepared-image API eliminates need for path tracking - the API always returns the most recent image, making the widget implementation cleaner and more reliable.
+
 ### Remaining Priority Tasks
 
-**2. Update Recent Image Widget**  
-- [ ] Use `last_image_path` and `last_image_timestamp` from unified session
-- [ ] Listen for `IMAGE-SAVED` events in `recent_events` array
-- [ ] Remove old image polling mechanisms
-- [ ] Apply bootstrap pattern: initial state from API + WebSocket updates
-
 **3. Update Session Widget Display**
-- [ ] Show `target_name`, `session_state`, and `duration` from unified session
-- [ ] Display `start_time` and `end_time` for session timeline
-- [ ] Use `session_stats` for exposure progress indicators
+- [ ] Update all data points away from the older session WS, and move to the unifiedSession WS object
+- [ ] Remove logic and access to the older APIs no longer needed
 - [ ] Apply bootstrap pattern: initial state from API + WebSocket updates
 
 **4. Update Target Scheduler Widget**
 - [ ] Listen for `target_name` changes to detect active sessions
-- [ ] Use `target_coordinates` for current target display
-- [ ] Integrate with session `start_time`/`end_time` for scheduling
+- [ ] Continue to show "Shooting Now" badge for any target in active imaging from the new UnifiedSession WS
 - [ ] Apply bootstrap pattern: initial state from API + WebSocket updates
 
 **5. Remove Legacy Session Management**
 - [ ] Delete `src/services/sessionStateManager.js` (legacy)
-- [ ] Remove old WebSocket connections (`/ws/session`, `/ws/nina`)
+- [ ] Remove old WebSocket connection (`/ws/session`)
 - [ ] Clean up old API endpoints that duplicate unified session data
 - [ ] Update frontend components to use single unified WebSocket
 
@@ -237,7 +240,6 @@ unifiedWs.onmessage = (event) => {
     // All session data in one message
     const sessionData = message.data;
     updateGuiderWidget(sessionData.is_guiding, sessionData.guiding_rms);
-    updateImageWidget(sessionData.last_image_path);
     updateSessionWidget(sessionData.target_name, sessionData.duration);
     updateSchedulerWidget(sessionData.target_name);
   }
