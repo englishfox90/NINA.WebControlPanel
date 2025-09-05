@@ -205,10 +205,14 @@ CREATE TABLE session_state (
 
 ### Remaining Priority Tasks
 
-**4. Update Target Scheduler Widget**
-- [ ] Listen for `target_name` changes to detect active sessions
-- [ ] Continue to show "Shooting Now" badge for any target in active imaging from the new UnifiedSession WS
-- [ ] Apply bootstrap pattern: initial state from API + WebSocket updates
+**✅ 4. Target Scheduler Widget (COMPLETED)**
+- ✅ Updated SchedulerWidget.tsx to use `useUnifiedWebSocket` with direct session handling
+- ✅ Applied bootstrap pattern: `loadInitialSessionState()` + `session:update` subscription
+- ✅ Maintains "Shooting Now" badge logic with target change detection
+- ✅ Eliminated legacy `useSchedulerWebSocket` wrapper dependency
+- ✅ Direct unified WebSocket integration for real-time target updates
+
+**Key Implementation**: Used direct `unifiedWebSocket.on('session:update', handler)` subscription alongside bootstrap pattern for initial state loading. Target changes trigger immediate scheduler refresh to update "Shooting Now" badges.
 
 **5. Remove Legacy Session Management**
 - [ ] Delete `src/services/sessionStateManager.js` (legacy)

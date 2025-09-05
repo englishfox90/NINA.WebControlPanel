@@ -9,7 +9,7 @@ import {
   ImageIcon,
   ClockIcon
 } from '@radix-ui/react-icons';
-import { useSchedulerWebSocket } from '../hooks/useUnifiedWebSocket';
+import { useUnifiedWebSocket } from '../hooks/useUnifiedWebSocket';
 import { getApiUrl } from '../config/api';
 import type { TargetSchedulerProps } from '../interfaces/dashboard';
 
@@ -20,13 +20,31 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
   const [lastImageSave, setLastImageSave] = useState<string>('');
   const [lastApiCall, setLastApiCall] = useState<number>(0);
 
-  // Use enhanced unified WebSocket for scheduler events
+  // Use unified WebSocket for NINA events
   const { 
     connected: wsConnected, 
-    onWidgetEvent,
-    onSessionUpdate,
+    onNINAEvent,
     lastEvent 
-  } = useSchedulerWebSocket();
+  } = useUnifiedWebSocket({
+    widgetType: 'target_scheduler',
+    eventTypes: ['IMAGE-SAVE', 'SEQUENCE-FINISHED']
+  });
+
+  // Bootstrap pattern: Session state management
+  const [sessionData, setSessionData] = useState<any>(null);
+
+  const loadInitialSessionState = useCallback(async () => {
+    try {
+      const response = await fetch(getApiUrl('nina/session-state'));
+      if (response.ok) {
+        const session = await response.json();
+        setSessionData(session);
+        console.log('📊 Scheduler loaded initial session state:', session?.target?.name);
+      }
+    } catch (err) {
+      console.warn('📊 Scheduler failed to load initial session state:', err);
+    }
+  }, []);
 
   const fetchData = useCallback(async (reason = 'manual') => {
     // Throttle API calls - minimum 3 seconds between calls
@@ -54,6 +72,20 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
     }
   }, [lastApiCall]);
 
+  // Handle unified session updates (moved after fetchData declaration)
+  const handleUnifiedSessionUpdate = useCallback((session: any) => {
+    setSessionData(session);
+    
+    // Only update scheduler if target changed (affects "Shooting Now" badge)
+    const newTarget = session?.target?.name;
+    const currentTarget = data?.find((p: any) => p.isCurrentlyActive)?.targets?.[0]?.name;
+    
+    if (newTarget !== currentTarget) {
+      console.log('📊 Target changed, updating "Shooting Now" badge:', newTarget);
+      fetchData('target-changed');
+    }
+  }, [data, fetchData]);
+
   // Enhanced WebSocket event handler - only for IMAGE-SAVE events
   const handleWidgetEvent = useCallback((event: any) => {
     console.log('📊 Scheduler widget event received:', event.Type, event.Data?.ImageStatistics?.ImageType);
@@ -77,28 +109,27 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
     }
   }, [fetchData]);
 
-  // Handle session updates for "Shooting Now" badge updates
-  const handleSessionUpdate = useCallback((sessionData: any) => {
-    // Only update if target changed (affects "Shooting Now" badge)
-    const newTarget = sessionData?.target?.name;
-    const currentTarget = data?.find((p: any) => p.isCurrentlyActive)?.targets?.[0]?.name;
-    
-    if (newTarget !== currentTarget) {
-      console.log('📊 Target changed, updating "Shooting Now" badge:', newTarget);
-      fetchData('target-changed');
-    }
-  }, [data, fetchData]);
-
-  // Subscribe to events using optimized handlers
+  // Subscribe to unified WebSocket events
   useEffect(() => {
-    const unsubscribeWidget = onWidgetEvent(handleWidgetEvent);
-    const unsubscribeSession = onSessionUpdate(handleSessionUpdate);
+    // Bootstrap: Load initial session state
+    loadInitialSessionState();
+    
+    // Subscribe to NINA events (IMAGE-SAVE, SEQUENCE-FINISHED)
+    const unsubscribeNINA = onNINAEvent(handleWidgetEvent);
+    
+    // Subscribe to session updates using unified WebSocket service directly
+    const { unifiedWebSocket } = require('../services/unifiedWebSocket');
+    const handleSessionEvent = (sessionData: any) => {
+      handleUnifiedSessionUpdate(sessionData);
+    };
+    
+    unifiedWebSocket.on('session:update', handleSessionEvent);
     
     return () => {
-      unsubscribeWidget();
-      unsubscribeSession();
+      unsubscribeNINA();
+      unifiedWebSocket.off('session:update', handleSessionEvent);
     };
-  }, [onWidgetEvent, onSessionUpdate, handleWidgetEvent, handleSessionUpdate]);
+  }, [onNINAEvent, handleWidgetEvent, handleUnifiedSessionUpdate, loadInitialSessionState]);
 
   // Initial data load
   useEffect(() => {
