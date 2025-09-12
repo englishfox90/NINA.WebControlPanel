@@ -1,17 +1,52 @@
 // Enhanced WebSocket Event Logger
 // Logs all WebSocket events and their processing journey through the system
+// Only active when DEBUG environment variables are set
 
 const fs = require('fs');
 const path = require('path');
 
 class WebSocketEventLogger {
   constructor() {
+    // Check if logging is enabled via environment variables
+    this.isEnabled = this.checkLoggingEnabled();
+    
+    if (!this.isEnabled) {
+      // Create a no-op logger that does nothing
+      this.createNoOpMethods();
+      return;
+    }
+    
     this.logFile = path.join(__dirname, '../../logs/websocket-events.log');
     this.ensureLogDirectory();
     
     // Clear previous log on startup
     this.clearLog();
-    this.log('SYSTEM', 'WebSocketEventLogger initialized', { timestamp: new Date().toISOString() });
+    this.log('SYSTEM', 'WebSocketEventLogger initialized', { 
+      timestamp: new Date().toISOString(),
+      debugLevel: process.env.DEBUG_WEBSOCKET || process.env.DEBUG || 'basic'
+    });
+  }
+
+  checkLoggingEnabled() {
+    // Enable logging if any of these environment variables are set
+    return !!(
+      process.env.DEBUG ||                    // General debug
+      process.env.DEBUG_WEBSOCKET ||          // WebSocket specific debug
+      process.env.NODE_ENV === 'debug' ||     // Debug environment
+      process.env.WS_DEBUG                    // WebSocket debug shorthand
+    );
+  }
+
+  createNoOpMethods() {
+    // Create no-op methods when logging is disabled
+    this.log = () => {};
+    this.logEventReceived = () => {};
+    this.logEventProcessed = () => {};
+    this.logEventIgnored = () => {};
+    this.logEventError = () => {};
+    this.logNormalized = () => {};
+    this.logForwarded = () => {};
+    this.logStateChanged = () => {};
   }
 
   ensureLogDirectory() {
@@ -30,6 +65,9 @@ class WebSocketEventLogger {
   }
 
   log(stage, action, data = {}) {
+    // If logging is disabled, this method is already a no-op from createNoOpMethods()
+    if (!this.isEnabled) return;
+    
     const timestamp = new Date().toISOString();
     const caller = this.getCallerInfo();
     
@@ -42,20 +80,28 @@ class WebSocketEventLogger {
       data
     };
 
+    // Log to file
     const logLine = JSON.stringify(logEntry, null, 2) + '\n---\n';
     
     try {
       fs.appendFileSync(this.logFile, logLine);
       
-      // Also log to console for immediate visibility
-      const shortMsg = `[${stage}] ${action} at ${caller.file}:${caller.line}`;
-      if (data.eventType || data.Event) {
-        console.log(`🔍 ${shortMsg} - Event: ${data.eventType || data.Event}`);
-      } else {
-        console.log(`🔍 ${shortMsg}`);
+      // Console logging based on debug level
+      const debugLevel = process.env.DEBUG_WEBSOCKET || process.env.DEBUG || 'basic';
+      const shouldLogToConsole = debugLevel === 'verbose' || debugLevel === 'all';
+      
+      if (shouldLogToConsole || action === 'ERROR') {
+        // Always log errors to console, log others only in verbose mode
+        const shortMsg = `[${stage}] ${action} at ${caller.file}:${caller.line}`;
+        if (data.eventType || data.Event) {
+          console.log(`🔍 ${shortMsg} - Event: ${data.eventType || data.Event}`);
+        } else {
+          console.log(`🔍 ${shortMsg}`);
+        }
       }
+      
     } catch (error) {
-      console.error('❌ Failed to write WebSocket event log:', error);
+      console.error('❌ Failed to write to WebSocket event log:', error);
     }
   }
 
@@ -77,52 +123,53 @@ class WebSocketEventLogger {
       }
     }
     
-    return { file: 'unknown', line: 'unknown' };
+    return {
+      file: 'unknown',
+      line: '0'
+    };
   }
 
-  // Helper methods for common log patterns
+  // Convenience methods for common logging patterns
   logEventReceived(source, event) {
-    this.log(source, 'RECEIVED', {
-      eventType: event?.Event || event?.Response?.Event,
-      Type: event?.Type,
-      Success: event?.Success,
-      hasImageStatistics: !!event?.Response?.ImageStatistics,
-      rawEventKeys: Object.keys(event || {})
+    this.log('WS_CLIENT', 'RECEIVED', {
+      source,
+      eventType: event.eventType || event.Event,
+      hasImageStatistics: !!event.ImageStatistics,
+      rawEventKeys: Object.keys(event)
     });
   }
 
   logEventForwarded(source, event) {
-    this.log(source, 'FORWARDED', {
-      eventType: event?.Event || event?.Response?.Event,
+    this.log('WS_CLIENT', 'FORWARDED', {
+      eventType: event.eventType || event.Event,
       to: 'next_component'
     });
   }
 
   logEventProcessed(source, event, result) {
-    this.log(source, 'PROCESSED', {
-      eventType: event?.eventType || event?.Event,
+    this.log('EVENT_HANDLER', 'PROCESSED', {
+      eventType: event.eventType || event.Event,
       result,
-      stateChanged: result?.stateChanged
+      stateChanged: result?.stateChanged || false
     });
   }
 
   logEventIgnored(source, event, reason) {
-    this.log(source, 'IGNORED', {
-      eventType: event?.Event || event?.Response?.Event,
+    this.log('EVENT_HANDLER', 'IGNORED', {
+      eventType: event.eventType || event.Event,
       reason
     });
   }
 
   logError(source, error, context = {}) {
-    this.log(source, 'ERROR', {
+    this.log('SYSTEM', 'ERROR', {
+      source,
       error: error.message,
-      stack: error.stack,
       context
     });
   }
 }
 
-// Create singleton instance
+// Create and export singleton instance
 const wsLogger = new WebSocketEventLogger();
-
 module.exports = wsLogger;

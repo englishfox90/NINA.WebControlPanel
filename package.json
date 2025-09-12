@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node start-dev.js",
     "start:dev": "node start-dev.js",
+    "start:debug": "DEBUG=true node start-dev.js",
+    "start:debug-websocket": "DEBUG_WEBSOCKET=verbose node start-dev.js",
+    "start:debug-all": "DEBUG=all DEBUG_WEBSOCKET=verbose node start-dev.js",
     "start:enhanced": "node start-enhanced.js --enhanced",
     "start:enhanced-debug": "node start-enhanced.js --enhanced --debug",
     "start:legacy": "node start-enhanced.js",

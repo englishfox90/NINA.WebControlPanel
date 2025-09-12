@@ -106,11 +106,31 @@ npm run fix-backend
 npm run health
 ```
 
+### **Debug & Logging Commands**
+```bash
+# Normal startup (no debug logging)
+npm start                    # Clean startup, no log files created
+
+# Debug modes (creates log files in src/logs/)
+npm run start:debug          # General debug logging
+npm run start:debug-websocket # WebSocket event logging (verbose)
+npm run start:debug-all      # Full debug mode (all logging)
+```
+
+**WebSocket Event Logging**:
+- **Default**: No logging (clean operation)  
+- **Debug Mode**: Creates `src/logs/websocket-events.log` with detailed event flow
+- **Use When**: Debugging IMAGE-SAVE event processing, WebSocket connection issues
+- **File Size**: Can grow large quickly - only enable when needed
+
 ## 🛠️ Development
 
 ### Available Scripts
 
-- `npm start` - Start both frontend and backend in unified development mode
+- `npm start` - Start both frontend and backend in unified development mode (no debug logging)
+- `npm run start:debug` - Start with general debug logging enabled
+- `npm run start:debug-websocket` - Start with verbose WebSocket event logging (creates websocket-events.log)
+- `npm run start:debug-all` - Start with all debug logging enabled (full debugging mode)
 - `npm run start:stable` - Start with automatic restart on crashes and monitoring  
 - `npm run start:prod` - Start in production mode with PM2 process management
 - `npm run server` - Start only the backend server (enhanced stability)
