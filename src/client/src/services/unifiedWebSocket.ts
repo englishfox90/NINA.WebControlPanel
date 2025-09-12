@@ -11,7 +11,7 @@ export interface NINAEvent {
 }
 
 export interface WebSocketMessage {
-  type: 'nina-event' | 'sessionUpdate' | 'connection' | 'error' | 'heartbeat';
+  type: 'nina-event' | 'sessionUpdate' | 'unifiedSession' | 'connection' | 'error' | 'heartbeat';
   data: any;
   timestamp: string;
 }
@@ -195,6 +195,9 @@ export class UnifiedWebSocketManager extends EventEmitter {
           this.handleNINAEvent(message.data);
           break;
         case 'sessionUpdate':
+        case 'unifiedSession':
+          // Both message types contain session data - emit as session update
+          console.log(`📡 Received ${message.type} - emitting session:update`);
           this.emit('session:update', message.data);
           break;
         case 'connection':

@@ -1,6 +1,7 @@
 // Session Event Handler - Handles live WebSocket events
 const EventEmitter = require('events');
 const SessionSchema = require('../database/sessionSchema');
+const wsLogger = require('../utils/WebSocketEventLogger');
 
 class SessionEventHandler extends EventEmitter {
   constructor(configDatabase) {
@@ -44,7 +45,11 @@ class SessionEventHandler extends EventEmitter {
   // Main live event handler
   async handleLiveEvent(rawEvent) {
     try {
+      wsLogger.logEventReceived('EVENT_HANDLER', rawEvent);
+      
       if (!this.eventNormalizer || !this.sessionFSM) {
+        const reason = 'Event handler not fully initialized';
+        wsLogger.logEventIgnored('EVENT_HANDLER', rawEvent, reason);
         console.warn('⚠️ Event handler not fully initialized, skipping event');
         return;
       }
@@ -52,8 +57,15 @@ class SessionEventHandler extends EventEmitter {
       // Normalize event
       const normalizedEvent = this.eventNormalizer.normalizeEvent(rawEvent);
       if (!normalizedEvent) {
+        wsLogger.logEventIgnored('EVENT_HANDLER', rawEvent, 'Event normalization returned null');
         return;
       }
+
+      wsLogger.log('EVENT_HANDLER', 'NORMALIZED', {
+        originalType: rawEvent?.Event || rawEvent?.Response?.Event,
+        normalizedType: normalizedEvent.eventType,
+        hasImageStatistics: !!normalizedEvent.imageStatistics
+      });
 
       console.log(`🎭 Processing live event: ${normalizedEvent.eventType}`);
 
@@ -70,13 +82,24 @@ class SessionEventHandler extends EventEmitter {
       this.emit('eventProcessed', normalizedEvent, stateChanged);
       this.emit('ninaEvent', normalizedEvent.eventType, normalizedEvent);
       
+      wsLogger.logEventProcessed('EVENT_HANDLER', normalizedEvent, { 
+        stateChanged, 
+        persisted: true, 
+        emitted: true 
+      });
+      
       if (stateChanged) {
         console.log(`🎭 State changed due to ${normalizedEvent.eventType}`);
         await this.persistSessionState();
         this.emit('stateChanged', normalizedEvent);
+        wsLogger.log('EVENT_HANDLER', 'STATE_CHANGED', {
+          eventType: normalizedEvent.eventType,
+          newState: this.sessionFSM.getCurrentState()
+        });
       }
       
     } catch (error) {
+      wsLogger.logError('EVENT_HANDLER', error, { rawEvent });
       console.error('❌ Error handling live event:', error);
       this.emit('eventError', error, rawEvent);
     }

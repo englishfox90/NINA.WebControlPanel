@@ -5,9 +5,70 @@
 | `Dashboard.tsx` | ✅ Complete | Layout + navigation | ✅ Config API | Image gallery integration | 🟡 Medium |
 | `SystemStatusWidget.tsx` | ✅ Complete | **Real-time monitoring** | ✅ Cross-platform | None needed | ✅ Done |
 | `RTSPViewer.tsx` | ✅ Complete | **Live video feeds** | ✅ Working streams | Enhanced controls | 🟢 Low |
-| `TargetSchedulerWidget.tsx` | ✅ Complete | **Live project progress** | ✅ SQLite integration | None needed |*Last Updated: September 1, 2025 at 02:30 - Performance Optimization Complete: React Optimization + Progressive Loading + Backend Caching*
+| `TargetSchedulerWidget.tsx` | ✅ Complete | **Live project progress** | ✅ SQLite integration | None needed | ✅ Done |
 
-## 🆕 Recent Updates (September 1, 2025 Session) - PERFORMANCE OPTIMIZED ✅
+*Last Updated: September 11, 2025 at 22:30 - WebSocket & IMAGE-SAVE Event Processing Complete: Fixed message routing + simplified frontend + comprehensive logging*
+
+## 🆕 Recent Updates (September 11, 2025 Session) - WEBSOCKET & IMAGE PROCESSING FIXES ✅
+
+### **🚀 CRITICAL IMAGE-SAVE EVENT PROCESSING FIXED**
+
+#### **Root Cause Analysis & Resolution**
+- **Issue**: Frontend ImageViewer not responding to live IMAGE-SAVE events from NINA
+- **Backend Status**: ✅ Confirmed working - IMAGE-SAVE events processed, normalized, and stored correctly
+- **WebSocket Flow**: ✅ Confirmed working - Events flowing through complete pipeline
+- **Frontend Issue**: ❌ WebSocket message type mismatch preventing session updates
+
+#### **WebSocket Message Type Fix ✅**
+```typescript
+// FIXED: Added support for both message types from backend
+case 'sessionUpdate':    // Periodic session updates
+case 'unifiedSession':   // Initial connection and live updates
+  this.emit('session:update', message.data);
+```
+- **Backend sends**: `unifiedSession` (initial) + `sessionUpdate` (live updates)  
+- **Frontend was**: Only listening for `sessionUpdate` messages
+- **Fix Applied**: Support both message types in unified WebSocket router
+
+#### **ImageViewer Architecture Simplified ✅**
+```typescript
+// REMOVED: Complex dual event handling
+const handleImageSaveEvent = useCallback((event) => {
+  // Complex priority-based logic with throttling
+}, [dependencies]);
+
+// SIMPLIFIED: Clean session-based approach
+const handleSessionUpdate = useCallback((session) => {
+  if (session.isActive && session.lastImage) {
+    fetchPreparedImage(); // Always fetch in active sessions
+  }
+}, [fetchPreparedImage]);
+```
+
+#### **Comprehensive WebSocket Event Logging Added ✅**
+- **Created**: `WebSocketEventLogger.js` with file/line tracking and stage-based logging
+- **Integration**: Throughout complete event processing chain
+- **Visibility**: WS_CLIENT → NORMALIZER → EVENT_HANDLER → FSM with detailed debugging
+
+#### **Event Flow Verification ✅**
+```
+NINA IMAGE-SAVE Event → NINAWebSocketClient → SessionInitializer → 
+UnifiedSessionManager → SessionEventHandler → Database Storage → 
+WebSocket Broadcast → Frontend Session Update → Image Fetch ✅
+```
+
+#### **Files Modified Today**:
+- ✅ `unifiedWebSocket.ts` - Added `unifiedSession` message type support  
+- ✅ `useImageData.ts` - Simplified to session-based architecture only
+- ✅ `WebSocketEventLogger.js` - Comprehensive logging system created
+- ✅ `EventNormalizer.js` - Fixed WebSocket vs API event structure handling
+- ✅ Repository cleanup - Moved debug files to proper directories
+
+### **Technical Achievement**: Complete IMAGE-SAVE event processing from NINA to frontend display working reliably ✅
+
+---
+
+## 🆕 Previous Updates (September 1, 2025 Session) - PERFORMANCE OPTIMIZED ✅
 
 ### Major Performance Improvements Implemented:
 
@@ -319,7 +380,7 @@ process.on('unhandledRejection', (reason, promise) => {
 ```
 
 #### **4. Modular API Architecture**
-- **APIRoutes Class**: Organized route handling in `src/server/api-routes.js`
+- **APIRoutes Class**: Organized route handling in modular `src/server/api/` directory structure
 - **Separated Concerns**: Individual route modules in `src/server/api/`
 - **Better Maintenance**: Each API category in its own file
 - **Enhanced Logging**: Comprehensive request/response logging with timing

@@ -247,7 +247,53 @@ The widget provides the same professional experience as NINA's built-in guiding 
 - **[Widget Development](./docs/widgets/)** - Creating custom widgets
 - **[API Reference](./docs/development/)** - Backend API documentation
 
-## 🗂️ Development TODOs
+## � **Latest Updates - September 11, 2025**
+
+### **🚀 Major WebSocket & Image Processing Fixes**
+
+#### **IMAGE-SAVE Event Processing Resolution ✅**
+- **Problem**: Frontend ImageViewer not responding to live IMAGE-SAVE events despite backend processing successfully
+- **Root Cause**: WebSocket message type mismatch - backend sending `unifiedSession` but frontend only handled `sessionUpdate`
+- **Solution**: Enhanced WebSocket message router to support both message types with unified session handling
+
+#### **Frontend ImageViewer Architecture Simplification ✅**  
+- **Removed**: Complex dual event handling (direct NINA events + session updates)
+- **Implemented**: Clean session-based architecture following "always pull the last image" approach
+- **Result**: Eliminated duplicate API calls, reduced complexity, improved reliability
+
+#### **Enhanced WebSocket Event Logging System ✅**
+- **Added**: Comprehensive `WebSocketEventLogger` with file/line tracking across all components
+- **Implemented**: Stage-based logging (WS_CLIENT → NORMALIZER → EVENT_HANDLER → FSM)
+- **Verified**: Complete event flow from NINA WebSocket through backend processing to frontend updates
+
+#### **Production Fixes Applied**
+- **UnifiedSessionManager**: Confirmed IMAGE-SAVE event processing and database persistence working correctly
+- **EventNormalizer**: Fixed WebSocket event structure handling (`Response.Event` vs direct `Event` field)
+- **Frontend Logic**: Simplified to rely on backend session state as single source of truth
+- **Message Flow**: Fixed end-to-end MESSAGE-SAVE processing: NINA → Backend → WebSocket → Frontend → Image Update
+
+#### **Repository Cleanup ✅**
+- **Organized**: Moved all debug files from root to `scripts/debug/` and `scripts/monitoring/`
+- **Enhanced**: Root directory now clean following repository standards
+- **Updated**: Documentation with comprehensive fix details
+
+### **🔍 Technical Details**
+**WebSocket Message Flow (Fixed)**:
+```
+NINA IMAGE-SAVE → NINAWebSocketClient → SessionInitializer → 
+UnifiedSessionManager → SessionEventHandler → Database Storage → 
+WebSocket Broadcast → Frontend Session Update → Image Fetch
+```
+
+**Key Files Modified**:
+- `src/client/src/services/unifiedWebSocket.ts` - Added `unifiedSession` message type support
+- `src/client/src/components/ImageViewer/useImageData.ts` - Simplified to session-only architecture
+- `src/server/websocket/WebSocketEventLogger.js` - Comprehensive logging system
+- `src/server/session/EventNormalizer.js` - Fixed WebSocket event structure handling
+
+---
+
+## �🗂️ Development TODOs
 
 ### 🎯 **Current Development Status**
 **✅ Core Dashboard: PRODUCTION READY** - All essential monitoring features implemented
@@ -292,4 +338,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Project Status**: ✅ **PRODUCTION READY + ENHANCED STABILITY** - Complete astrophotography dashboard with enhanced backend stability, comprehensive monitoring, modular architecture, and professional guider graph widget | **Last Updated**: September 2, 2025
+**Project Status**: ✅ **PRODUCTION READY + WEBSOCKET FIXES COMPLETE** - Complete astrophotography dashboard with enhanced backend stability, fixed IMAGE-SAVE event processing, simplified frontend architecture, and comprehensive WebSocket logging system | **Last Updated**: September 11, 2025

@@ -3,6 +3,7 @@
 
 const WebSocket = require('ws');
 const EventEmitter = require('events');
+const wsLogger = require('../utils/WebSocketEventLogger');
 
 class NINAWebSocketClient extends EventEmitter {
   constructor(ninaConfig) {
@@ -138,16 +139,16 @@ class NINAWebSocketClient extends EventEmitter {
       return;
     }
 
-    // NINA WebSocket subscription message
+    // NINA WebSocket subscription message - based on official API docs
+    // NINA streams all events when subscribed, no event filtering supported
     const subscribeMessage = JSON.stringify({
-      Event: 'SUBSCRIBE',
-      Path: '/v2/socket'
+      type: 'subscribe'
     });
 
     // Small delay to ensure connection is fully established
     setTimeout(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        console.log('📡 Subscribing to NINA event stream');
+        console.log('📡 Subscribing to NINA event stream:', subscribeMessage);
         this.ws.send(subscribeMessage);
       }
     }, 100);
@@ -158,13 +159,18 @@ class NINAWebSocketClient extends EventEmitter {
     try {
       const message = JSON.parse(data.toString());
       
+      // Log raw event reception
+      wsLogger.logEventReceived('WS_CLIENT', message);
+      
       // Update heartbeat on any message
       this.lastHeartbeat = Date.now();
       
       // Emit raw NINA event
       this.emit('ninaEvent', message);
+      wsLogger.logEventForwarded('WS_CLIENT', message);
       
     } catch (error) {
+      wsLogger.logError('WS_CLIENT', error, { rawMessage: data.toString() });
       console.error('❌ Error parsing NINA WebSocket message:', error);
       console.log('Raw message:', data.toString());
     }

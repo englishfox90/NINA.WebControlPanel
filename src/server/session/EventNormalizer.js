@@ -1,4 +1,5 @@
-// NINA Event Normalizer
+// Event Normalizer - Standardizes events from different sources
+const wsLogger = require('../utils/WebSocketEventLogger');
 // Handles timestamp normalization, deduplication, and event enrichment
 
 class EventNormalizer {
@@ -14,23 +15,46 @@ class EventNormalizer {
 
   // Normalize NINA event with UTC conversion and deduplication
   normalizeEvent(rawEvent) {
-    if (!rawEvent || !rawEvent.Event || !rawEvent.Time) {
+    wsLogger.logEventReceived('NORMALIZER', rawEvent);
+    
+    // Handle different NINA WebSocket event structures
+    let eventType, eventData;
+    
+    if (rawEvent.Response?.Event) {
+      // WebSocket live events: { Response: { Event: "IMAGE-SAVE", ... }, Type: "Socket", Success: true }
+      eventType = rawEvent.Response.Event;
+      eventData = rawEvent.Response;
+    } else if (rawEvent.Event) {
+      // Historical API events: { Event: "IMAGE-SAVE", Time: "...", ... }
+      eventType = rawEvent.Event;
+      eventData = rawEvent;
+    } else {
+      wsLogger.logEventIgnored('NORMALIZER', rawEvent, 'No Event field found in rawEvent or rawEvent.Response');
       return null;
     }
 
-    // Parse and normalize timestamp to UTC
-    const timestamp = this.normalizeTimestamp(rawEvent.Time);
-    if (!timestamp) {
-      console.warn('❌ Failed to parse timestamp for event:', rawEvent.Event);
-      return null;
+    // Generate timestamp (WebSocket events don't have Time field)
+    let timestamp;
+    if (eventData.Time) {
+      timestamp = this.normalizeTimestamp(eventData.Time);
+      if (!timestamp) {
+        wsLogger.logEventIgnored('NORMALIZER', rawEvent, `Failed to parse timestamp: ${eventData.Time}`);
+        console.warn('❌ Failed to parse timestamp for event:', eventType);
+        return null;
+      }
+    } else {
+      // Use current time for WebSocket events
+      timestamp = new Date();
+      wsLogger.log('NORMALIZER', 'TIMESTAMP_GENERATED', { eventType, timestamp: timestamp.toISOString() });
     }
 
     // Create event key for deduplication
-    const eventKey = this.createEventKey(rawEvent, timestamp);
+    const eventKey = this.createEventKey({ Event: eventType, ...eventData }, timestamp);
     
     // Check for recent duplicate (within 1 second)
     if (this.isDuplicateEvent(eventKey, timestamp)) {
-      console.log(`🔄 Skipping duplicate event: ${rawEvent.Event}`);
+      wsLogger.logEventIgnored('NORMALIZER', rawEvent, 'Duplicate event within 1 second');
+      console.log(`🔄 Skipping duplicate event: ${eventType}`);
       return null;
     }
 
@@ -39,23 +63,31 @@ class EventNormalizer {
     this.cleanupRecentEvents(timestamp);
 
     const normalizedEvent = {
-      eventType: rawEvent.Event,
+      eventType: eventType,
       timestamp: timestamp.toISOString(),
       originalData: rawEvent,
-      enrichedData: this.enrichEvent(rawEvent),
+      enrichedData: this.enrichEvent(eventData),
       // Include key event fields for easy access
-      TargetName: rawEvent.TargetName,
-      ProjectName: rawEvent.ProjectName,
-      Coordinates: rawEvent.Coordinates,
-      Rotation: rawEvent.Rotation,
-      TargetEndTime: rawEvent.TargetEndTime,
-      IsSafe: rawEvent.IsSafe,
+      TargetName: eventData.TargetName,
+      ProjectName: eventData.ProjectName,
+      Coordinates: eventData.Coordinates,
+      Rotation: eventData.Rotation,
+      TargetEndTime: eventData.TargetEndTime,
+      IsSafe: eventData.IsSafe,
       // Include filter information for FILTERWHEEL-CHANGED events
-      FilterName: rawEvent.New?.Name
+      FilterName: eventData.New?.Name,
+      // Include ImageStatistics for IMAGE-SAVE events
+      imageStatistics: eventData.ImageStatistics
     };
 
     // Update rolling context
-    this.updateContext(rawEvent);
+    this.updateContext(eventData);
+
+    wsLogger.log('NORMALIZER', 'NORMALIZED_SUCCESS', {
+      eventType,
+      hasImageStatistics: !!normalizedEvent.imageStatistics,
+      timestampSource: eventData.Time ? 'original' : 'generated'
+    });
 
     return normalizedEvent;
   }
@@ -125,16 +157,24 @@ class EventNormalizer {
   }
 
   // Enrich sparse events with rolling context
-  enrichEvent(event) {
-    const enriched = { ...event };
+  enrichEvent(eventData) {
+    const enriched = { ...eventData };
 
     // Enrich IMAGE-SAVE events with context
-    if (event.Event === 'IMAGE-SAVE') {
+    if (eventData.ImageStatistics || (eventData.Event === 'IMAGE-SAVE' && this.eventContext.currentFilter)) {
       if (!enriched.ImageStatistics) {
         enriched.ImageStatistics = {
           Filter: this.eventContext.currentFilter,
           TargetName: this.eventContext.currentTarget?.name,
           ProjectName: this.eventContext.currentTarget?.project,
+          FlatPanelActive: this.eventContext.flatPanelState?.active || false
+        };
+      } else {
+        // Enhance existing ImageStatistics with context
+        enriched.ImageStatistics = {
+          ...enriched.ImageStatistics,
+          TargetName: enriched.ImageStatistics.TargetName || this.eventContext.currentTarget?.name,
+          ProjectName: enriched.ImageStatistics.ProjectName || this.eventContext.currentTarget?.project,
           FlatPanelActive: this.eventContext.flatPanelState?.active || false
         };
       }
@@ -152,39 +192,43 @@ class EventNormalizer {
   }
 
   // Update rolling context from events
-  updateContext(event) {
-    switch (event.Event) {
+  updateContext(eventData) {
+    // Get the event type from the data
+    const eventType = eventData.Event || (eventData.Response?.Event);
+    
+    switch (eventType) {
       case 'FILTERWHEEL-CHANGED':
-        if (event.New) {
-          this.eventContext.currentFilter = event.New.Name;
+        if (eventData.New) {
+          this.eventContext.currentFilter = eventData.New.Name;
         }
         break;
 
       case 'TS-TARGETSTART':
       case 'TS-NEWTARGETSTART':
         this.eventContext.currentTarget = {
-          name: event.TargetName,
-          project: event.ProjectName,
-          coordinates: event.Coordinates,
-          rotation: event.Rotation,
-          endTime: event.TargetEndTime ? this.normalizeTimestamp(event.TargetEndTime) : null
+          name: eventData.TargetName,
+          project: eventData.ProjectName,
+          coordinates: eventData.Coordinates,
+          rotation: eventData.Rotation,
+          endTime: eventData.TargetEndTime ? this.normalizeTimestamp(eventData.TargetEndTime) : null
         };
         break;
 
       case 'FLAT-CONNECTED':
       case 'FLAT-DISCONNECTED':
         this.eventContext.flatPanelState = {
-          active: event.Event === 'FLAT-CONNECTED',
+          active: eventType === 'FLAT-CONNECTED',
           time: new Date().toISOString()
         };
         break;
 
       case 'IMAGE-SAVE':
-        if (event.ImageStatistics) {
-          this.eventContext.lastImageStats = event.ImageStatistics;
+        // Store latest image stats for context
+        if (eventData.ImageStatistics) {
+          this.eventContext.lastImageStats = eventData.ImageStatistics;
           // Update filter from image if available
-          if (event.ImageStatistics.Filter) {
-            this.eventContext.currentFilter = event.ImageStatistics.Filter;
+          if (eventData.ImageStatistics.Filter) {
+            this.eventContext.currentFilter = eventData.ImageStatistics.Filter;
           }
         }
         break;
