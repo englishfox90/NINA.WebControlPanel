@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getApiUrl } from '../../config/api';
 import { useUnifiedWebSocket } from '../../hooks/useUnifiedWebSocket';
+import { unifiedWebSocket } from '../../services/unifiedWebSocket';
 import type { ImageStatistics } from '../../interfaces/image';
 
 export interface UseImageDataReturn {
@@ -35,7 +36,7 @@ export const useImageData = (): UseImageDataReturn => {
   const { onSessionUpdate, onNINAEvent } = useUnifiedWebSocket();
 
   // Fetch latest image from prepared-image endpoint with throttling
-  const fetchPreparedImage = useCallback(async () => {
+  const fetchPreparedImage = useCallback(async (skipThrottle = false) => {
     const now = Date.now();
     
     // Prevent concurrent requests
@@ -44,8 +45,8 @@ export const useImageData = (): UseImageDataReturn => {
       return;
     }
     
-    // Throttle API calls to prevent duplicates (but allow first call)
-    if (lastFetchTime > 0 && now - lastFetchTime < FETCH_THROTTLE_MS) {
+    // Throttle API calls to prevent duplicates (but allow first call or when skipThrottle is true)
+    if (!skipThrottle && lastFetchTime > 0 && now - lastFetchTime < FETCH_THROTTLE_MS) {
       console.log('🚫 Fetch throttled - too soon after last request');
       return;
     }
@@ -124,11 +125,13 @@ export const useImageData = (): UseImageDataReturn => {
 
   // Handle unified session updates
   const handleSessionUpdate = useCallback((unifiedSession: any) => {
-    console.log('📸 [ImageViewer] Session update received:', {
+    console.log('� [ImageViewer] *** SESSION UPDATE HANDLER CALLED ***');
+    console.log('�📸 [ImageViewer] Session update received:', {
       isActive: unifiedSession.isActive,
       target: unifiedSession.target?.name,
       hasLastImage: !!unifiedSession.lastImage,
-      lastImageTimestamp: unifiedSession.lastImage?.timestamp
+      lastImageTimestamp: unifiedSession.lastImage?.timestamp,
+      fullSessionData: unifiedSession
     });
     
     setSessionData(unifiedSession);
@@ -139,24 +142,98 @@ export const useImageData = (): UseImageDataReturn => {
                             unifiedSession.activity?.subsystem === 'guiding' ||
                             !!unifiedSession.lastImage);
     
+    console.log('📸 [ImageViewer] Active session check:', {
+      isActive: unifiedSession.isActive,
+      subsystem: unifiedSession.activity?.subsystem,
+      hasLastImage: !!unifiedSession.lastImage,
+      result: isActiveSession
+    });
+    
     setIsImagingSession(isActiveSession);
+    
+    // ALWAYS extract stats from persistent session data if available (for both initial load and updates)
+    if (unifiedSession.lastImage) {
+      console.log('� [ImageViewer] Extracting image stats from persistent unified session data');
+      const newStats: ImageStatistics = {
+        Filter: unifiedSession.lastImage.filter || 'Unknown',
+        ExposureTime: unifiedSession.lastImage.exposureTime || 0,
+        ImageType: unifiedSession.lastImage.type || 'LIGHT',
+        Temperature: unifiedSession.lastImage.temperature || 0,
+        HFR: unifiedSession.lastImage.hfr || 0,
+        Stars: unifiedSession.lastImage.stars || 0,
+        RmsText: unifiedSession.lastImage.rms || '',
+        Date: unifiedSession.lastImage.timestamp || new Date().toISOString(),
+        CameraName: unifiedSession.lastImage.camera || 'Unknown',
+        TelescopeName: 'Unknown',
+        FocalLength: 0,
+        Gain: 0,
+        Offset: 0,
+        StDev: 0,
+        Mean: 0,
+        Median: 0,
+        IsBayered: false
+      };
+      
+      console.log('📊 [ImageViewer] Setting image stats from unified session:', newStats);
+      setImageStats(newStats);
+      setError(null);
+    } else {
+      console.log('📊 [ImageViewer] No lastImage data in unified session');
+    }
     
     // If in an active imaging session, always try to fetch the latest image
     if (isActiveSession) {
       console.log('📸 [ImageViewer] Active imaging session detected - fetching latest image');
       
-      // If we have lastImage data in the session, update our stats
-      if (unifiedSession.lastImage) {
+      // Always fetch the latest image when in an active session
+      // As per user requirement: "If in an active imaging session always pull the last image"
+      fetchPreparedImage(true); // Skip throttling for session-triggered updates
+    }
+  }, [fetchPreparedImage]);  // Subscribe to unified session updates and fetch initial image
+  useEffect(() => {
+    console.log('� [ImageViewer] *** WEBSOCKET SUBSCRIPTION EFFECT RUNNING ***');
+    console.log('�📡 [ImageViewer] useEffect - Initializing WebSocket subscription');
+    console.log('📡 [ImageViewer] onSessionUpdate function:', typeof onSessionUpdate);
+    console.log('📡 [ImageViewer] handleSessionUpdate function:', typeof handleSessionUpdate);
+    
+    // Subscribe to real-time session updates
+    const debugSessionHandler = (sessionData: any) => {
+      console.log('🎯 [ImageViewer] DIRECT SESSION UPDATE RECEIVED!');
+      console.log('📊 [ImageViewer] Raw session data:', sessionData);
+      handleSessionUpdate(sessionData);
+    };
+    const unsubscribeSession = onSessionUpdate(debugSessionHandler);
+    console.log('📡 [ImageViewer] Subscribed to session updates, unsubscribe function:', typeof unsubscribeSession);
+    
+    // TEMPORARY: Add NINA event listener to test if that works
+    const testNINAHandler = (event: any) => {
+      console.log('🔥 [ImageViewer] *** NINA EVENT RECEIVED ***', event?.Data?.eventType || event?.type);
+      if (event?.Data?.eventType === 'IMAGE-SAVE' || event?.type === 'IMAGE-SAVE') {
+        console.log('📸 [ImageViewer] IMAGE-SAVE event received via NINA listener, calling fetchPreparedImage with skipThrottle=true');
+        fetchPreparedImage(true); // Skip throttling for real-time updates
+      }
+    };
+    const unsubscribeNINA = onNINAEvent && onNINAEvent(testNINAHandler);
+    console.log('🔥 [ImageViewer] NINA event subscription:', typeof unsubscribeNINA);
+    
+    // DIRECT WebSocket subscription as fallback
+    console.log('🔌 [ImageViewer] Setting up direct WebSocket subscription for session updates');
+    const directSessionHandler = (sessionData: any) => {
+      console.log('🎯 [ImageViewer] DIRECT WebSocket session update received!');
+      console.log('📊 [ImageViewer] Session data:', sessionData);
+      if (sessionData && sessionData.lastImage) {
+        console.log('📊 [ImageViewer] Extracting stats from direct WebSocket session data');
+        const lastImage = sessionData.lastImage;
         const newStats: ImageStatistics = {
-          Filter: unifiedSession.lastImage.filter || 'Unknown',
-          ExposureTime: unifiedSession.lastImage.exposureTime || 0,
-          ImageType: unifiedSession.lastImage.type || 'LIGHT',
-          Temperature: unifiedSession.lastImage.temperature || 0,
-          HFR: unifiedSession.lastImage.hfr || 0,
-          Stars: unifiedSession.lastImage.stars || 0,
-          RmsText: unifiedSession.lastImage.rms || '',
-          Date: unifiedSession.lastImage.timestamp || new Date().toISOString(),
-          CameraName: unifiedSession.lastImage.camera || 'Unknown',
+          Filter: lastImage.filter || 'Unknown',
+          ExposureTime: lastImage.exposureTime || 0,
+          ImageType: lastImage.type || 'LIGHT',
+          Temperature: lastImage.temperature || 0,
+          HFR: lastImage.hfr || 0,
+          Stars: lastImage.stars || 0,
+          RmsText: lastImage.rms || '',
+          Date: lastImage.timestamp || new Date().toISOString(),
+          CameraName: lastImage.camera || 'Unknown',
           TelescopeName: 'Unknown',
           FocalLength: 0,
           Gain: 0,
@@ -166,21 +243,15 @@ export const useImageData = (): UseImageDataReturn => {
           Median: 0,
           IsBayered: false
         };
-        
+        console.log('📊 [ImageViewer] Setting stats from direct WebSocket:', newStats);
         setImageStats(newStats);
         setError(null);
       }
-      
-      // Always fetch the latest image when in an active session
-      // As per user requirement: "If in an active imaging session always pull the last image"
-      fetchPreparedImage();
-    }
-  }, [fetchPreparedImage]);  // Subscribe to unified session updates and fetch initial image
-  useEffect(() => {
-    console.log('📡 ImageViewer initializing - subscribing to WebSocket');
+    };
     
-    // Subscribe to real-time session updates
-    const unsubscribeSession = onSessionUpdate(handleSessionUpdate);
+    // Subscribe directly to the WebSocket service
+    unifiedWebSocket.on('session:update', directSessionHandler);
+    console.log('🔌 [ImageViewer] Direct WebSocket subscription setup complete');
     
     // Check for initial image after brief delay for session data to load
     const checkInitialImage = setTimeout(() => {
@@ -197,8 +268,11 @@ export const useImageData = (): UseImageDataReturn => {
       console.log('📸 ImageViewer cleanup - unsubscribing from session updates');
       clearTimeout(checkInitialImage);
       unsubscribeSession();
+      if (unsubscribeNINA) unsubscribeNINA();
+      // Clean up direct WebSocket subscription
+      unifiedWebSocket.off('session:update', directSessionHandler);
     };
-  }, [onSessionUpdate, handleSessionUpdate, fetchPreparedImage]);
+  }, [onSessionUpdate, handleSessionUpdate, fetchPreparedImage, onNINAEvent]);
 
   // Removed direct NINA event listener - now relying on session updates only
 
@@ -213,7 +287,7 @@ export const useImageData = (): UseImageDataReturn => {
 
   // Manual refresh function for explicit user requests
   const refreshImage = useCallback(async () => {
-    await fetchPreparedImage();
+    await fetchPreparedImage(true); // Manual refresh should skip throttling
   }, [fetchPreparedImage]);
 
   return {
