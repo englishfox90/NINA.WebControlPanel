@@ -49,7 +49,7 @@
 - **Better Error Handling**: Graceful fallbacks and clear error messages
 
 ### 6. Backend API Integration
-- **Added**: `/api/nina/guider-graph` endpoint in `api-routes.js`
+- **Added**: `/api/nina/guider-graph` endpoint in modular `api/` directory
 - **Connected**: To existing NINAService.getGuiderGraph() method
 - **Consistent**: Follows established API response patterns
 
@@ -82,7 +82,7 @@
 
 ### Backend Files
 - `src/server/configDatabase.js` - Added guiderExposureDuration to default config
-- `src/server/api-routes.js` - Added /api/nina/guider-graph endpoint
+- `src/server/api/nina.js` - Added /api/nina/guider-graph endpoint
 
 ### Frontend Configuration
 - `src/client/src/interfaces/config.ts` - Updated NINAConfig interface

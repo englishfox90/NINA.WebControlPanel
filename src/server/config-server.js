@@ -273,6 +273,22 @@ async function initializeServer() {
     }
   });
 
+  // Make WebSocket clients accessible to API routes
+  app.locals.webSocketClients = {
+    unified: unifiedClients,
+    session: sessionClients,
+    nina: ninaClients,
+    // Helper function to broadcast to all clients
+    broadcastToAll: function(message) {
+      const msgString = typeof message === 'string' ? message : JSON.stringify(message);
+      [...unifiedClients, ...sessionClients, ...ninaClients].forEach(client => {
+        if (client.readyState === 1) { // WebSocket.OPEN
+          client.send(msgString);
+        }
+      });
+    }
+  };
+
   // Broadcast session updates to all connected frontend clients (legacy) - DISABLED
   // sessionStateManager.on('sessionUpdate', (sessionState) => {
   //   broadcastSessionUpdate(sessionState);

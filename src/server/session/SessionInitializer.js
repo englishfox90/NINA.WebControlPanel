@@ -4,6 +4,7 @@ const SessionSchema = require('../database/sessionSchema');
 const EventNormalizer = require('./EventNormalizer');
 const SessionFSM = require('./SessionFSM');
 const NINAWebSocketClient = require('./NINAWebSocketClient');
+const wsLogger = require('../utils/WebSocketEventLogger');
 
 class SessionInitializer extends EventEmitter {
   constructor(configDatabase, ninaService) {
@@ -126,8 +127,12 @@ class SessionInitializer extends EventEmitter {
       });
 
       this.wsClient.on('ninaEvent', (rawEvent) => {
+        // Log event reception from WebSocket client
+        wsLogger.logEventReceived('INITIALIZER', rawEvent);
+        
         // Forward to whoever needs to handle live events
         this.emit('liveEvent', rawEvent);
+        wsLogger.logEventForwarded('INITIALIZER', rawEvent);
       });
 
       this.wsClient.on('error', (error) => {

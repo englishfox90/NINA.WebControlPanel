@@ -55,7 +55,10 @@ const ImageViewerWidget: React.FC<ImageViewerProps> = ({
         />
 
         {/* Image statistics panel */}
-        <ImageStats imageStats={imageStats} />
+        <ImageStats 
+          imageStats={imageStats} 
+          hasImage={!!latestImage}
+        />
       </Flex>
     </Card>
   );

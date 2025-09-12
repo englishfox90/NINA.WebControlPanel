@@ -276,6 +276,7 @@ class ConfigDatabase {
       this.setConfigValue('nina.baseUrl', config.nina.baseUrl, 'nina');
       this.setConfigValue('nina.timeout', config.nina.timeout, 'nina');
       this.setConfigValue('nina.retryAttempts', config.nina.retryAttempts, 'nina');
+      this.setConfigValue('nina.guiderExposureDuration', config.nina.guiderExposureDuration, 'nina');
 
       // Database configuration
       this.setConfigValue('database.targetSchedulerPath', config.database.targetSchedulerPath, 'database');
@@ -326,7 +327,8 @@ class ConfigDatabase {
         apiPort: this.getConfigValue('nina.apiPort', 1888),
         baseUrl: this.getConfigValue('nina.baseUrl', 'http://172.26.81.152/'),
         timeout: this.getConfigValue('nina.timeout', 5000),
-        retryAttempts: this.getConfigValue('nina.retryAttempts', 3)
+        retryAttempts: this.getConfigValue('nina.retryAttempts', 3),
+        guiderExposureDuration: this.getConfigValue('nina.guiderExposureDuration', 2)
       },
       database: {
         targetSchedulerPath: this.getConfigValue('database.targetSchedulerPath', './schedulerdb.sqlite'),

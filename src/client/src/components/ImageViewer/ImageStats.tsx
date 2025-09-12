@@ -10,9 +10,45 @@ import type { ImageStatistics } from '../../interfaces/image';
 
 interface ImageStatsProps {
   imageStats: ImageStatistics | null;
+  hasImage: boolean; // Add prop to know if we have an image
 }
 
-export const ImageStats: React.FC<ImageStatsProps> = ({ imageStats }) => {
+export const ImageStats: React.FC<ImageStatsProps> = ({ imageStats, hasImage }) => {
+  // If we don't have stats but we do have an image, show basic info
+  if (!imageStats && hasImage) {
+    return (
+      <Box mt="3">
+        <Separator size="4" mb="3" />
+        
+        <Flex align="center" gap="2" mb="3">
+          <InfoCircledIcon />
+          <Text size="2" weight="medium">Image Information</Text>
+        </Flex>
+
+        <Flex direction="column" gap="2">
+          <Flex justify="between" align="center">
+            <Text size="1" color="gray">Status</Text>
+            <Badge variant="soft" color="blue">
+              Image Available
+            </Badge>
+          </Flex>
+          
+          <Flex justify="between" align="center">
+            <Text size="1" color="gray">Statistics</Text>
+            <Badge variant="soft" color="gray">
+              Loading...
+            </Badge>
+          </Flex>
+          
+          <Text size="1" color="gray" style={{ textAlign: 'center', marginTop: '8px' }}>
+            Detailed statistics will appear after the next image capture
+          </Text>
+        </Flex>
+      </Box>
+    );
+  }
+
+  // If we have no image and no stats, don't show anything
   if (!imageStats) return null;
 
   // Format numbers for display

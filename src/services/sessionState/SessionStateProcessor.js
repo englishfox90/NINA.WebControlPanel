@@ -554,9 +554,69 @@ class SessionStateProcessor extends EventEmitter {
 
       // Last image capture
       if (event.Event === 'IMAGE-SAVE') {
-        lastImage = { time: event.Time };
+        console.log('🖼️ Processing IMAGE-SAVE event in SessionStateProcessor:');
+        console.log('  - Event has ImageStatistics:', !!event.ImageStatistics);
+        console.log('  - Event keys:', Object.keys(event));
+        if (event.ImageStatistics) {
+          console.log('  - ImageStatistics keys:', Object.keys(event.ImageStatistics));
+        }
         
-        // Check if this is a dark frame
+        // Handle both live WebSocket events (rich data) and event-history API events (minimal data)
+        if (event.ImageStatistics) {
+          // Rich WebSocket event with full ImageStatistics
+          console.log('  - Processing rich WebSocket IMAGE-SAVE event');
+          lastImage = {
+            timestamp: event.Time,
+            type: event.ImageStatistics.ImageType || 'LIGHT',
+            filter: event.ImageStatistics.Filter || 'Unknown',
+            exposureTime: event.ImageStatistics.ExposureTime || null,
+            temperature: event.ImageStatistics.Temperature || null,
+            gain: event.ImageStatistics.Gain || null,
+            offset: event.ImageStatistics.Offset || null,
+            binning: event.ImageStatistics.Binning || null,
+            cameraName: event.ImageStatistics.CameraName || 'Unknown',
+            telescopeName: event.ImageStatistics.TelescopeName || null,
+            focalLength: event.ImageStatistics.FocalLength || null,
+            fileName: event.ImageStatistics.FileName || null,
+            index: event.ImageStatistics.Index || null,
+            date: event.ImageStatistics.Date || null,
+            isBayered: event.ImageStatistics.IsBayered || false,
+            statistics: {
+              mean: event.ImageStatistics.Mean || null,
+              median: event.ImageStatistics.Median || null,
+              stdDev: event.ImageStatistics.StDev || null,
+              rmsText: event.ImageStatistics.RmsText || null,
+              hfr: event.ImageStatistics.HFR || null,
+              stars: event.ImageStatistics.Stars || null
+            }
+          };
+          console.log('  - Created rich lastImage:', { 
+            type: lastImage.type, 
+            filter: lastImage.filter, 
+            exposureTime: lastImage.exposureTime 
+          });
+        } else {
+          // Minimal event-history API event - preserve existing lastImage data if available
+          // but update timestamp and mark as historical
+          console.log('  - Processing minimal event-history IMAGE-SAVE event');
+          lastImage = {
+            timestamp: event.Time,
+            type: lastImage?.type || 'UNKNOWN',
+            filter: lastImage?.filter || 'Unknown',
+            exposureTime: lastImage?.exposureTime || null,
+            temperature: lastImage?.temperature || null,
+            isHistoricalEvent: true, // Flag to indicate this came from event-history, not live WS
+            cameraName: lastImage?.cameraName || 'Unknown',
+            statistics: lastImage?.statistics || {}
+          };
+          console.log('  - Created minimal lastImage:', { 
+            type: lastImage.type, 
+            filter: lastImage.filter, 
+            isHistoricalEvent: lastImage.isHistoricalEvent 
+          });
+        }
+        
+        // Check if this is a dark frame (only possible with rich WebSocket data)
         const isDarkFrame = event.ImageStatistics && event.ImageStatistics.ImageType === 'DARK';
         
         if (isDarkFrame) {

@@ -4,6 +4,7 @@ const SessionInitializer = require('./SessionInitializer');
 const SessionEventHandler = require('./SessionEventHandler');
 const SessionStateManager = require('./SessionStateManager');
 const SessionStatsManager = require('./SessionStatsManager');
+const wsLogger = require('../utils/WebSocketEventLogger');
 
 class UnifiedSessionManager extends EventEmitter {
   constructor(configDatabase, ninaService) {
@@ -107,7 +108,9 @@ class UnifiedSessionManager extends EventEmitter {
     
     // Forward live events from initializer to event handler
     this.initializer.on('liveEvent', (rawEvent) => {
+      wsLogger.logEventReceived('UNIFIED_MANAGER', rawEvent);
       this.eventHandler.handleLiveEvent(rawEvent);
+      wsLogger.logEventForwarded('UNIFIED_MANAGER', rawEvent);
     });
     
     console.log('🔗 All components connected successfully');

@@ -210,6 +210,17 @@ class WebSocketManager extends EventEmitter {
           Data: message.Response // Keep original for reference
         };
         
+        // Debug IMAGE-SAVE events to ensure ImageStatistics are preserved
+        if (eventType === 'IMAGE-SAVE') {
+          console.log('🖼️ IMAGE-SAVE WebSocket event received:');
+          console.log('  - Has ImageStatistics:', !!message.Response.ImageStatistics);
+          if (message.Response.ImageStatistics) {
+            console.log('  - Filter:', message.Response.ImageStatistics.Filter);
+            console.log('  - Type:', message.Response.ImageStatistics.ImageType || 'LIGHT');
+            console.log('  - Exposure:', message.Response.ImageStatistics.ExposureTime + 's');
+          }
+        }
+        
         console.log('📡 NINA WebSocket Event:', ninaEvent.Event, 'received at', new Date().toISOString());
         
         // Emit NINA event to listeners
