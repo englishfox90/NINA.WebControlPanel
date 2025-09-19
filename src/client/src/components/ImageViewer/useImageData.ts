@@ -1,13 +1,13 @@
 /**
- * Image Viewer Data Hook
- * Handles image fetching, session monitoring, and WebSocket updates
- * Eliminates duplicate API calls by relying on unified WebSocket session data
+ * REFACTORED Image Viewer Data Hook
+ * Simplified architecture based on unified WebSocket and proper backend integration
+ * Eliminates complex throttling and implements the requested behavior:
+ * 1. On first load: Check if recent image available (< 30 min) and fetch if so
+ * 2. On unifiedSession update: Fetch image when lastImage timestamp changes
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getApiUrl } from '../../config/api';
 import { useUnifiedWebSocket } from '../../hooks/useUnifiedWebSocket';
-import { unifiedWebSocket } from '../../services/unifiedWebSocket';
 import type { ImageStatistics } from '../../interfaces/image';
 
 export interface UseImageDataReturn {
@@ -27,268 +27,143 @@ export const useImageData = (): UseImageDataReturn => {
   const [error, setError] = useState<string | null>(null);
   const [isImagingSession, setIsImagingSession] = useState<boolean>(false);
   const [sessionData, setSessionData] = useState<any>(null);
+  const [isFirstLoad, setIsFirstLoad] = useState<boolean>(true);
+  const [lastImageTimestamp, setLastImageTimestamp] = useState<string>('');
 
-  // Add throttling to prevent duplicate API calls, but allow IMAGE-SAVE triggered fetches
-  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
-  const FETCH_THROTTLE_MS = 3000; // 3 second minimum between fetches (increased to reduce noise)
+  // Use unified WebSocket for session updates only
+  const { onSessionUpdate } = useUnifiedWebSocket();
 
-  // Use unified WebSocket for session updates and direct NINA events
-  const { onSessionUpdate, onNINAEvent } = useUnifiedWebSocket();
-
-  // Fetch latest image from prepared-image endpoint with throttling
-  const fetchPreparedImage = useCallback(async (skipThrottle = false) => {
-    const now = Date.now();
-    
-    // Prevent concurrent requests
-    if (imageLoading) {
-      console.log('🚫 Fetch already in progress, skipping');
-      return;
+  // Clean up blob URLs
+  const cleanupImageUrl = useCallback((url: string) => {
+    if (url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+      console.log('🧹 Cleaned up blob URL');
     }
-    
-    // Throttle API calls to prevent duplicates (but allow first call or when skipThrottle is true)
-    if (!skipThrottle && lastFetchTime > 0 && now - lastFetchTime < FETCH_THROTTLE_MS) {
-      console.log('🚫 Fetch throttled - too soon after last request');
-      return;
-    }
+  }, []);
 
+  // Fetch image from API when needed
+  const fetchImageIfNeeded = useCallback(async (reason: 'first-load' | 'websocket-update' | 'manual-refresh' = 'manual-refresh') => {
+    console.log(`📸 Image fetch requested: ${reason}`);
+    
+    setImageLoading(true);
+    setError(null);
+    
     try {
-      setImageLoading(true);
-      setError(null);
-      setLastFetchTime(now);
+      // Use force parameter only for manual refresh
+      const forceParam = reason === 'manual-refresh' ? '?force=true' : '';
+      const response = await fetch(`/api/nina/latest-image${forceParam}`);
       
-      console.log('📸 Fetching latest prepared image from /nina/prepared-image...');
-      const response = await fetch(getApiUrl('nina/prepared-image'), {
-        method: 'GET',
-        headers: {
-          'Accept': 'image/*'
-        }
-      });
-
-      console.log('📸 Image fetch response:', {
-        status: response.status,
-        statusText: response.statusText,
-        contentType: response.headers.get('Content-Type'),
-        contentLength: response.headers.get('Content-Length')
-      });
-
       if (!response.ok) {
-        // Handle 404 case specially (no image available yet)
-        if (response.status === 404) {
-          console.log('📸 No prepared image available yet (404)');
-          setLatestImage(null);
-          setError(null); // Don't show error for "no image yet" case
-          return;
-        }
-        
-        // Get error details from response for other errors
-        let errorDetails = `${response.status} ${response.statusText}`;
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('📸 API Response:', { 
+        success: result.Success, 
+        isRelevant: result.isRelevant,
+        hasResponse: !!result.Response,
+        message: result.message 
+      });
+      
+      // Clean up previous image URL
+      if (latestImage) {
+        cleanupImageUrl(latestImage);
+      }
+      
+      if (result.Success && result.isRelevant && result.Response) {
+        // We have a recent image - create blob URL for display
         try {
-          const errorData = await response.text();
-          console.log('📸 Error response body:', errorData);
-          errorDetails += ` - ${errorData}`;
-        } catch (e) {
-          console.log('📸 Could not read error response body');
+          // The response should contain base64 image data
+          const base64Data = result.Response;
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          const imageBlob = new Blob([bytes], { type: 'image/jpeg' });
+          const imageUrl = URL.createObjectURL(imageBlob);
+          
+          setLatestImage(imageUrl);
+          setImageStats(result.metadata || null);
+          setError(null);
+          
+          console.log('✅ Image loaded successfully');
+        } catch (blobError) {
+          console.error('❌ Error creating blob URL:', blobError);
+          setError('Failed to process image data');
+          setLatestImage(null);
+          setImageStats(null);
         }
-        
-        throw new Error(`Failed to fetch image: ${errorDetails}`);
-      }
-
-      // Convert blob to object URL
-      const blob = await response.blob();
-      console.log('📸 Image blob received:', { size: blob.size, type: blob.type });
-      
-      // Validate blob is actually an image
-      if (blob.size === 0 || !blob.type.startsWith('image/')) {
-        throw new Error(`Invalid image blob: size=${blob.size}, type=${blob.type}`);
+      } else {
+        // No recent image available
+        setLatestImage(null);
+        setImageStats(null);
+        setError(null);
+        console.log('ℹ️ No recent image available:', result.message);
       }
       
-      // Clean up previous object URL to prevent memory leaks
-      if (latestImage && latestImage.startsWith('blob:')) {
-        URL.revokeObjectURL(latestImage);
-      }
-      
-      const objectUrl = URL.createObjectURL(blob);
-      setLatestImage(objectUrl);
-      console.log('✅ Image loaded successfully:', objectUrl);
-      
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load image';
-      console.error('❌ Image fetch error:', errorMessage);
-      setError(errorMessage);
+    } catch (fetchError) {
+      console.error('❌ Error fetching image:', fetchError);
+      setError(fetchError instanceof Error ? fetchError.message : 'Unknown error');
       setLatestImage(null);
+      setImageStats(null);
     } finally {
       setImageLoading(false);
     }
-  }, [latestImage, lastFetchTime, imageLoading]);
-
-  // Removed handleImageSaveEvent - now using session-based approach only
+  }, [latestImage, cleanupImageUrl]);
 
   // Handle unified session updates
   const handleSessionUpdate = useCallback((unifiedSession: any) => {
-    console.log('� [ImageViewer] *** SESSION UPDATE HANDLER CALLED ***');
-    console.log('�📸 [ImageViewer] Session update received:', {
-      isActive: unifiedSession.isActive,
-      target: unifiedSession.target?.name,
-      hasLastImage: !!unifiedSession.lastImage,
-      lastImageTimestamp: unifiedSession.lastImage?.timestamp,
-      fullSessionData: unifiedSession
-    });
-    
+    console.log('📡 Unified session update received');
     setSessionData(unifiedSession);
     
-    // Determine if we're in an active imaging session
-    const isActiveSession = unifiedSession.isActive && 
-                           (unifiedSession.activity?.subsystem === 'imaging' ||
-                            unifiedSession.activity?.subsystem === 'guiding' ||
-                            !!unifiedSession.lastImage);
+    // Update session activity status
+    const newIsImagingSession = unifiedSession?.isActive || false;
+    setIsImagingSession(newIsImagingSession);
     
-    console.log('📸 [ImageViewer] Active session check:', {
-      isActive: unifiedSession.isActive,
-      subsystem: unifiedSession.activity?.subsystem,
-      hasLastImage: !!unifiedSession.lastImage,
-      result: isActiveSession
-    });
+    // Check if we should fetch a new image
+    const newImageTimestamp = unifiedSession?.lastImage?.timestamp || '';
+    const shouldFetch = newImageTimestamp && newImageTimestamp !== lastImageTimestamp;
     
-    setIsImagingSession(isActiveSession);
+    if (shouldFetch) {
+      console.log('🔄 Image timestamp changed, fetching new image:', {
+        old: lastImageTimestamp,
+        new: newImageTimestamp
+      });
+      setLastImageTimestamp(newImageTimestamp);
+      fetchImageIfNeeded('websocket-update');
+    }
+  }, [lastImageTimestamp, fetchImageIfNeeded]);
+
+  // Subscribe to unified session updates and handle first load
+  useEffect(() => {
+    console.log('🔧 Setting up Image Viewer data hook');
     
-    // ALWAYS extract stats from persistent session data if available (for both initial load and updates)
-    if (unifiedSession.lastImage) {
-      console.log('� [ImageViewer] Extracting image stats from persistent unified session data');
-      const newStats: ImageStatistics = {
-        Filter: unifiedSession.lastImage.filter || 'Unknown',
-        ExposureTime: unifiedSession.lastImage.exposureTime || 0,
-        ImageType: unifiedSession.lastImage.type || 'LIGHT',
-        Temperature: unifiedSession.lastImage.temperature || 0,
-        HFR: unifiedSession.lastImage.hfr || 0,
-        Stars: unifiedSession.lastImage.stars || 0,
-        RmsText: unifiedSession.lastImage.rms || '',
-        Date: unifiedSession.lastImage.timestamp || new Date().toISOString(),
-        CameraName: unifiedSession.lastImage.camera || 'Unknown',
-        TelescopeName: 'Unknown',
-        FocalLength: 0,
-        Gain: 0,
-        Offset: 0,
-        StDev: 0,
-        Mean: 0,
-        Median: 0,
-        IsBayered: false
-      };
-      
-      console.log('📊 [ImageViewer] Setting image stats from unified session:', newStats);
-      setImageStats(newStats);
-      setError(null);
-    } else {
-      console.log('📊 [ImageViewer] No lastImage data in unified session');
+    // Subscribe to session updates
+    onSessionUpdate(handleSessionUpdate);
+    
+    // Handle first load
+    if (isFirstLoad) {
+      console.log('🚀 First load: Checking for recent images');
+      setIsFirstLoad(false);
+      fetchImageIfNeeded('first-load');
     }
     
-    // If in an active imaging session, always try to fetch the latest image
-    if (isActiveSession) {
-      console.log('📸 [ImageViewer] Active imaging session detected - fetching latest image');
-      
-      // Always fetch the latest image when in an active session
-      // As per user requirement: "If in an active imaging session always pull the last image"
-      fetchPreparedImage(true); // Skip throttling for session-triggered updates
-    }
-  }, [fetchPreparedImage]);  // Subscribe to unified session updates and fetch initial image
-  useEffect(() => {
-    console.log('� [ImageViewer] *** WEBSOCKET SUBSCRIPTION EFFECT RUNNING ***');
-    console.log('�📡 [ImageViewer] useEffect - Initializing WebSocket subscription');
-    console.log('📡 [ImageViewer] onSessionUpdate function:', typeof onSessionUpdate);
-    console.log('📡 [ImageViewer] handleSessionUpdate function:', typeof handleSessionUpdate);
-    
-    // Subscribe to real-time session updates
-    const debugSessionHandler = (sessionData: any) => {
-      console.log('🎯 [ImageViewer] DIRECT SESSION UPDATE RECEIVED!');
-      console.log('📊 [ImageViewer] Raw session data:', sessionData);
-      handleSessionUpdate(sessionData);
-    };
-    const unsubscribeSession = onSessionUpdate(debugSessionHandler);
-    console.log('📡 [ImageViewer] Subscribed to session updates, unsubscribe function:', typeof unsubscribeSession);
-    
-    // TEMPORARY: Add NINA event listener to test if that works
-    const testNINAHandler = (event: any) => {
-      console.log('🔥 [ImageViewer] *** NINA EVENT RECEIVED ***', event?.Data?.eventType || event?.type);
-      if (event?.Data?.eventType === 'IMAGE-SAVE' || event?.type === 'IMAGE-SAVE') {
-        console.log('📸 [ImageViewer] IMAGE-SAVE event received via NINA listener, calling fetchPreparedImage with skipThrottle=true');
-        fetchPreparedImage(true); // Skip throttling for real-time updates
-      }
-    };
-    const unsubscribeNINA = onNINAEvent && onNINAEvent(testNINAHandler);
-    console.log('🔥 [ImageViewer] NINA event subscription:', typeof unsubscribeNINA);
-    
-    // DIRECT WebSocket subscription as fallback
-    console.log('🔌 [ImageViewer] Setting up direct WebSocket subscription for session updates');
-    const directSessionHandler = (sessionData: any) => {
-      console.log('🎯 [ImageViewer] DIRECT WebSocket session update received!');
-      console.log('📊 [ImageViewer] Session data:', sessionData);
-      if (sessionData && sessionData.lastImage) {
-        console.log('📊 [ImageViewer] Extracting stats from direct WebSocket session data');
-        const lastImage = sessionData.lastImage;
-        const newStats: ImageStatistics = {
-          Filter: lastImage.filter || 'Unknown',
-          ExposureTime: lastImage.exposureTime || 0,
-          ImageType: lastImage.type || 'LIGHT',
-          Temperature: lastImage.temperature || 0,
-          HFR: lastImage.hfr || 0,
-          Stars: lastImage.stars || 0,
-          RmsText: lastImage.rms || '',
-          Date: lastImage.timestamp || new Date().toISOString(),
-          CameraName: lastImage.camera || 'Unknown',
-          TelescopeName: 'Unknown',
-          FocalLength: 0,
-          Gain: 0,
-          Offset: 0,
-          StDev: 0,
-          Mean: 0,
-          Median: 0,
-          IsBayered: false
-        };
-        console.log('📊 [ImageViewer] Setting stats from direct WebSocket:', newStats);
-        setImageStats(newStats);
-        setError(null);
-      }
-    };
-    
-    // Subscribe directly to the WebSocket service
-    unifiedWebSocket.on('session:update', directSessionHandler);
-    console.log('🔌 [ImageViewer] Direct WebSocket subscription setup complete');
-    
-    // Check for initial image after brief delay for session data to load
-    const checkInitialImage = setTimeout(() => {
-      console.log('📸 Checking for initial image load...');
-      
-      // Always try to fetch an image on initial load - let the backend determine if there's one available
-      // This covers cases where we join mid-session or restart the frontend
-      console.log('📸 Attempting initial image fetch');
-      fetchPreparedImage();
-      
-    }, 1000); // Wait for session data to potentially arrive
-    
     return () => {
-      console.log('📸 ImageViewer cleanup - unsubscribing from session updates');
-      clearTimeout(checkInitialImage);
-      unsubscribeSession();
-      if (unsubscribeNINA) unsubscribeNINA();
-      // Clean up direct WebSocket subscription
-      unifiedWebSocket.off('session:update', directSessionHandler);
-    };
-  }, [onSessionUpdate, handleSessionUpdate, fetchPreparedImage, onNINAEvent]);
-
-  // Removed direct NINA event listener - now relying on session updates only
-
-  // Clean up object URLs on unmount
-  useEffect(() => {
-    return () => {
-      if (latestImage && latestImage.startsWith('blob:')) {
-        URL.revokeObjectURL(latestImage);
+      // Cleanup blob URL on unmount
+      if (latestImage) {
+        cleanupImageUrl(latestImage);
       }
     };
-  }, [latestImage]);
+  }, [onSessionUpdate, handleSessionUpdate, fetchImageIfNeeded, isFirstLoad, latestImage, cleanupImageUrl]);
 
-  // Manual refresh function for explicit user requests
+  // Manual refresh function
   const refreshImage = useCallback(async () => {
-    await fetchPreparedImage(true); // Manual refresh should skip throttling
-  }, [fetchPreparedImage]);
+    console.log('🔄 Manual refresh requested');
+    await fetchImageIfNeeded('manual-refresh');
+  }, [fetchImageIfNeeded]);
 
   return {
     latestImage,

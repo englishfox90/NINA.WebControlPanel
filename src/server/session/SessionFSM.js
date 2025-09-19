@@ -144,7 +144,7 @@ class SessionFSM {
     const imageStats = event.enrichedData?.ImageStatistics || {};
     const imageType = imageStats.ImageType || 'UNKNOWN';
     
-    // Update last image data
+    // Update last image data with comprehensive metadata
     this.sessionData.lastImage = {
       type: imageType,
       filter: imageStats.Filter,
@@ -153,8 +153,25 @@ class SessionFSM {
       hfr: imageStats.HFR,
       stars: imageStats.Stars,
       rms: imageStats.RmsText,
-      timestamp: event.timestamp
+      timestamp: event.timestamp,
+      // Additional metadata for better image handling
+      filePath: imageStats.FileName || imageStats.FilePath || null,
+      binning: imageStats.Binning || null,
+      gain: imageStats.Gain || null,
+      offset: imageStats.Offset || null,
+      median: imageStats.Median || null,
+      mad: imageStats.MAD || null,
+      isRelevant: true, // Mark as relevant when first saved
+      savedAt: new Date().toISOString() // Track when we saved this metadata
     };
+
+    console.log('📸 IMAGE-SAVE: Updated lastImage metadata:', {
+      type: imageType,
+      filter: imageStats.Filter,
+      timestamp: event.timestamp,
+      hfr: imageStats.HFR,
+      stars: imageStats.Stars
+    });
 
     // Handle different image types
     switch (imageType) {

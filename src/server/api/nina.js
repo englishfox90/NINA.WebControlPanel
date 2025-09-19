@@ -101,14 +101,84 @@ class NINARoutes {
       }
     });
 
-    // Latest image endpoint
+    // Latest image endpoint - Fixed implementation
     app.get('/api/nina/latest-image', async (req, res) => {
       try {
-        const latestImage = await this.ninaService.getLatestImage();
-        res.json(latestImage);
+        console.log('📸 API: Latest image request received');
+        
+        // Get current session state to check for recent image data
+        const sessionState = this.sessionStateManager ? 
+          this.sessionStateManager.getSessionState() : null;
+        
+        let lastImageData = {};
+        let hasRecentImage = false;
+        
+        // Parse last image data from session state if available
+        if (sessionState && sessionState.last_image_data) {
+          try {
+            lastImageData = typeof sessionState.last_image_data === 'string' 
+              ? JSON.parse(sessionState.last_image_data) 
+              : sessionState.last_image_data;
+            
+            // Check if image is relevant (within 30 minutes)
+            if (lastImageData.timestamp && this.ninaService.isImageRelevant(lastImageData.timestamp)) {
+              hasRecentImage = true;
+              console.log('✅ Recent image found in session state:', lastImageData.timestamp);
+            } else {
+              console.log('⚠️ Image in session state is too old:', lastImageData.timestamp);
+            }
+          } catch (parseError) {
+            console.warn('⚠️ Could not parse last_image_data:', parseError.message);
+          }
+        }
+        
+        // Fetch image from NINA if we have recent metadata or if forced
+        if (hasRecentImage || req.query.force === 'true') {
+          const imageData = await this.ninaService.getLatestImage();
+          
+          if (imageData && imageData.Success && imageData.Response) {
+            res.json({
+              ...imageData,
+              metadata: lastImageData,
+              isRelevant: hasRecentImage,
+              source: hasRecentImage ? 'session_state' : 'direct_fetch'
+            });
+          } else {
+            // NINA has no image available
+            res.json({
+              Response: null,
+              Success: true,
+              Error: imageData?.Error || 'No prepared image available from NINA',
+              StatusCode: 204,
+              Type: 'API',
+              message: 'No recent image available',
+              isRelevant: false,
+              metadata: lastImageData
+            });
+          }
+        } else {
+          // No recent image data available
+          res.json({
+            Response: null,
+            Success: true,
+            Error: '',
+            StatusCode: 204,
+            Type: 'API',
+            message: 'No recent image available (none captured in last 30 minutes)',
+            isRelevant: false,
+            metadata: {}
+          });
+        }
+        
       } catch (error) {
-        console.error('Error getting latest image:', error);
-        res.status(500).json({ error: 'Failed to get latest image' });
+        console.error('❌ Error getting latest image:', error);
+        res.status(500).json({ 
+          error: 'Failed to get latest image',
+          details: error.message,
+          Success: false,
+          StatusCode: 500,
+          Type: 'API'
+        });
       }
     });
 

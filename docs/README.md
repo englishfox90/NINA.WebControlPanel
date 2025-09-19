@@ -27,10 +27,11 @@ A modern, responsive web dashboard for monitoring remote astrophotography equipm
 - **Equipment diagnostics** for mount, camera, filter wheel, and focuser
 - **Temperature monitoring** and weather conditions
 
-### 🖼️ **Astrophotography Gallery**
-- **Image gallery** with modal viewing and metadata display
-- **FITS file support** ready for live directory scanning
-- **Responsive grid layout** optimized for various screen sizes
+### 🖼️ **Real-Time Image Display**
+- **Live NINA image monitoring** with WebSocket integration for IMAGE-SAVE events
+- **Real-time image updates** triggered by unified WebSocket session updates
+- **Image metadata display** with capture information and file details
+- **Intelligent caching** with 30-minute relevance checking for optimal performance
 
 ### ⚙️ **Configuration Management**
 - **SQLite database** for persistent settings storage
@@ -406,7 +407,7 @@ GET /api/system/network     # Network interface and speeds
 | **`Dashboard.tsx`** | ✅ Complete | `Button`, `Badge`, `Flex`, `Card` | 🎛️→ComponentInstanceIcon, 📹→VideoIcon | ✅ Config API | Connect to live NINA APIs |
 | **`NINAStatus.tsx`** | ✅ Complete | `Flex`, `Badge`, `Progress` | ⏸️→PauseIcon, ▶️→PlayIcon | 🚧 Mock data | Live NINA API connection |
 | **`RTSPViewer.tsx`** | ✅ Complete | `AspectRatio`, `Spinner`, `Button` | ⚠️→ExclamationTriangleIcon | ✅ Live streams | Enhanced video transitions |
-| **`ImageViewer.tsx`** | ✅ Complete | `Grid`, `Dialog`, `Button` | 📸→CameraIcon, 🔄→ReloadIcon | 🚧 Mock data | Live directory scanning |
+| **`ImageViewer.tsx`** | ✅ Complete | `Grid`, `Dialog`, `Button` | 📸→CameraIcon, 🔄→ReloadIcon | ✅ Live NINA integration | **REFACTORED** - WebSocket-driven real-time updates |
 | **`Settings.tsx`** | ✅ Complete | `Tabs`, `Dialog`, `Switch`, `Select` | ⚙️→GearIcon, ✅→CheckIcon | ✅ Database persistence | **Simplified** - Core settings only |
 | **`SystemStatusWidget.tsx`** | ✅ Complete | `Card`, `Flex`, `Progress`, `Badge` | 🖥️→DesktopIcon, 📊→ActivityLogIcon | ✅ Live system monitoring | **NEW** - Real-time system health |
 | **`TargetSchedulerWidget.tsx`** | ✅ Complete | `Card`, `Flex`, `Progress`, `Badge`, `HoverCard` | 🎯→TargetIcon, 📅→CalendarIcon | ✅ Live scheduler data | **NEW** - Production ready monitoring |
@@ -575,7 +576,7 @@ The **full-stack observatory dashboard** is now complete and features:
 | Task | Component | Complexity | Estimated Time | Status |
 |------|-----------|------------|----------------|--------|
 | **Connect NINA API** | `NINAStatus.tsx` | 🟡 Medium | 2-3 hours | 🚧 Backend ready, need live connection |
-| **Live Image Loading** | `ImageViewer.tsx` | 🟡 Medium | 2-4 hours | 🚧 UI ready, need directory scanning |
+| **Live Image Loading** | `ImageViewer.tsx` | ✅ Complete | 2-4 hours | ✅ WebSocket-driven real-time image display |
 | **Production Testing** | All components | 🟢 Easy | 1-2 hours | 🔄 Test full system integration |
 | **Git Commit** | Repository | 🟢 Easy | 30 min | 🔄 Commit recent database changes |
 | **NINA Equipment APIs** | `ninaApi.ts` | 🟡 Medium | 3-4 hours | 🚧 API structure ready |
@@ -630,7 +631,7 @@ Your personalized configuration is stored in the database with:
 |--------|------|--------|-------------------|-------------------|------------------|----------|
 | **NINA Status** | `NINAStatus.tsx` | ✅ UI Complete | Mock data, progress bars, status indicators | 🚧 Ready for API | Live NINA API (port 1888) | 🔴 High |
 | **RTSP Video** | `RTSPViewer.tsx` | ✅ Complete | ✅ **LIVE STREAMS + ENHANCED UX** | ✅ Live feeds + dynamic sizing | None - working perfectly | ✅ Done |
-| **Image Gallery** | `ImageViewer.tsx` | ✅ UI Complete | Modal viewing, metadata display | 🚧 Mock data | Live directory scanning | 🟡 Medium |
+| **Image Gallery** | `ImageViewer.tsx` | ✅ Complete | ✅ **LIVE NINA IMAGE DISPLAY** | ✅ WebSocket integration + real-time updates | None - fully functional | ✅ Done |
 | **System Monitor** | `SystemStatusWidget.tsx` | ✅ Complete | ✅ **REAL-TIME SYSTEM HEALTH** | ✅ Cross-platform APIs | None - fully functional | ✅ Done |
 | **Target Scheduler** | `TargetSchedulerWidget.tsx` | ✅ Complete | ✅ **REAL-TIME PROJECT MONITORING** | ✅ Scheduler database + hover cards | None - production ready | ✅ Done |
 | **Configuration** | `Settings.tsx` + API | ✅ Complete | ✅ **DATABASE PERSISTENCE** | ✅ SQLite + Express API | None - fully functional | ✅ Done |
@@ -771,12 +772,13 @@ Handles RTSP video stream display with:
 - Stream information display (resolution, framerate, bitrate)
 
 ### 🖼️ ImageViewer.tsx
-Gallery component for captured astrophotography images with:
-- Thumbnail grid view
-- Full-size image modal
-- Metadata display
+Real-time NINA image display component with:
+- Live image updates via WebSocket integration
+- IMAGE-SAVE event processing from NINA
+- Intelligent image caching with 30-minute relevance checking
+- Comprehensive metadata display with capture information
 
-**Current Status**: ✅ **IMPLEMENTED** - Full gallery with modal viewing
+**Current Status**: ✅ **REFACTORED & COMPLETE** - WebSocket-driven real-time image monitoring
 - Mock astrophotography images
 - Click-to-expand modal functionality
 - Metadata display (exposure, filter, temperature, target)
@@ -836,8 +838,8 @@ Mobile-specific layout optimizations:
 
 ### **IMMEDIATE PRIORITIES** (Next Session)
 1. **🔴 HIGH**: Connect `NINAStatus.tsx` to live NINA API on port 1888
-2. **🔴 HIGH**: Integrate RTSP streams in `RTSPViewer.tsx` 
-3. **🟡 MEDIUM**: Implement live image loading in `ImageViewer.tsx`
+2. **✅ COMPLETE**: RTSP streams integrated in `RTSPViewer.tsx` with enhanced UX
+3. **✅ COMPLETE**: Live image display implemented in `ImageViewer.tsx` with WebSocket integration
 4. **🟢 LOW**: Add SQLite database queries to `ninaApi.ts`
 
 ### **WHEN MAKING CHANGES**
@@ -863,9 +865,9 @@ open http://localhost:3000  # Should load dashboard
 
 ---
 
-**🚀 Project Status: UI Complete | Backend Pending | Production Ready for Deployment**
+**🚀 Project Status: UI Complete | Backend Complete | Image Viewer Refactored | Production Ready for Deployment**
 
-*Last Updated: August 27, 2025 | Next Review: Next Development Session*
+*Last Updated: September 18, 2025 | Image Viewer Refactor Complete*
 
 ## 🔄 State Management Strategy
 - **Custom Hooks**: `useNINAData`, `useResponsive`

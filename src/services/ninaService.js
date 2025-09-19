@@ -728,6 +728,89 @@ class NINAService {
       return null; // Return null instead of mock data
     }
   }
+
+  // Get latest image using prepared-image endpoint with web-friendly options
+  async getLatestImage(options = {}) {
+    try {
+      // Default options optimized for web display
+      const defaultOptions = {
+        resize: true,
+        size: '800x600',
+        autoPrepare: true,
+        quality: 85
+      };
+      
+      const finalOptions = { ...defaultOptions, ...options };
+      
+      console.log('📸 Fetching latest image with options:', finalOptions);
+      
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (finalOptions.resize !== undefined) params.append('resize', finalOptions.resize);
+      if (finalOptions.size) params.append('size', finalOptions.size);
+      if (finalOptions.autoPrepare !== undefined) params.append('autoPrepare', finalOptions.autoPrepare);
+      if (finalOptions.quality !== undefined) params.append('quality', finalOptions.quality);
+      if (finalOptions.scale !== undefined) params.append('scale', finalOptions.scale);
+      if (finalOptions.blackClipping !== undefined) params.append('blackClipping', finalOptions.blackClipping);
+      if (finalOptions.unlinked !== undefined) params.append('unlinked', finalOptions.unlinked);
+      if (finalOptions.debayer !== undefined) params.append('debayer', finalOptions.debayer);
+      if (finalOptions.bayerPattern) params.append('bayerPattern', finalOptions.bayerPattern);
+      
+      const queryString = params.toString();
+      const endpoint = `/prepared-image${queryString ? '?' + queryString : ''}`;
+      
+      console.log(`📸 Fetching prepared image: ${endpoint}`);
+      
+      const response = await this.makeRequest(endpoint);
+      
+      if (response && response.Success) {
+        console.log('✅ Successfully fetched latest image');
+        return {
+          Response: response.Response,
+          Success: true,
+          Error: '',
+          StatusCode: 200,
+          Type: 'API',
+          timestamp: new Date().toISOString()
+        };
+      } else {
+        console.warn('⚠️ Prepared image API returned unsuccessful response:', response);
+        return {
+          Response: null,
+          Success: false,
+          Error: response?.Error || 'No prepared image available',
+          StatusCode: response?.StatusCode || 404,
+          Type: 'API'
+        };
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not fetch latest image:', error.message);
+      return {
+        Response: null,
+        Success: false,
+        Error: `Failed to fetch image: ${error.message}`,
+        StatusCode: 500,
+        Type: 'API'
+      };
+    }
+  }
+
+  // Check if image timestamp is relevant (within 30 minutes)
+  isImageRelevant(timestamp) {
+    try {
+      const imageTime = new Date(timestamp);
+      const now = new Date();
+      const thirtyMinutesAgo = new Date(now.getTime() - (30 * 60 * 1000));
+      
+      const isRelevant = imageTime >= thirtyMinutesAgo;
+      console.log(`🕐 Image relevance check: ${timestamp} -> ${isRelevant ? 'RELEVANT' : 'TOO OLD'}`);
+      
+      return isRelevant;
+    } catch (error) {
+      console.error('❌ Error checking image relevance:', error);
+      return false;
+    }
+  }
 }
 
 module.exports = NINAService;
