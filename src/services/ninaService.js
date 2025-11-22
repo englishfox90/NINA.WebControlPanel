@@ -956,6 +956,151 @@ class NINAService {
       };
     }
   }
+
+  // LiveStack methods
+  async getLiveStackOptions() {
+    try {
+      console.log('📸 Fetching LiveStack available options...');
+      const response = await this.makeRequest('/v2/api/livestack/image/available');
+      console.log(`✅ LiveStack options: ${response.Response?.length || 0} combinations`);
+      return response;
+    } catch (error) {
+      console.error('❌ LiveStack options error:', error.message);
+      
+      // Mock data for development
+      return {
+        Response: [
+          { Filter: "RGB", Target: "M 42 Panel 1" },
+          { Filter: "L", Target: "M 42 Panel 1" },
+          { Filter: "Red", Target: "M 42 Panel 1" },
+          { Filter: "Green", Target: "M 42 Panel 1" },
+          { Filter: "Blue", Target: "M 42 Panel 1" },
+          { Filter: "OIII", Target: "Bubble Nebula" },
+          { Filter: "Ha", Target: "Bubble Nebula" },
+          { Filter: "RGB", Target: "Lobster Claw Nebula" },
+          { Filter: "OIII", Target: "Lobster Claw Nebula" }
+        ],
+        Success: true,
+        Error: '',
+        StatusCode: 200,
+        Type: 'API',
+        mockMode: true
+      };
+    }
+  }
+
+  async getLiveStackInfo(target, filter) {
+    try {
+      console.log(`📸 Fetching LiveStack info: ${target} - ${filter}`);
+      const encodedTarget = encodeURIComponent(target);
+      const encodedFilter = encodeURIComponent(filter);
+      const response = await this.makeRequest(`/v2/api/livestack/image/${encodedTarget}/${encodedFilter}/info`);
+      console.log(`✅ LiveStack info: ${response.Response?.Filter} (${response.Response?.IsMonochrome ? 'Mono' : 'RGB'})`);
+      return response;
+    } catch (error) {
+      console.error('❌ LiveStack info error:', error.message);
+      
+      // Mock data for development
+      const isRGB = filter.toUpperCase() === 'RGB';
+      return {
+        Response: isRGB ? {
+          IsMonochrome: false,
+          RedStackCount: 16,
+          GreenStackCount: 23,
+          BlueStackCount: 30,
+          Filter: filter,
+          Target: target
+        } : {
+          IsMonochrome: true,
+          StackCount: 25,
+          Filter: filter,
+          Target: target
+        },
+        Success: true,
+        Error: '',
+        StatusCode: 200,
+        Type: 'API',
+        mockMode: true
+      };
+    }
+  }
+
+  async getLiveStackImage(target, filter) {
+    try {
+      console.log(`📸 Fetching LiveStack image: ${target} - ${filter}`);
+      const encodedTarget = encodeURIComponent(target);
+      const encodedFilter = encodeURIComponent(filter);
+      const response = await this.makeRequest(`/v2/api/livestack/image/${encodedTarget}/${encodedFilter}?resize=true&scale=0.25`);
+      console.log(`✅ LiveStack image: ${response.Response?.length > 0 ? 'loaded' : 'empty'}`);
+      return response;
+    } catch (error) {
+      console.error('❌ LiveStack image error:', error.message);
+      
+      // Mock data - return a small placeholder base64 image
+      const mockImageBase64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAwj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=';
+      
+      return {
+        Response: mockImageBase64,
+        Success: true,
+        Error: '',
+        StatusCode: 200,
+        Type: 'API',
+        mockMode: true
+      };
+    }
+  }
+
+  async getLiveStackImageStream(target, filter) {
+    try {
+      console.log(`📸 Fetching LiveStack image stream: ${target} - ${filter}`);
+      const encodedTarget = encodeURIComponent(target);
+      const encodedFilter = encodeURIComponent(filter);
+      const url = `${this.fullUrl}/v2/api/livestack/image/${encodedTarget}/${encodedFilter}?resize=true&scale=0.25&stream=true`;
+      
+      const response = await axios.get(url, {
+        timeout: this.timeout,
+        responseType: 'arraybuffer',
+        headers: {
+          'Accept': 'image/png, image/jpeg, */*'
+        }
+      });
+      
+      console.log(`✅ LiveStack image stream: ${response.data.length} bytes`);
+      return {
+        Success: true,
+        imageBuffer: Buffer.from(response.data),
+        Error: '',
+        StatusCode: 200,
+        Type: 'API'
+      };
+    } catch (error) {
+      console.error('❌ LiveStack image stream error:', error.message);
+      
+      // Create a simple mock PNG image (64x64 gray square)
+      const mockPNG = Buffer.from([
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+        0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk header
+        0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x40, // 64x64 dimensions
+        0x08, 0x02, 0x00, 0x00, 0x00, 0x25, 0x0B, 0xE6, // bit depth, color type, etc.
+        0x89, 0x00, 0x00, 0x00, 0x09, 0x70, 0x48, 0x59, // End of IHDR
+        0x73, 0x00, 0x00, 0x0B, 0x13, 0x00, 0x00, 0x0B, // pHYs chunk
+        0x13, 0x01, 0x00, 0x9A, 0x9C, 0x18, 0x00, 0x00, // End of pHYs
+        0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, // IDAT chunk start
+        0x63, 0x60, 0x18, 0x05, 0x00, 0x00, 0x10, 0x00, // Minimal image data
+        0x01, 0x8D, 0xB0, 0x8D, 0xB0, 0x00, 0x00, 0x00, // End of IDAT
+        0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82 // IEND chunk
+      ]);
+      
+      return {
+        Success: true,
+        imageBuffer: mockPNG,
+        Error: '',
+        StatusCode: 200,
+        Type: 'API',
+        mockMode: true
+      };
+    }
+  }
 }
 
 module.exports = NINAService;

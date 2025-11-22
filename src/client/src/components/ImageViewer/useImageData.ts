@@ -1,8 +1,8 @@
 /**
  * Image Viewer Data Hook with Exposure-Based Refresh
- * Implements exposure time + 10 second refresh cycle for continuous image updates
+ * Implements exposure time + 25 second refresh cycle for continuous image updates
  * 1. On first load: Fetch latest image and metadata from NINA
- * 2. Schedule next refresh based on ExposureTime + 10 seconds
+ * 2. Schedule next refresh based on ExposureTime + 25 seconds
  * 3. Continue refreshing while component is mounted and active
  */
 
@@ -101,14 +101,14 @@ export const useImageData = (): UseImageDataReturn => {
           
           // Image loaded successfully
           
-          // Schedule next refresh based on last capture time + exposure time + 10s
+          // Schedule next refresh based on last capture time + exposure time + 25s
           const exposureTime = result.ExposureTime || 30; // Default to 30s
           const imageDate = result.imageStats?.Date ? new Date(result.imageStats.Date) : new Date();
           const now = new Date();
           const timeSinceCapture = Math.floor((now.getTime() - imageDate.getTime()) / 1000); // seconds
           
-          // Calculate time remaining: (exposure + 10) - time since capture
-          const totalCycleTime = exposureTime + 10;
+          // Calculate time remaining: (exposure + 25) - time since capture
+          const totalCycleTime = exposureTime + 25;
           const timeRemaining = Math.max(totalCycleTime - timeSinceCapture, 10); // Minimum 10 seconds
           const refreshDelay = Math.min(timeRemaining * 1000, 300000); // Cap at 5 minutes
           

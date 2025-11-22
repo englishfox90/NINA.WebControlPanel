@@ -335,6 +335,88 @@ class NINARoutes {
         });
       }
     });
+
+    // LiveStack endpoints
+    app.get('/api/nina/livestack/options', async (req, res) => {
+      try {
+        console.log('📋 API: LiveStack options request');
+        const response = await this.ninaService.getLiveStackOptions();
+        res.json(response);
+      } catch (error) {
+        console.error('❌ Error getting LiveStack options:', error);
+        res.status(500).json({
+          Success: false,
+          Response: [],
+          Error: error.message,
+          StatusCode: 500,
+          Type: 'API'
+        });
+      }
+    });
+
+    app.get('/api/nina/livestack/info/:target/:filter', async (req, res) => {
+      try {
+        const { target, filter } = req.params;
+        console.log(`📋 API: LiveStack info request - ${target} - ${filter}`);
+        const response = await this.ninaService.getLiveStackInfo(target, filter);
+        res.json(response);
+      } catch (error) {
+        console.error('❌ Error getting LiveStack info:', error);
+        res.status(500).json({
+          Success: false,
+          Response: null,
+          Error: error.message,
+          StatusCode: 500,
+          Type: 'API'
+        });
+      }
+    });
+
+    app.get('/api/nina/livestack/image/:target/:filter', async (req, res) => {
+      try {
+        const { target, filter } = req.params;
+        const { stream } = req.query;
+        
+        console.log(`📋 API: LiveStack image request - ${target} - ${filter}`);
+        console.log('🔍 Query parameters:', req.query);
+        console.log('🔍 Stream parameter:', stream, 'Type:', typeof stream);
+        
+        if (stream === 'true') {
+          console.log('📡 Using stream mode for PNG response');
+          // Stream the image directly
+          const response = await this.ninaService.getLiveStackImageStream(target, filter);
+          
+          if (response.Success && response.imageBuffer) {
+            res.set({
+              'Content-Type': 'image/png',
+              'Content-Length': response.imageBuffer.length,
+              'Cache-Control': 'no-cache, no-store, must-revalidate'
+            });
+            res.send(response.imageBuffer);
+          } else {
+            res.status(404).json({
+              Success: false,
+              Error: response.Error || 'Image not found',
+              StatusCode: 404,
+              Type: 'API'
+            });
+          }
+        } else {
+          // Return base64 as before
+          const response = await this.ninaService.getLiveStackImage(target, filter);
+          res.json(response);
+        }
+      } catch (error) {
+        console.error('❌ Error getting LiveStack image:', error);
+        res.status(500).json({
+          Success: false,
+          Response: '',
+          Error: error.message,
+          StatusCode: 500,
+          Type: 'API'
+        });
+      }
+    });
   }
 }
 
