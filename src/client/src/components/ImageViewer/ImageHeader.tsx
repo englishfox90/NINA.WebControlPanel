@@ -13,6 +13,7 @@ interface ImageHeaderProps {
   imageLoading: boolean;
   sessionData: any;
   onRefresh: () => void;
+  nextRefreshIn?: number | null;
 }
 
 export const ImageHeader: React.FC<ImageHeaderProps> = ({
@@ -20,7 +21,8 @@ export const ImageHeader: React.FC<ImageHeaderProps> = ({
   isImagingSession,
   imageLoading,
   sessionData,
-  onRefresh
+  onRefresh,
+  nextRefreshIn
 }) => {
   if (hideHeader) return null;
 

@@ -25,7 +25,8 @@ const ImageViewerWidget: React.FC<ImageViewerProps> = ({
     error,
     isImagingSession,
     sessionData,
-    refreshImage
+    refreshImage,
+    nextRefreshIn
   } = useImageData();
 
   // Handle refresh with callback
@@ -44,6 +45,7 @@ const ImageViewerWidget: React.FC<ImageViewerProps> = ({
           imageLoading={imageLoading}
           sessionData={sessionData}
           onRefresh={handleRefresh}
+          nextRefreshIn={nextRefreshIn}
         />
 
         {/* Main image display */}
@@ -52,12 +54,14 @@ const ImageViewerWidget: React.FC<ImageViewerProps> = ({
           imageLoading={imageLoading}
           error={error}
           isImagingSession={isImagingSession}
+          nextRefreshIn={nextRefreshIn}
         />
 
         {/* Image statistics panel */}
         <ImageStats 
           imageStats={imageStats} 
           hasImage={!!latestImage}
+          nextRefreshIn={nextRefreshIn}
         />
       </Flex>
     </Card>

@@ -101,83 +101,92 @@ class NINARoutes {
       }
     });
 
-    // Latest image endpoint - Fixed implementation
+    // Latest image endpoint - New 3-step implementation
     app.get('/api/nina/latest-image', async (req, res) => {
       try {
         console.log('📸 API: Latest image request received');
         
-        // Get current session state to check for recent image data
-        const sessionState = this.sessionStateManager ? 
-          this.sessionStateManager.getSessionState() : null;
+        // Step 1: Get image count from NINA
+        const imageCount = await this.ninaService.getImageHistoryCount('LIGHT');
         
-        let lastImageData = {};
-        let hasRecentImage = false;
-        
-        // Parse last image data from session state if available
-        if (sessionState && sessionState.last_image_data) {
-          try {
-            lastImageData = typeof sessionState.last_image_data === 'string' 
-              ? JSON.parse(sessionState.last_image_data) 
-              : sessionState.last_image_data;
-            
-            // Check if image is relevant (within 30 minutes)
-            if (lastImageData.timestamp && this.ninaService.isImageRelevant(lastImageData.timestamp)) {
-              hasRecentImage = true;
-              console.log('✅ Recent image found in session state:', lastImageData.timestamp);
-            } else {
-              console.log('⚠️ Image in session state is too old:', lastImageData.timestamp);
-            }
-          } catch (parseError) {
-            console.warn('⚠️ Could not parse last_image_data:', parseError.message);
-          }
-        }
-        
-        // Fetch image from NINA if we have recent metadata or if forced
-        if (hasRecentImage || req.query.force === 'true') {
-          const imageData = await this.ninaService.getLatestImage();
-          
-          if (imageData && imageData.Success && imageData.Response) {
-            res.json({
-              ...imageData,
-              metadata: lastImageData,
-              isRelevant: hasRecentImage,
-              source: hasRecentImage ? 'session_state' : 'direct_fetch'
-            });
-          } else {
-            // NINA has no image available
-            res.json({
-              Response: null,
-              Success: true,
-              Error: imageData?.Error || 'No prepared image available from NINA',
-              StatusCode: 204,
-              Type: 'API',
-              message: 'No recent image available',
-              isRelevant: false,
-              metadata: lastImageData
-            });
-          }
-        } else {
-          // No recent image data available
-          res.json({
-            Response: null,
+        if (imageCount === 0) {
+          console.log('📸 No images available in NINA');
+          return res.json({
             Success: true,
-            Error: '',
             StatusCode: 204,
-            Type: 'API',
-            message: 'No recent image available (none captured in last 30 minutes)',
-            isRelevant: false,
-            metadata: {}
+            imageBase64: null,
+            imageContentType: null,
+            imageStats: null,
+            ExposureTime: null,
+            message: 'No images available',
+            Error: null
           });
         }
+        
+        // Step 2: Get latest image metadata (count - 1)
+        const imageIndex = imageCount - 1;
+        console.log(`📸 Fetching image metadata for index ${imageIndex} (latest of ${imageCount})`);
+        
+        const imageStats = await this.ninaService.getImageHistoryByIndex(imageIndex, 'LIGHT');
+        
+        if (!imageStats) {
+          console.warn('⚠️ Failed to get image metadata');
+          return res.json({
+            Success: true,
+            StatusCode: 204,
+            imageBase64: null,
+            imageContentType: null,
+            imageStats: null,
+            ExposureTime: null,
+            message: 'Failed to get image metadata',
+            Error: 'Image metadata not available'
+          });
+        }
+        
+        // Step 3: Get prepared image as binary data
+        let imageBase64 = null;
+        let imageContentType = null;
+        
+        try {
+          const imageData = await this.ninaService.getPreparedImageArrayBuffer();
+          
+          // Convert array buffer to base64
+          const buffer = Buffer.from(imageData.bytes);
+          imageBase64 = buffer.toString('base64');
+          imageContentType = imageData.contentType;
+          
+          console.log(`📸 Image encoded to base64: ${imageBase64.length} characters`);
+        } catch (imageError) {
+          console.warn('⚠️ Failed to get prepared image:', imageError.message);
+          // Continue without image - still return metadata
+        }
+        
+        // Return combined response
+        const response = {
+          Success: true,
+          StatusCode: 200,
+          imageBase64: imageBase64,
+          imageContentType: imageContentType,
+          imageStats: imageStats,
+          ExposureTime: imageStats.ExposureTime || 30, // Default to 30s if missing
+          message: imageBase64 ? 'Image and metadata retrieved successfully' : 'Metadata retrieved, image unavailable',
+          Error: null
+        };
+        
+        console.log(`📸 Returning response: ${imageBase64 ? 'with' : 'without'} image, ExposureTime: ${response.ExposureTime}s`);
+        res.json(response);
         
       } catch (error) {
         console.error('❌ Error getting latest image:', error);
         res.status(500).json({ 
-          error: 'Failed to get latest image',
-          details: error.message,
           Success: false,
           StatusCode: 500,
-          Type: 'API'
+          imageBase64: null,
+          imageContentType: null,
+          imageStats: null,
+          ExposureTime: null,
+          message: 'Failed to get latest image',
+          Error: error.message
         });
       }
     });

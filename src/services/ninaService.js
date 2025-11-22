@@ -811,6 +811,84 @@ class NINAService {
       return false;
     }
   }
+
+  // Get image count from NINA
+  async getImageHistoryCount(imageType = 'LIGHT') {
+    try {
+      const endpoint = `/image-history?count=true&imageType=${imageType}`;
+      const response = await this.makeRequest(endpoint);
+      
+      if (response && response.Success && typeof response.Response === 'number') {
+        console.log(`📊 NINA image count: ${response.Response}`);
+        return response.Response;
+      } else {
+        console.warn('⚠️ Invalid image count response:', response);
+        return 0;
+      }
+    } catch (error) {
+      console.error('❌ Error getting image count:', error.message);
+      return 0;
+    }
+  }
+
+  // Get image metadata by index from NINA
+  async getImageHistoryByIndex(index, imageType = 'LIGHT') {
+    try {
+      const endpoint = `/image-history?index=${index}&imageType=${imageType}`;
+      const response = await this.makeRequest(endpoint);
+      
+      if (response && response.Success && response.Response) {
+        // Response can be an array or single object - normalize to single object
+        const imageData = Array.isArray(response.Response) ? response.Response[0] : response.Response;
+        console.log(`📸 NINA image metadata [${index}]:`, {
+          ExposureTime: imageData.ExposureTime,
+          Filter: imageData.Filter,
+          Stars: imageData.Stars,
+          HFR: imageData.HFR
+        });
+        return imageData;
+      } else {
+        console.warn('⚠️ Invalid image metadata response:', response);
+        return null;
+      }
+    } catch (error) {
+      console.error(`❌ Error getting image metadata for index ${index}:`, error.message);
+      return null;
+    }
+  }
+
+  // Get prepared image as array buffer from NINA
+  async getPreparedImageArrayBuffer(options = {}) {
+    try {
+      const axios = require('axios');
+      const params = new URLSearchParams({
+        autoPrepare: 'true',
+        ...options
+      });
+      
+      const url = `/prepared-image?${params}`;
+      console.log(`📸 Fetching prepared image from: ${url}`);
+      
+      const response = await axios.get(url, {
+        responseType: 'arraybuffer',
+        timeout: this.timeout,
+        headers: {
+          'Accept': 'image/jpeg,image/png,image/*'
+        }
+      });
+      
+      const contentType = response.headers['content-type'] || 'image/jpeg';
+      console.log(`📸 Prepared image received: ${response.data.length} bytes, type: ${contentType}`);
+      
+      return {
+        bytes: response.data,
+        contentType: contentType
+      };
+    } catch (error) {
+      console.error('❌ Error getting prepared image:', error.message);
+      throw error;
+    }
+  }
 }
 
 module.exports = NINAService;

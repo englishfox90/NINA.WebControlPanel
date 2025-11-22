@@ -4,21 +4,23 @@
  */
 
 import React from 'react';
-import { Box, Flex, Text, Spinner, Callout } from '@radix-ui/themes';
-import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
+import { Box, Flex, Text, Spinner, Callout, Badge } from '@radix-ui/themes';
+import { ExclamationTriangleIcon, ClockIcon } from '@radix-ui/react-icons';
 
 interface ImageDisplayProps {
   latestImage: string | null;
   imageLoading: boolean;
   error: string | null;
   isImagingSession: boolean;
+  nextRefreshIn?: number | null;
 }
 
 export const ImageDisplay: React.FC<ImageDisplayProps> = ({
   latestImage,
   imageLoading,
   error,
-  isImagingSession
+  isImagingSession,
+  nextRefreshIn
 }) => {
   // Error state
   if (error) {
@@ -86,7 +88,7 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
 
   // Image display
   return (
-    <Box>
+    <Box style={{ position: 'relative' }}>
       <img
         src={latestImage}
         alt="Latest captured image"
@@ -106,6 +108,27 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
           console.log('📸 Image loaded successfully in DOM');
         }}
       />
+      
+      {/* Countdown overlay in bottom corner */}
+      {nextRefreshIn && nextRefreshIn > 0 && (
+        <Box
+          style={{
+            position: 'absolute',
+            bottom: '15px',
+            right: '8px',
+            background: 'rgba(0, 0, 0, 0.7)',
+            borderRadius: 'var(--radius-2)',
+            padding: '4px 8px'
+          }}
+        >
+          <Flex align="center" gap="1">
+            <Text size="1" style={{ color: 'orange', fontWeight: 'bold' }}>
+              {Math.floor(nextRefreshIn / 60)}:{(nextRefreshIn % 60).toString().padStart(2, '0')}
+            </Text>
+            <ClockIcon width="12" height="12" style={{ color: 'orange' }} />
+          </Flex>
+        </Box>
+      )}
     </Box>
   );
 };

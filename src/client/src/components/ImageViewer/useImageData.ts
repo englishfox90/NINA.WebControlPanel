@@ -1,13 +1,12 @@
 /**
- * REFACTORED Image Viewer Data Hook
- * Simplified architecture based on unified WebSocket and proper backend integration
- * Eliminates complex throttling and implements the requested behavior:
- * 1. On first load: Check if recent image available (< 30 min) and fetch if so
- * 2. On unifiedSession update: Fetch image when lastImage timestamp changes
+ * Image Viewer Data Hook with Exposure-Based Refresh
+ * Implements exposure time + 10 second refresh cycle for continuous image updates
+ * 1. On first load: Fetch latest image and metadata from NINA
+ * 2. Schedule next refresh based on ExposureTime + 10 seconds
+ * 3. Continue refreshing while component is mounted and active
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { useUnifiedWebSocket } from '../../hooks/useUnifiedWebSocket';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ImageStatistics } from '../../interfaces/image';
 
 export interface UseImageDataReturn {
@@ -18,6 +17,7 @@ export interface UseImageDataReturn {
   isImagingSession: boolean;
   sessionData: any;
   refreshImage: () => Promise<void>;
+  nextRefreshIn: number | null;
 }
 
 export const useImageData = (): UseImageDataReturn => {
@@ -27,11 +27,12 @@ export const useImageData = (): UseImageDataReturn => {
   const [error, setError] = useState<string | null>(null);
   const [isImagingSession, setIsImagingSession] = useState<boolean>(false);
   const [sessionData, setSessionData] = useState<any>(null);
-  const [isFirstLoad, setIsFirstLoad] = useState<boolean>(true);
-  const [lastImageTimestamp, setLastImageTimestamp] = useState<string>('');
+  const [nextRefreshIn, setNextRefreshIn] = useState<number | null>(null);
 
-  // Use unified WebSocket for session updates only
-  const { onSessionUpdate } = useUnifiedWebSocket();
+  // Refs for cleanup and timer management
+  const refreshTimer = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimer = useRef<NodeJS.Timeout | null>(null);
+  const isMounted = useRef<boolean>(true);
 
   // Clean up blob URLs
   const cleanupImageUrl = useCallback((url: string) => {
@@ -41,17 +42,30 @@ export const useImageData = (): UseImageDataReturn => {
     }
   }, []);
 
-  // Fetch image from API when needed
-  const fetchImageIfNeeded = useCallback(async (reason: 'first-load' | 'websocket-update' | 'manual-refresh' = 'manual-refresh') => {
-    console.log(`📸 Image fetch requested: ${reason}`);
+  // Clear all timers
+  const clearTimers = useCallback(() => {
+    if (refreshTimer.current) {
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+    }
+    if (countdownTimer.current) {
+      clearInterval(countdownTimer.current);
+      countdownTimer.current = null;
+    }
+    setNextRefreshIn(null);
+  }, []);
+
+  // Fetch image from new API endpoint
+  const fetchLatestImage = useCallback(async (reason: 'initial' | 'scheduled' | 'manual' = 'manual') => {
+    if (!isMounted.current) return;
+    
+    console.log(`📸 Fetching latest image: ${reason}`);
     
     setImageLoading(true);
     setError(null);
     
     try {
-      // Use force parameter only for manual refresh
-      const forceParam = reason === 'manual-refresh' ? '?force=true' : '';
-      const response = await fetch(`/api/nina/latest-image${forceParam}`);
+      const response = await fetch('/api/nina/latest-image');
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -60,110 +74,171 @@ export const useImageData = (): UseImageDataReturn => {
       const result = await response.json();
       console.log('📸 API Response:', { 
         success: result.Success, 
-        isRelevant: result.isRelevant,
-        hasResponse: !!result.Response,
+        statusCode: result.StatusCode,
+        hasImage: !!result.imageBase64,
+        exposureTime: result.ExposureTime,
         message: result.message 
       });
+
+      if (!isMounted.current) return;
       
       // Clean up previous image URL
       if (latestImage) {
         cleanupImageUrl(latestImage);
       }
       
-      if (result.Success && result.isRelevant && result.Response) {
-        // We have a recent image - create blob URL for display
+      if (result.Success && result.imageBase64) {
+        // Convert base64 to blob URL
         try {
-          // The response should contain base64 image data
-          const base64Data = result.Response;
-          const binaryString = atob(base64Data);
+          const binaryString = atob(result.imageBase64);
           const bytes = new Uint8Array(binaryString.length);
           
           for (let i = 0; i < binaryString.length; i++) {
             bytes[i] = binaryString.charCodeAt(i);
           }
           
-          const imageBlob = new Blob([bytes], { type: 'image/jpeg' });
+          const imageBlob = new Blob([bytes], { type: result.imageContentType || 'image/jpeg' });
           const imageUrl = URL.createObjectURL(imageBlob);
           
           setLatestImage(imageUrl);
-          setImageStats(result.metadata || null);
+          setImageStats(result.imageStats);
+          setIsImagingSession(true);
           setError(null);
           
           console.log('✅ Image loaded successfully');
+          
+          // Schedule next refresh based on last capture time + exposure time + 10s
+          const exposureTime = result.ExposureTime || 30; // Default to 30s
+          const imageDate = result.imageStats?.Date ? new Date(result.imageStats.Date) : new Date();
+          const now = new Date();
+          const timeSinceCapture = Math.floor((now.getTime() - imageDate.getTime()) / 1000); // seconds
+          
+          // Calculate time remaining: (exposure + 10) - time since capture
+          const totalCycleTime = exposureTime + 10;
+          const timeRemaining = Math.max(totalCycleTime - timeSinceCapture, 10); // Minimum 10 seconds
+          const refreshDelay = Math.min(timeRemaining * 1000, 300000); // Cap at 5 minutes
+          
+          console.log(`⏰ Image captured ${timeSinceCapture}s ago, scheduling next refresh in ${timeRemaining} seconds`);
+          scheduleNextRefresh(refreshDelay);
+          
         } catch (blobError) {
           console.error('❌ Error creating blob URL:', blobError);
           setError('Failed to process image data');
           setLatestImage(null);
           setImageStats(null);
+          setIsImagingSession(false);
         }
-      } else {
-        // No recent image available
+      } else if (result.Success && result.StatusCode === 204) {
+        // No images available
         setLatestImage(null);
         setImageStats(null);
+        setIsImagingSession(false);
         setError(null);
-        console.log('ℹ️ No recent image available:', result.message);
+        
+        console.log('ℹ️ No images available, retrying in 30 seconds');
+        scheduleNextRefresh(30000); // Retry in 30 seconds when no images
+        
+      } else {
+        // Error response
+        setLatestImage(null);
+        setImageStats(null);
+        setIsImagingSession(false);
+        setError(result.Error || result.message || 'Failed to get image');
+        
+        console.log('⚠️ Error getting image, retrying in 30 seconds');
+        scheduleNextRefresh(30000); // Retry in 30 seconds on error
       }
       
     } catch (fetchError) {
       console.error('❌ Error fetching image:', fetchError);
-      setError(fetchError instanceof Error ? fetchError.message : 'Unknown error');
-      setLatestImage(null);
-      setImageStats(null);
+      if (isMounted.current) {
+        setError(fetchError instanceof Error ? fetchError.message : 'Unknown error');
+        setLatestImage(null);
+        setImageStats(null);
+        setIsImagingSession(false);
+        
+        console.log('⚠️ Fetch error, retrying in 30 seconds');
+        scheduleNextRefresh(30000); // Retry in 30 seconds on network error
+      }
     } finally {
-      setImageLoading(false);
+      if (isMounted.current) {
+        setImageLoading(false);
+      }
     }
   }, [latestImage, cleanupImageUrl]);
 
-  // Handle unified session updates
-  const handleSessionUpdate = useCallback((unifiedSession: any) => {
-    console.log('📡 Unified session update received');
-    setSessionData(unifiedSession);
+  // Schedule next refresh with countdown
+  const scheduleNextRefresh = useCallback((delayMs: number) => {
+    if (!isMounted.current) return;
     
-    // Update session activity status
-    const newIsImagingSession = unifiedSession?.isActive || false;
-    setIsImagingSession(newIsImagingSession);
+    clearTimers();
     
-    // Check if we should fetch a new image
-    const newImageTimestamp = unifiedSession?.lastImage?.timestamp || '';
-    const shouldFetch = newImageTimestamp && newImageTimestamp !== lastImageTimestamp;
+    const startTime = Date.now();
+    const endTime = startTime + delayMs;
     
-    if (shouldFetch) {
-      console.log('🔄 Image timestamp changed, fetching new image:', {
-        old: lastImageTimestamp,
-        new: newImageTimestamp
-      });
-      setLastImageTimestamp(newImageTimestamp);
-      fetchImageIfNeeded('websocket-update');
-    }
-  }, [lastImageTimestamp, fetchImageIfNeeded]);
+    // Set up countdown timer (update every second)
+    countdownTimer.current = setInterval(() => {
+      if (!isMounted.current) return;
+      
+      const now = Date.now();
+      const remaining = Math.max(0, Math.ceil((endTime - now) / 1000));
+      setNextRefreshIn(remaining);
+      
+      if (remaining === 0) {
+        if (countdownTimer.current) {
+          clearInterval(countdownTimer.current);
+          countdownTimer.current = null;
+        }
+      }
+    }, 1000);
+    
+    // Set up actual refresh timer
+    refreshTimer.current = setTimeout(() => {
+      if (isMounted.current) {
+        console.log('⏰ Scheduled refresh triggered');
+        fetchLatestImage('scheduled');
+      }
+    }, delayMs);
+    
+    // Set initial countdown
+    setNextRefreshIn(Math.ceil(delayMs / 1000));
+  }, [fetchLatestImage, clearTimers]);
 
-  // Subscribe to unified session updates and handle first load
+  // Manual refresh function
+  const refreshImage = useCallback(async () => {
+    console.log('🔄 Manual refresh requested');
+    clearTimers();
+    await fetchLatestImage('manual');
+  }, [fetchLatestImage, clearTimers]);
+
+  // Initial fetch on mount
   useEffect(() => {
-    console.log('🔧 Setting up Image Viewer data hook');
+    console.log('🔧 Setting up Image Viewer with exposure-based refresh');
+    isMounted.current = true;
     
-    // Subscribe to session updates
-    onSessionUpdate(handleSessionUpdate);
-    
-    // Handle first load
-    if (isFirstLoad) {
-      console.log('🚀 First load: Checking for recent images');
-      setIsFirstLoad(false);
-      fetchImageIfNeeded('first-load');
-    }
+    // Initial fetch
+    fetchLatestImage('initial');
     
     return () => {
+      console.log('🧹 Cleaning up Image Viewer');
+      isMounted.current = false;
+      clearTimers();
+      
       // Cleanup blob URL on unmount
       if (latestImage) {
         cleanupImageUrl(latestImage);
       }
     };
-  }, [onSessionUpdate, handleSessionUpdate, fetchImageIfNeeded, isFirstLoad, latestImage, cleanupImageUrl]);
+  }, []); // Empty dependency array - only run on mount/unmount
 
-  // Manual refresh function
-  const refreshImage = useCallback(async () => {
-    console.log('🔄 Manual refresh requested');
-    await fetchImageIfNeeded('manual-refresh');
-  }, [fetchImageIfNeeded]);
+  // Cleanup effect for blob URLs when they change
+  useEffect(() => {
+    return () => {
+      if (latestImage) {
+        cleanupImageUrl(latestImage);
+      }
+    };
+  }, [latestImage, cleanupImageUrl]);
 
   return {
     latestImage,
@@ -172,6 +247,7 @@ export const useImageData = (): UseImageDataReturn => {
     error,
     isImagingSession,
     sessionData,
-    refreshImage
+    refreshImage,
+    nextRefreshIn
   };
 };
