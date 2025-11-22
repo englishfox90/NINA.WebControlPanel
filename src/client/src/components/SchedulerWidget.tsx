@@ -19,6 +19,8 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
   const [error, setError] = useState<string | null>(null);
   const [lastImageSave, setLastImageSave] = useState<string>('');
   const [lastApiCall, setLastApiCall] = useState<number>(0);
+  const [openFilterCard, setOpenFilterCard] = useState<string | null>(null);
+  const [openProgressCard, setOpenProgressCard] = useState<string | null>(null);
 
   // Use unified WebSocket for NINA events
   const { 
@@ -200,9 +202,17 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
               <Box p="3">
                 <Flex justify="between" align="center" mb="2">
                   <Flex align="center" gap="2">
-                    <HoverCard.Root>
+                    <HoverCard.Root 
+                      open={openFilterCard === `filter-${project.id}`}
+                      onOpenChange={(open) => setOpenFilterCard(open ? `filter-${project.id}` : null)}
+                    >
                       <HoverCard.Trigger>
-                        <Text weight="bold" size="3" style={{ cursor: 'pointer' }}>
+                        <Text 
+                          weight="bold" 
+                          size="3" 
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setOpenFilterCard(openFilterCard === `filter-${project.id}` ? null : `filter-${project.id}`)}
+                        >
                           {project.name}
                         </Text>
                       </HoverCard.Trigger>
@@ -213,12 +223,44 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
                             <Text size="2" color="gray">{project.description}</Text>
                           )}
                           <Separator />
-                          <Heading size="2">Filter Details</Heading>
-                          {project.targets?.[0]?.filters?.map((filter: any) => {
-                            const integrationMinutes = Math.round((filter.acceptedIntegrationTime || 0) / 60);
-                            const desiredMinutes = Math.round((filter.desiredIntegrationTime || 0) / 60);
-                            const remainingMinutes = Math.round((filter.remainingIntegrationTime || 0) / 60);
+                          <Heading size="2">Filter Details {project.targets?.length > 1 && `(${project.targets.length} targets)`}</Heading>
+                          {(() => {
+                            // Aggregate filters across ALL targets in the project (mosaic support)
+                            const allFilters: { [key: string]: any } = {};
                             
+                            project.targets?.forEach((target: any) => {
+                              target.filters?.forEach((filter: any) => {
+                                if (!allFilters[filter.filtername]) {
+                                  allFilters[filter.filtername] = {
+                                    filtername: filter.filtername,
+                                    desired: 0,
+                                    acquired: 0,
+                                    accepted: 0,
+                                    exposureTime: filter.exposureTime,
+                                    desiredIntegrationTime: 0,
+                                    acceptedIntegrationTime: 0,
+                                    remainingImages: 0,
+                                    remainingIntegrationTime: 0
+                                  };
+                                }
+                                // Sum up values across all targets
+                                allFilters[filter.filtername].desired += filter.desired || 0;
+                                allFilters[filter.filtername].acquired += filter.acquired || 0;
+                                allFilters[filter.filtername].accepted += filter.accepted || 0;
+                                allFilters[filter.filtername].desiredIntegrationTime += filter.desiredIntegrationTime || 0;
+                                allFilters[filter.filtername].acceptedIntegrationTime += filter.acceptedIntegrationTime || 0;
+                              });
+                            });
+
+                            // Calculate completion and remaining for aggregated filters
+                            Object.values(allFilters).forEach((filter: any) => {
+                              filter.completion = filter.desired > 0 
+                                ? Math.min(100, Math.round(((filter.acquired + filter.accepted) / (filter.desired * 2)) * 100))
+                                : 0;
+                              filter.remainingImages = Math.max(0, filter.desired - filter.accepted);
+                              filter.remainingIntegrationTime = filter.remainingImages * filter.exposureTime;
+                            });
+
                             // Helper function to format time
                             const formatTime = (minutes: number) => {
                               if (minutes >= 60) {
@@ -228,47 +270,62 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
                               }
                               return `${minutes}m`;
                             };
-                            
+
+                            // Check if we have any filters to display
+                            if (Object.keys(allFilters).length === 0) {
+                              return <Text size="1" color="gray">No filter data available</Text>;
+                            }
+
                             return (
-                              <Box key={filter.filtername}>
-                                <Flex justify="between" align="center" mb="1">
-                                  <Text weight="medium" size="2">{filter.filtername}</Text>
-                                  <Badge variant="soft" color={
-                                    filter.completion >= 100 ? 'green' : 
-                                    filter.completion >= 50 ? 'amber' : 'red'
-                                }>
-                                  {filter.completion}%
-                                </Badge>
-                              </Flex>
-                              <Flex direction="column" gap="1">
-                                <Flex justify="between">
-                                  <Text size="1" color="gray">Images:</Text>
-                                  <Text size="1">{filter.accepted}/{filter.desired} ({filter.remainingImages} left)</Text>
-                                </Flex>
-                                <Flex justify="between">
-                                  <Text size="1" color="gray">Integration:</Text>
-                                  <Text size="1">
-                                    {formatTime(integrationMinutes)} / {formatTime(desiredMinutes)}
-                                    {remainingMinutes > 0 && (
-                                      <span style={{ color: 'var(--amber-9)' }}> ({formatTime(remainingMinutes)} left)</span>
-                                    )}
-                                  </Text>
-                                </Flex>
-                                <Flex justify="between">
-                                  <Text size="1" color="gray">Exposure:</Text>
-                                  <Text size="1">{filter.exposureTime}s</Text>
-                                </Flex>
-                              </Flex>
-                              <Progress 
-                                value={filter.completion} 
-                                size="1"
-                                color={filter.completion >= 100 ? 'green' : filter.completion >= 50 ? 'amber' : 'red'}
-                                style={{ marginTop: '4px' }}
-                              />
-                            </Box>
-                          );
-                        }) || <Text size="1" color="gray">No filter data available</Text>}
-                      </Flex>
+                              <Flex direction="column" gap="2">
+                                {Object.values(allFilters).map((filter: any) => {
+                                  const integrationMinutes = Math.round((filter.acceptedIntegrationTime || 0) / 60);
+                                  const desiredMinutes = Math.round((filter.desiredIntegrationTime || 0) / 60);
+                                  const remainingMinutes = Math.round((filter.remainingIntegrationTime || 0) / 60);
+                                
+                                  return (
+                                    <Box key={filter.filtername}>
+                                      <Flex justify="between" align="center" mb="1">
+                                        <Text weight="medium" size="2">{filter.filtername}</Text>
+                                        <Badge variant="soft" color={
+                                          filter.completion >= 100 ? 'green' : 
+                                          filter.completion >= 50 ? 'amber' : 'red'
+                                        }>
+                                          {filter.completion}%
+                                        </Badge>
+                                      </Flex>
+                                      <Flex direction="column" gap="1">
+                                        <Flex justify="between">
+                                          <Text size="1" color="gray">Images:</Text>
+                                          <Text size="1">{filter.accepted}/{filter.desired} ({filter.remainingImages} left)</Text>
+                                        </Flex>
+                                        <Flex justify="between">
+                                          <Text size="1" color="gray">Integration:</Text>
+                                          <Text size="1">
+                                            {formatTime(integrationMinutes)} / {formatTime(desiredMinutes)}
+                                            {remainingMinutes > 0 && (
+                                              <span style={{ color: 'var(--amber-9)' }}> ({formatTime(remainingMinutes)} left)</span>
+                                            )}
+                                          </Text>
+                                        </Flex>
+                                        <Flex justify="between">
+                                          <Text size="1" color="gray">Exposure:</Text>
+                                          <Text size="1">{filter.exposureTime}s</Text>
+                                        </Flex>
+                                      </Flex>
+                                      <Progress 
+                                        value={filter.completion} 
+                                        size="1"
+                                        color={filter.completion >= 100 ? 'green' : filter.completion >= 50 ? 'amber' : 'red'}
+                                        style={{ marginTop: '4px' }}
+                                      />
+                                    </Box>
+                                  );
+                            })}
+                          </Flex>
+                        );
+                      })()}
+                        </Flex>
                     </HoverCard.Content>
                   </HoverCard.Root>
                     {project.isCurrentlyActive && (
@@ -290,42 +347,81 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
                   <Flex align="center" gap="2">
                     <ImageIcon width="14" height="14" />
                     <Text size="2" color="gray">
-                      {project.targets?.[0]?.filters?.reduce((sum: number, f: any) => sum + (f.accepted || 0), 0) || 0} images graded
-                      {project.targets?.[0]?.filters && project.targets[0].filters.length > 0 && (() => {
-                        const totalIntegrationMinutes = Math.round(
-                          project.targets[0].filters.reduce((sum: number, f: any) => sum + (f.acceptedIntegrationTime || 0), 0) / 60
-                        );
-                        return totalIntegrationMinutes > 0 ? ` • ${totalIntegrationMinutes}m total` : '';
+                      {(() => {
+                        // Sum accepted images across ALL targets (mosaic support)
+                        let totalAccepted = 0;
+                        let totalIntegrationTime = 0;
+                        project.targets?.forEach((target: any) => {
+                          target.filters?.forEach((f: any) => {
+                            totalAccepted += f.accepted || 0;
+                            totalIntegrationTime += f.acceptedIntegrationTime || 0;
+                          });
+                        });
+                        const totalIntegrationMinutes = Math.round(totalIntegrationTime / 60);
+                        return `${totalAccepted} images graded${totalIntegrationMinutes > 0 ? ` • ${totalIntegrationMinutes}m total` : ''}`;
                       })()}
                     </Text>
                   </Flex>
                   <Text size="2" weight="bold" color={
                     (() => {
-                      const actualCompletion = project.targets?.[0]?.filters ? 
-                        project.targets[0].filters.reduce((sum: number, f: any) => sum + (f.completion || 0), 0) / project.targets[0].filters.length : 0;
+                      // Calculate completion across ALL targets (mosaic support)
+                      let totalCompletion = 0;
+                      let filterCount = 0;
+                      project.targets?.forEach((target: any) => {
+                        target.filters?.forEach((f: any) => {
+                          totalCompletion += f.completion || 0;
+                          filterCount++;
+                        });
+                      });
+                      const actualCompletion = filterCount > 0 ? totalCompletion / filterCount : 0;
                       return actualCompletion > 50 ? 'green' : 'amber';
                     })()
                   }>
-                    <HoverCard.Root>
+                    <HoverCard.Root
+                      open={openProgressCard === `progress-${project.id}`}
+                      onOpenChange={(open) => setOpenProgressCard(open ? `progress-${project.id}` : null)}
+                    >
                       <HoverCard.Trigger>
-                        <span style={{ cursor: 'pointer' }}>
+                        <span 
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setOpenProgressCard(openProgressCard === `progress-${project.id}` ? null : `progress-${project.id}`)}
+                        >
                           {(() => {
-                            const actualCompletion = project.targets?.[0]?.filters ? 
-                              project.targets[0].filters.reduce((sum: number, f: any) => sum + (f.completion || 0), 0) / project.targets[0].filters.length : 0;
+                            // Calculate completion across ALL targets (mosaic support)
+                            let totalCompletion = 0;
+                            let filterCount = 0;
+                            project.targets?.forEach((target: any) => {
+                              target.filters?.forEach((f: any) => {
+                                totalCompletion += f.completion || 0;
+                                filterCount++;
+                              });
+                            });
+                            const actualCompletion = filterCount > 0 ? totalCompletion / filterCount : 0;
                             return actualCompletion.toFixed(1);
                           })()}% complete
                         </span>
                       </HoverCard.Trigger>
                       <HoverCard.Content size="2" style={{ width: '320px', maxWidth: '320px' }}>
                         <Flex direction="column" gap="2">
-                          <Heading size="2">Project Progress</Heading>
+                          <Heading size="2">Project Progress {project.targets?.length > 1 && `(${project.targets.length} targets)`}</Heading>
                           <Separator />
                           {(() => {
-                            const totalDesired = project.targets?.[0]?.filters?.reduce((sum: number, f: any) => sum + (f.desired || 0), 0) || 0;
-                            const totalAcquired = project.targets?.[0]?.filters?.reduce((sum: number, f: any) => sum + (f.acquired || 0), 0) || 0;
-                            const totalAccepted = project.targets?.[0]?.filters?.reduce((sum: number, f: any) => sum + (f.accepted || 0), 0) || 0;
-                            const totalDesiredIntegration = project.targets?.[0]?.filters?.reduce((sum: number, f: any) => sum + (f.desiredIntegrationTime || 0), 0) || 0;
-                            const totalAcceptedIntegration = project.targets?.[0]?.filters?.reduce((sum: number, f: any) => sum + (f.acceptedIntegrationTime || 0), 0) || 0;
+                            // Aggregate across ALL targets (mosaic support)
+                            let totalDesired = 0;
+                            let totalAcquired = 0;
+                            let totalAccepted = 0;
+                            let totalDesiredIntegration = 0;
+                            let totalAcceptedIntegration = 0;
+                            
+                            project.targets?.forEach((target: any) => {
+                              target.filters?.forEach((f: any) => {
+                                totalDesired += f.desired || 0;
+                                totalAcquired += f.acquired || 0;
+                                totalAccepted += f.accepted || 0;
+                                totalDesiredIntegration += f.desiredIntegrationTime || 0;
+                                totalAcceptedIntegration += f.acceptedIntegrationTime || 0;
+                              });
+                            });
                             const remainingImages = Math.max(0, totalDesired - totalAccepted);
                             const remainingIntegration = Math.max(0, totalDesiredIntegration - totalAcceptedIntegration);
                             
@@ -382,13 +478,28 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
                 
                 <Progress 
                   value={(() => {
-                    const actualCompletion = project.targets?.[0]?.filters ? 
-                      project.targets[0].filters.reduce((sum: number, f: any) => sum + (f.completion || 0), 0) / project.targets[0].filters.length : 0;
-                    return actualCompletion;
+                    // Calculate completion across ALL targets (mosaic support)
+                    let totalCompletion = 0;
+                    let filterCount = 0;
+                    project.targets?.forEach((target: any) => {
+                      target.filters?.forEach((f: any) => {
+                        totalCompletion += f.completion || 0;
+                        filterCount++;
+                      });
+                    });
+                    return filterCount > 0 ? totalCompletion / filterCount : 0;
                   })()} 
                   color={(() => {
-                    const actualCompletion = project.targets?.[0]?.filters ? 
-                      project.targets[0].filters.reduce((sum: number, f: any) => sum + (f.completion || 0), 0) / project.targets[0].filters.length : 0;
+                    // Calculate completion across ALL targets (mosaic support)
+                    let totalCompletion = 0;
+                    let filterCount = 0;
+                    project.targets?.forEach((target: any) => {
+                      target.filters?.forEach((f: any) => {
+                        totalCompletion += f.completion || 0;
+                        filterCount++;
+                      });
+                    });
+                    const actualCompletion = filterCount > 0 ? totalCompletion / filterCount : 0;
                     return actualCompletion > 50 ? 'green' : 'amber';
                   })()}
                 />

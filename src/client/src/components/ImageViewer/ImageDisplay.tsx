@@ -3,9 +3,10 @@
  * Handles the actual image rendering with error states and loading
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Flex, Text, Spinner, Callout } from '@radix-ui/themes';
 import { ExclamationTriangleIcon, ClockIcon } from '@radix-ui/react-icons';
+import ImageModal from '../ImageModal';
 
 interface ImageDisplayProps {
   latestImage: string | null;
@@ -22,6 +23,8 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
   isImagingSession,
   nextRefreshIn
 }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   // Error state
   if (error) {
     return (
@@ -88,47 +91,59 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
 
   // Image display
   return (
-    <Box style={{ position: 'relative' }}>
-      <img
-        src={latestImage}
-        alt="Latest captured image"
-        style={{
-          width: '100%',
-          height: 'auto',
-          maxHeight: '400px',
-          objectFit: 'contain',
-          borderRadius: 'var(--radius-3)',
-          border: '1px solid var(--gray-6)',
-          background: 'var(--gray-1)'
-        }}
-        onError={(e) => {
-          console.error('📸 Image failed to load:', e);
-        }}
-        onLoad={() => {
-          // Image loaded successfully
-        }}
-      />
-      
-      {/* Countdown overlay in bottom corner */}
-      {nextRefreshIn && nextRefreshIn > 0 && (
-        <Box
+    <>
+      <Box style={{ position: 'relative' }}>
+        <img
+          src={latestImage}
+          alt="Latest captured image"
           style={{
-            position: 'absolute',
-            bottom: '15px',
-            right: '8px',
-            background: 'rgba(0, 0, 0, 0.7)',
-            borderRadius: 'var(--radius-2)',
-            padding: '4px 8px'
+            width: '100%',
+            height: 'auto',
+            maxHeight: '400px',
+            objectFit: 'contain',
+            borderRadius: 'var(--radius-3)',
+            border: '1px solid var(--gray-6)',
+            background: 'var(--gray-1)',
+            cursor: 'pointer'
           }}
-        >
-          <Flex align="center" gap="1">
-            <Text size="1" style={{ color: 'orange', fontWeight: 'bold' }}>
-              {Math.floor(nextRefreshIn / 60)}:{(nextRefreshIn % 60).toString().padStart(2, '0')}
-            </Text>
-            <ClockIcon width="12" height="12" style={{ color: 'orange' }} />
-          </Flex>
-        </Box>
-      )}
-    </Box>
+          onClick={() => setIsModalOpen(true)}
+          onError={(e) => {
+            console.error('📸 Image failed to load:', e);
+          }}
+          onLoad={() => {
+            // Image loaded successfully
+          }}
+        />
+        
+        {/* Countdown overlay in bottom corner */}
+        {nextRefreshIn && nextRefreshIn > 0 && (
+          <Box
+            style={{
+              position: 'absolute',
+              bottom: '15px',
+              right: '8px',
+              background: 'rgba(0, 0, 0, 0.7)',
+              borderRadius: 'var(--radius-2)',
+              padding: '4px 8px'
+            }}
+          >
+            <Flex align="center" gap="1">
+              <Text size="1" style={{ color: 'orange', fontWeight: 'bold' }}>
+                {Math.floor(nextRefreshIn / 60)}:{(nextRefreshIn % 60).toString().padStart(2, '0')}
+              </Text>
+              <ClockIcon width="12" height="12" style={{ color: 'orange' }} />
+            </Flex>
+          </Box>
+        )}
+      </Box>
+
+      {/* Full-screen image modal */}
+      <ImageModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        imageSrc={latestImage}
+        imageAlt="Latest captured image - Full size"
+      />
+    </>
   );
 };

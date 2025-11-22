@@ -72,6 +72,13 @@ const Dashboard: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   
+  // Pull-to-refresh state
+  const [pullStartY, setPullStartY] = useState(0);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
   // Get responsive state
   const { isMobile } = useResponsive();
 
@@ -138,6 +145,74 @@ const Dashboard: React.FC = () => {
     };
   }, []);
 
+  // Pull-to-refresh handlers
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    // Only trigger if scrolled to top and not in edit mode
+    if (window.scrollY === 0 && !isEditMode && !isRefreshing) {
+      setPullStartY(e.touches[0].clientY);
+      setIsPulling(true);
+    }
+  }, [isEditMode, isRefreshing]);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (isPulling && pullStartY > 0) {
+      const currentY = e.touches[0].clientY;
+      const distance = Math.max(0, currentY - pullStartY);
+      
+      // Only allow pull down, max 150px
+      if (distance > 0 && distance <= 150 && window.scrollY === 0) {
+        setPullDistance(distance);
+        // Prevent default scrolling when pulling
+        if (distance > 10) {
+          e.preventDefault();
+        }
+      }
+    }
+  }, [isPulling, pullStartY]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (isPulling && pullDistance > 80) {
+      // Trigger refresh if pulled more than 80px
+      setIsRefreshing(true);
+      setPullDistance(60); // Snap to loading position
+      
+      // Perform refresh
+      await Promise.all([
+        fetchConfig(),
+        fetchNinaConnectionStatus(),
+        new Promise(resolve => setTimeout(resolve, 800)) // Minimum refresh time for UX
+      ]);
+      
+      // Trigger widget refreshes (especially image widgets)
+      setRefreshTrigger(prev => prev + 1);
+      
+      setIsRefreshing(false);
+    }
+    
+    // Reset pull state
+    setIsPulling(false);
+    setPullStartY(0);
+    setPullDistance(0);
+  }, [isPulling, pullDistance]);
+
+  // Set up touch event listeners for pull-to-refresh
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const dashboard = document.querySelector('.dashboard-container');
+    if (!dashboard) return;
+
+    dashboard.addEventListener('touchstart', handleTouchStart as any, { passive: true });
+    dashboard.addEventListener('touchmove', handleTouchMove as any, { passive: false });
+    dashboard.addEventListener('touchend', handleTouchEnd as any, { passive: true });
+
+    return () => {
+      dashboard.removeEventListener('touchstart', handleTouchStart as any);
+      dashboard.removeEventListener('touchmove', handleTouchMove as any);
+      dashboard.removeEventListener('touchend', handleTouchEnd as any);
+    };
+  }, [isMobile, handleTouchStart, handleTouchMove, handleTouchEnd]);
+
   // Handle layout changes and save to database
   const handleLayoutChange = useCallback((layout: Layout[], layouts: { [key: string]: Layout[] }) => {
     if (layoutLoading || !isEditMode) return; // Only save in edit mode
@@ -168,6 +243,8 @@ const Dashboard: React.FC = () => {
     // Refresh config and NINA status along with other data
     fetchConfig();
     fetchNinaConnectionStatus();
+    // Trigger widget refreshes (especially image widgets)
+    setRefreshTrigger(prev => prev + 1);
     setTimeout(() => setLoading(false), 1000);
   };
 
@@ -201,13 +278,13 @@ const Dashboard: React.FC = () => {
       case 'SchedulerWidget':
         return <SchedulerWidget key={config.id} hideHeader={true} />;
       case 'RTSPViewer':
-        return <RTSPViewer key={config.id} streams={rtspFeeds} isConnected={true} hideHeader={true} />;
+        return <RTSPViewer key={`${config.id}-${refreshTrigger}`} streams={rtspFeeds} isConnected={true} hideHeader={true} />;
       case 'SessionWidget':
         return <SessionWidgetEnhanced key={config.id} hideHeader={true} />;
       case 'TimeAstronomicalWidget':
         return <TimeAstronomicalWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       case 'ImageViewer':
-        return <ImageViewerWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
+        return <ImageViewerWidget key={`${config.id}-${refreshTrigger}`} onRefresh={handleRefresh} hideHeader={true} />;
       case 'WeatherWidget':
         return <WeatherWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       case 'GuiderGraphWidget':
@@ -215,14 +292,52 @@ const Dashboard: React.FC = () => {
       case 'NINALogsWidget':
         return <NINALogsWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       case 'LiveStackWidget':
-        return <LiveStackWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
+        return <LiveStackWidget key={`${config.id}-${refreshTrigger}`} onRefresh={handleRefresh} hideHeader={true} />;
       default:
         return <div key={config.id}>Unknown widget: {config.component}</div>;
     }
   };
 
   return (
-    <Box style={{ minHeight: '100vh' }}>
+    <Box style={{ minHeight: '100vh' }} className="dashboard-container">
+      {/* Pull-to-refresh indicator */}
+      {isMobile && (isPulling || isRefreshing) && (
+        <Box
+          style={{
+            position: 'fixed',
+            top: '0',
+            left: '50%',
+            transform: `translate(-50%, ${Math.min(pullDistance, 60)}px)`,
+            zIndex: 9999,
+            transition: isRefreshing ? 'transform 0.2s ease-out' : 'none',
+            opacity: Math.min(pullDistance / 80, 1)
+          }}
+        >
+          <Flex 
+            align="center" 
+            justify="center" 
+            style={{ 
+              width: '40px', 
+              height: '40px', 
+              borderRadius: '50%',
+              background: 'var(--accent-9)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+            }}
+          >
+            <ReloadIcon 
+              width="20" 
+              height="20" 
+              color="white"
+              className={isRefreshing ? 'loading-spinner' : ''}
+              style={{
+                transform: `rotate(${pullDistance * 3}deg)`,
+                transition: isRefreshing ? 'none' : 'transform 0.1s ease-out'
+              }}
+            />
+          </Flex>
+        </Box>
+      )}
+      
       {/* Header */}
       <Flex 
         direction={{ initial: 'column', md: 'row' }}

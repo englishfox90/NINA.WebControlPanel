@@ -858,16 +858,17 @@ class NINAService {
   }
 
   // Get prepared image as array buffer from NINA
+  // Note: This method makes a direct axios call for binary data (arraybuffer)
+  // makeRequest() is designed for JSON responses, so we need the direct approach here
   async getPreparedImageArrayBuffer(options = {}) {
     try {
-      const axios = require('axios');
       const params = new URLSearchParams({
         autoPrepare: 'true',
         ...options
       });
       
-      const url = `${this.fullUrl}/v2/api/prepared-image?${params}`;
-      console.log(`📸 Fetching prepared image from: ${url}`);
+      const url = `${this.fullUrl}/v2/api/prepared-image?${params.toString()}`;
+      console.log(`📸 Fetching prepared image arraybuffer from: ${url}`);
       
       const response = await axios.get(url, {
         responseType: 'arraybuffer',
@@ -961,7 +962,7 @@ class NINAService {
   async getLiveStackOptions() {
     try {
       console.log('📸 Fetching LiveStack available options...');
-      const response = await this.makeRequest('/v2/api/livestack/image/available');
+      const response = await this.makeRequest('/livestack/image/available');
       console.log(`✅ LiveStack options: ${response.Response?.length || 0} combinations`);
       return response;
     } catch (error) {
@@ -994,7 +995,7 @@ class NINAService {
       console.log(`📸 Fetching LiveStack info: ${target} - ${filter}`);
       const encodedTarget = encodeURIComponent(target);
       const encodedFilter = encodeURIComponent(filter);
-      const response = await this.makeRequest(`/v2/api/livestack/image/${encodedTarget}/${encodedFilter}/info`);
+      const response = await this.makeRequest(`/livestack/image/${encodedTarget}/${encodedFilter}/info`);
       console.log(`✅ LiveStack info: ${response.Response?.Filter} (${response.Response?.IsMonochrome ? 'Mono' : 'RGB'})`);
       return response;
     } catch (error) {
@@ -1030,7 +1031,7 @@ class NINAService {
       console.log(`📸 Fetching LiveStack image: ${target} - ${filter}`);
       const encodedTarget = encodeURIComponent(target);
       const encodedFilter = encodeURIComponent(filter);
-      const response = await this.makeRequest(`/v2/api/livestack/image/${encodedTarget}/${encodedFilter}?resize=true&scale=0.25`);
+      const response = await this.makeRequest(`/livestack/image/${encodedTarget}/${encodedFilter}?resize=true&scale=0.25`);
       console.log(`✅ LiveStack image: ${response.Response?.length > 0 ? 'loaded' : 'empty'}`);
       return response;
     } catch (error) {
@@ -1055,6 +1056,7 @@ class NINAService {
       console.log(`📸 Fetching LiveStack image stream: ${target} - ${filter}`);
       const encodedTarget = encodeURIComponent(target);
       const encodedFilter = encodeURIComponent(filter);
+      // Note: Direct axios call needed for binary arraybuffer response
       const url = `${this.fullUrl}/v2/api/livestack/image/${encodedTarget}/${encodedFilter}?resize=true&scale=0.25&stream=true`;
       
       const response = await axios.get(url, {

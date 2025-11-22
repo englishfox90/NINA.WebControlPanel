@@ -5,23 +5,24 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Card, 
-  Flex, 
-  Text, 
-  Button, 
+import {
+  Card,
+  Flex,
+  Text,
+  Button,
   Select,
   Spinner,
   Callout,
   Badge,
   ScrollArea
 } from '@radix-ui/themes';
-import { 
-  ImageIcon, 
+import {
+  ImageIcon,
   ReloadIcon,
   ExclamationTriangleIcon,
   InfoCircledIcon
 } from '@radix-ui/react-icons';
+import ImageModal from './ImageModal';
 
 interface LiveStackOption {
   Filter: string;
@@ -69,9 +70,9 @@ interface LiveStackWidgetProps {
   hideHeader?: boolean;
 }
 
-const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({ 
-  onRefresh, 
-  hideHeader = false 
+const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
+  onRefresh,
+  hideHeader = false
 }) => {
   const [options, setOptions] = useState<LiveStackOption[]>([]);
   const [selectedTarget, setSelectedTarget] = useState<string>('');
@@ -82,6 +83,7 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<string>('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Clean up blob URLs
   const cleanupImageUrl = useCallback((url: string) => {
@@ -94,18 +96,18 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
   const fetchOptions = useCallback(async () => {
     try {
       console.log('📋 Fetching LiveStack available options...');
-      
+
       const response = await fetch('/api/nina/livestack/options');
       const data: LiveStackOptionsResponse = await response.json();
-      
+
       if (data.Success && Array.isArray(data.Response)) {
         setOptions(data.Response);
         console.log(`✅ Loaded ${data.Response.length} LiveStack options`);
-        
+
         // Auto-select first RGB option or first available option
         const rgbOption = data.Response.find(opt => opt.Filter.toUpperCase() === 'RGB');
         const firstOption = data.Response[0];
-        
+
         if (rgbOption) {
           setSelectedTarget(rgbOption.Target);
           setSelectedFilter(rgbOption.Filter);
@@ -132,9 +134,9 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
     const filtersForTarget = currentOptions
       .filter(opt => opt.Target === target)
       .map(opt => opt.Filter);
-    
+
     setAvailableFilters(filtersForTarget);
-    
+
     // If current filter is not available for new target, select first available
     if (!filtersForTarget.includes(selectedFilter) && filtersForTarget.length > 0) {
       // Prefer RGB, then first available
@@ -148,34 +150,34 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
     if (!selectedTarget || !selectedFilter) {
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       console.log(`📸 Fetching LiveStack image: ${selectedTarget} - ${selectedFilter}`);
-      
+
       // Fetch image info
       const infoResponse = await fetch(`/api/nina/livestack/info/${encodeURIComponent(selectedTarget)}/${encodeURIComponent(selectedFilter)}`);
       const infoData: LiveStackResponse = await infoResponse.json();
-      
+
       if (!infoData.Success) {
         throw new Error(infoData.Error || 'Failed to fetch image info');
       }
-      
+
       setImageInfo(infoData.Response);
-      
+
       // Fetch image data using stream parameter for PNG
       const timestamp = Date.now();
       const imageUrl = `/api/nina/livestack/image/${encodeURIComponent(selectedTarget)}/${encodeURIComponent(selectedFilter)}?stream=true&t=${timestamp}`;
-      
+
       console.log('🔗 Generating LiveStack image URL:', {
         target: selectedTarget,
         filter: selectedFilter,
         imageUrl: imageUrl,
         timestamp: timestamp
       });
-      
+
       // Test the endpoint first to ensure it returns proper content type
       try {
         const testResponse = await fetch(imageUrl, { method: 'HEAD' });
@@ -187,17 +189,17 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
       } catch (testError) {
         console.warn('⚠️ Stream endpoint test failed:', testError instanceof Error ? testError.message : String(testError));
       }
-      
+
       // Clean up previous image
       if (imageData) {
         cleanupImageUrl(imageData);
       }
-      
+
       // Set the image URL directly (no need to convert base64 since we're streaming)
       setImageData(imageUrl);
       setLastRefresh(new Date().toLocaleTimeString());
       console.log('✅ LiveStack image URL set successfully');
-      
+
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       console.error('❌ Error fetching LiveStack image:', errorMsg);
@@ -274,10 +276,10 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
                 </Badge>
               )}
             </Flex>
-            
-            <Button 
-              variant="soft" 
-              size="1" 
+
+            <Button
+              variant="soft"
+              size="1"
               onClick={handleRefresh}
               disabled={loading || !selectedTarget || !selectedFilter}
             >
@@ -300,7 +302,7 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
               ))}
             </Select.Content>
           </Select.Root>
-          
+
           <Text size="1" color="gray" style={{ minWidth: '35px' }}>Filter:</Text>
           <Select.Root value={selectedFilter} onValueChange={handleFilterChange}>
             <Select.Trigger style={{ minWidth: '100px' }} />
@@ -341,9 +343,9 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
         {!loading && !error && imageData && imageInfo && (
           <Flex direction="column" gap="3">
             {/* Image statistics */}
-            <Flex justify="between" align="center" p="2" style={{ 
-              backgroundColor: 'var(--gray-2)', 
-              borderRadius: '4px' 
+            <Flex justify="between" align="center" p="2" style={{
+              backgroundColor: 'var(--gray-2)',
+              borderRadius: '4px'
             }}>
               <Flex align="center" gap="2">
                 <Badge color="blue" variant="soft">
@@ -360,8 +362,7 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
             </Flex>
 
             {/* Image */}
-            <Flex justify="center" align="center" style={{ 
-              minHeight: '300px',
+            <Flex justify="center" align="center" style={{
               backgroundColor: 'var(--gray-1)',
               borderRadius: '6px',
               border: '1px solid var(--gray-4)'
@@ -370,12 +371,16 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
                 src={imageData}
                 alt={`LiveStack - ${imageInfo.Target} (${imageInfo.Filter})`}
                 style={{
-                  maxWidth: '100%',
-                //   maxHeight: '400px',
+                  width: '100%',
+                  height: 'auto',
+                  maxHeight: '400px',
                   objectFit: 'contain',
-                  borderRadius: '4px',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  borderRadius: 'var(--radius-3)',
+                  border: '1px solid var(--gray-6)',
+                  background: 'var(--gray-1)',
+                  cursor: 'pointer'
                 }}
+                onClick={() => setIsModalOpen(true)}
                 onLoad={() => {
                   console.log('✅ LiveStack image displayed successfully');
                 }}
@@ -403,13 +408,21 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
         {/* Footer info */}
         {!hideHeader && (
           <Text size="1" color="gray">
-            {imageInfo ? 
+            {imageInfo ?
               `${imageInfo.Target} • ${imageInfo.Filter} • ${formatStackCount(imageInfo)}` :
               'LiveStack preview from NINA plugin'
             }
           </Text>
         )}
       </Flex>
+
+      {/* Full-screen image modal */}
+      <ImageModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        imageSrc={imageData}
+        imageAlt={imageInfo ? `LiveStack - ${imageInfo.Target} (${imageInfo.Filter})` : 'LiveStack image'}
+      />
     </Card>
   );
 };

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button, Badge, Flex, Box, Text, AspectRatio, Card } from '@radix-ui/themes';
 import { VideoIcon, ReloadIcon, ExclamationTriangleIcon } from '@radix-ui/react-icons';
 import type { RTSPViewerProps } from '../interfaces/dashboard';
+import ImageModal from './ImageModal';
 
 const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeader = false, stats }) => {
   const [activeStream, setActiveStream] = useState(0);
@@ -10,6 +11,7 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
   const [imgLoading, setImgLoading] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [naturalDimensions, setNaturalDimensions] = useState<{width: number, height: number} | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
   // Update image source when streams change
@@ -235,7 +237,11 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
                 ref={imgRef}
                 src={imgSrc}
                 alt={`Live Stream ${activeStream + 1}`}
-                style={getImageStyle(getStreamType(activeStream))}
+                style={{
+                  ...getImageStyle(getStreamType(activeStream)),
+                  cursor: 'pointer'
+                }}
+                onClick={() => setIsModalOpen(true)}
                 onLoad={handleImageLoad}
                 onError={handleImageError}
               />
@@ -317,6 +323,14 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
         </Flex>
       )}
       </Flex>
+
+      {/* Full-screen image modal */}
+      <ImageModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        imageSrc={imgSrc}
+        imageAlt={`Live Camera ${activeStream + 1}`}
+      />
     </Card>
   );
 };
