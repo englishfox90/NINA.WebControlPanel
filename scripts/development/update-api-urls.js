@@ -7,7 +7,8 @@ const path = require('path');
 // List of files that need updating
 const filesToUpdate = [
   'src/client/src/components/SchedulerWidget.tsx',
-  'src/client/src/components/ImageViewer.tsx', 
+  'src/client/src/components/ImageViewer/index.tsx',
+  'src/client/src/components/ImageViewer/useImageData.ts',
   'src/client/src/components/Dashboard.tsx',
   'src/client/src/components/NINAStatus.tsx',
   'src/client/src/components/TimeAstronomicalWidget.tsx',

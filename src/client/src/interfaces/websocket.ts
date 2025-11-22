@@ -63,10 +63,7 @@ export interface UseSessionWebSocketReturn extends UseWebSocketReturn {
   onWidgetEvent: (handler: (event: any) => void) => () => void;
 }
 
-export interface UseImageViewerWebSocketReturn extends UseWebSocketReturn {
-  onImageUpdate: (handler: (image: any) => void) => () => void;
-  onDirectoryUpdate: (handler: (directory: any) => void) => () => void;
-}
+
 
 // WebSocket Event Subscription
 export interface WebSocketSubscription {

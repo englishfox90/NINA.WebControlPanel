@@ -157,7 +157,8 @@ class NINARoutes {
           
           console.log(`📸 Image encoded to base64: ${imageBase64.length} characters`);
         } catch (imageError) {
-          console.warn('⚠️ Failed to get prepared image:', imageError.message);
+          console.error('❌ Failed to get prepared image:', imageError.message);
+          console.error('❌ Full error details:', imageError);
           // Continue without image - still return metadata
         }
         

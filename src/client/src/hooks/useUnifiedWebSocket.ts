@@ -204,12 +204,7 @@ export function useNINAStatusWebSocket() {
   });
 }
 
-export function useImageViewerWebSocket() {
-  return useUnifiedWebSocket({
-    widgetType: 'image_viewer',
-    eventTypes: ['IMAGE-SAVE']
-  });
-}
+
 
 export function useSessionWebSocket() {
   return useUnifiedWebSocket({

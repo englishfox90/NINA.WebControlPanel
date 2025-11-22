@@ -26,7 +26,7 @@ export const useImageData = (): UseImageDataReturn => {
   const [imageLoading, setImageLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isImagingSession, setIsImagingSession] = useState<boolean>(false);
-  const [sessionData, setSessionData] = useState<any>(null);
+  const [sessionData] = useState<any>(null);
   const [nextRefreshIn, setNextRefreshIn] = useState<number | null>(null);
 
   // Refs for cleanup and timer management
@@ -38,7 +38,7 @@ export const useImageData = (): UseImageDataReturn => {
   const cleanupImageUrl = useCallback((url: string) => {
     if (url && url.startsWith('blob:')) {
       URL.revokeObjectURL(url);
-      console.log('🧹 Cleaned up blob URL');
+      // Cleaned up blob URL
     }
   }, []);
 
@@ -59,7 +59,7 @@ export const useImageData = (): UseImageDataReturn => {
   const fetchLatestImage = useCallback(async (reason: 'initial' | 'scheduled' | 'manual' = 'manual') => {
     if (!isMounted.current) return;
     
-    console.log(`📸 Fetching latest image: ${reason}`);
+    // Fetching latest image
     
     setImageLoading(true);
     setError(null);
@@ -72,13 +72,7 @@ export const useImageData = (): UseImageDataReturn => {
       }
       
       const result = await response.json();
-      console.log('📸 API Response:', { 
-        success: result.Success, 
-        statusCode: result.StatusCode,
-        hasImage: !!result.imageBase64,
-        exposureTime: result.ExposureTime,
-        message: result.message 
-      });
+      // Process API response with image and stats
 
       if (!isMounted.current) return;
       
@@ -105,7 +99,7 @@ export const useImageData = (): UseImageDataReturn => {
           setIsImagingSession(true);
           setError(null);
           
-          console.log('✅ Image loaded successfully');
+          // Image loaded successfully
           
           // Schedule next refresh based on last capture time + exposure time + 10s
           const exposureTime = result.ExposureTime || 30; // Default to 30s
@@ -118,7 +112,7 @@ export const useImageData = (): UseImageDataReturn => {
           const timeRemaining = Math.max(totalCycleTime - timeSinceCapture, 10); // Minimum 10 seconds
           const refreshDelay = Math.min(timeRemaining * 1000, 300000); // Cap at 5 minutes
           
-          console.log(`⏰ Image captured ${timeSinceCapture}s ago, scheduling next refresh in ${timeRemaining} seconds`);
+          // Schedule next refresh based on smart timing calculation
           scheduleNextRefresh(refreshDelay);
           
         } catch (blobError) {
@@ -135,7 +129,7 @@ export const useImageData = (): UseImageDataReturn => {
         setIsImagingSession(false);
         setError(null);
         
-        console.log('ℹ️ No images available, retrying in 30 seconds');
+        // No images available, retry scheduled
         scheduleNextRefresh(30000); // Retry in 30 seconds when no images
         
       } else {
@@ -145,7 +139,7 @@ export const useImageData = (): UseImageDataReturn => {
         setIsImagingSession(false);
         setError(result.Error || result.message || 'Failed to get image');
         
-        console.log('⚠️ Error getting image, retrying in 30 seconds');
+        // Error getting image, retry scheduled
         scheduleNextRefresh(30000); // Retry in 30 seconds on error
       }
       
@@ -157,7 +151,7 @@ export const useImageData = (): UseImageDataReturn => {
         setImageStats(null);
         setIsImagingSession(false);
         
-        console.log('⚠️ Fetch error, retrying in 30 seconds');
+        // Fetch error, retry scheduled
         scheduleNextRefresh(30000); // Retry in 30 seconds on network error
       }
     } finally {
@@ -195,7 +189,7 @@ export const useImageData = (): UseImageDataReturn => {
     // Set up actual refresh timer
     refreshTimer.current = setTimeout(() => {
       if (isMounted.current) {
-        console.log('⏰ Scheduled refresh triggered');
+        // Scheduled refresh triggered
         fetchLatestImage('scheduled');
       }
     }, delayMs);
@@ -206,21 +200,21 @@ export const useImageData = (): UseImageDataReturn => {
 
   // Manual refresh function
   const refreshImage = useCallback(async () => {
-    console.log('🔄 Manual refresh requested');
+    // Manual refresh requested
     clearTimers();
     await fetchLatestImage('manual');
   }, [fetchLatestImage, clearTimers]);
 
   // Initial fetch on mount
   useEffect(() => {
-    console.log('🔧 Setting up Image Viewer with exposure-based refresh');
+    // Setting up Image Viewer with exposure-based refresh
     isMounted.current = true;
     
     // Initial fetch
     fetchLatestImage('initial');
     
     return () => {
-      console.log('🧹 Cleaning up Image Viewer');
+      // Cleaning up Image Viewer
       isMounted.current = false;
       clearTimers();
       

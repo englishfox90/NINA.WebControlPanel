@@ -866,7 +866,7 @@ class NINAService {
         ...options
       });
       
-      const url = `/prepared-image?${params}`;
+      const url = `${this.fullUrl}/v2/api/prepared-image?${params}`;
       console.log(`📸 Fetching prepared image from: ${url}`);
       
       const response = await axios.get(url, {
@@ -886,6 +886,12 @@ class NINAService {
       };
     } catch (error) {
       console.error('❌ Error getting prepared image:', error.message);
+      console.error('❌ Error details:', {
+        code: error.code,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        url: error.config?.url
+      });
       throw error;
     }
   }

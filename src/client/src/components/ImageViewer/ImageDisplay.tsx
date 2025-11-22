@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Box, Flex, Text, Spinner, Callout, Badge } from '@radix-ui/themes';
+import { Box, Flex, Text, Spinner, Callout } from '@radix-ui/themes';
 import { ExclamationTriangleIcon, ClockIcon } from '@radix-ui/react-icons';
 
 interface ImageDisplayProps {
@@ -105,7 +105,7 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
           console.error('📸 Image failed to load:', e);
         }}
         onLoad={() => {
-          console.log('📸 Image loaded successfully in DOM');
+          // Image loaded successfully
         }}
       />
       
