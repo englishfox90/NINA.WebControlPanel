@@ -237,6 +237,39 @@ class NINARoutes {
       }
     });
 
+    // NINA application logs endpoint
+    app.get('/api/nina/logs', async (req, res) => {
+      try {
+        const lineCount = parseInt(req.query.lineCount) || 25;
+        
+        // Validate line count range (10-100)
+        const validLineCount = Math.min(Math.max(lineCount, 10), 100);
+        
+        console.log(`📋 API: NINA logs request - ${validLineCount} lines`);
+        
+        const logsData = await this.ninaService.getNINALogs(validLineCount);
+        
+        if (logsData.Success) {
+          console.log(`📋 Returning ${logsData.lineCount} log entries`);
+        } else {
+          console.warn('⚠️ NINA logs request failed:', logsData.Error);
+        }
+        
+        res.json(logsData);
+      } catch (error) {
+        console.error('❌ Error getting NINA logs:', error);
+        res.status(500).json({
+          Response: [],
+          Success: false,
+          Error: error.message,
+          StatusCode: 500,
+          Type: 'API',
+          timestamp: new Date().toISOString(),
+          lineCount: 0
+        });
+      }
+    });
+
     // Proxy NINA prepared-image endpoint
     app.get('/api/nina/prepared-image', async (req, res) => {
       try {

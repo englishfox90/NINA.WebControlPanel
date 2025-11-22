@@ -895,6 +895,67 @@ class NINAService {
       throw error;
     }
   }
+
+  // Get NINA application logs
+  async getNINALogs(lineCount = 25) {
+    try {
+      const endpoint = `/application/logs?lineCount=${lineCount}`;
+      console.log(`📋 Fetching NINA logs: ${lineCount} lines`);
+      
+      const response = await this.makeRequest(endpoint);
+      
+      if (response && response.Success && Array.isArray(response.Response)) {
+        console.log(`✅ Successfully fetched ${response.Response.length} NINA log entries`);
+        return {
+          ...response,
+          timestamp: new Date().toISOString(),
+          lineCount: response.Response.length
+        };
+      } else {
+        console.warn('⚠️ Invalid logs response:', response);
+        return {
+          Response: [],
+          Success: false,
+          Error: 'Invalid logs response',
+          StatusCode: response?.StatusCode || 500,
+          Type: 'API',
+          timestamp: new Date().toISOString(),
+          lineCount: 0
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error getting NINA logs:', error.message);
+      
+      // Return mock logs for development
+      return {
+        Response: [
+          {
+            Line: "142",
+            Source: "WebSocketV2.cs",
+            Member: "OnClientConnectedAsync",
+            Message: "Mock WebSocket connected [::1]:12345",
+            Level: "INFO",
+            Timestamp: new Date().toISOString()
+          },
+          {
+            Line: "742",
+            Source: "CameraVM.cs",
+            Member: "Capture",
+            Message: "Mock Starting Exposure - Exposure Time: 300s; Filter: OIII; Gain: 200; Offset 1; Binning: 1x1;",
+            Level: "INFO",
+            Timestamp: new Date(Date.now() - 30000).toISOString()
+          }
+        ],
+        Success: true,
+        Error: '',
+        StatusCode: 200,
+        Type: 'API',
+        timestamp: new Date().toISOString(),
+        lineCount: 2,
+        mockMode: true
+      };
+    }
+  }
 }
 
 module.exports = NINAService;

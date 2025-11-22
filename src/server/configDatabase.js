@@ -88,6 +88,7 @@ class ConfigDatabase {
       { id: 'time-astronomical', component: 'TimeAstronomicalWidget', title: 'Time & Astronomy', x: 8, y: 8, w: 4, h: 6, minW: 3, minH: 4 },
       { id: 'rtsp-viewer', component: 'RTSPViewer', title: 'Live View', x: 0, y: 8, w: 8, h: 6, minW: 4, minH: 4 },
       { id: 'image-viewer', component: 'ImageViewer', title: 'Recent Images', x: 0, y: 14, w: 8, h: 6, minW: 4, minH: 4 },
+      { id: 'nina-logs', component: 'NINALogsWidget', title: 'NINA Logs', x: 0, y: 20, w: 8, h: 6, minW: 4, minH: 4 },
       { id: 'session-widget', component: 'SessionWidget', title: 'Current Session', x: 12, y: 0, w: 4, h: 15, minW: 3, minH: 10 },
       { id: 'guider-graph', component: 'GuiderGraphWidget', title: 'Guider Graph', x: 8, y: 14, w: 6, h: 8, minW: 4, minH: 6 }
     ];
@@ -155,7 +156,7 @@ class ConfigDatabase {
       },
       streams: {
         liveFeed1: "https://live.starfront.tools/allsky/",
-        liveFeed2: "https://live.starfront.tools/b8/",
+        liveFeed2: "https://zyssufjepmbhqznfuwcw.supabase.co/storage/v1/object/public/status-assets-public/building-0008/current.jpg",
         liveFeed3: "",
         defaultStream: 1,
         connectionTimeout: 10000
@@ -337,7 +338,7 @@ class ConfigDatabase {
       },
       streams: {
         liveFeed1: this.getConfigValue('streams.liveFeed1', 'https://live.starfront.tools/allsky/'),
-        liveFeed2: this.getConfigValue('streams.liveFeed2', 'https://live.starfront.tools/b8/'),
+        liveFeed2: this.getConfigValue('streams.liveFeed2', 'https://zyssufjepmbhqznfuwcw.supabase.co/storage/v1/object/public/status-assets-public/building-0008/current.jpg'),
         liveFeed3: this.getConfigValue('streams.liveFeed3', ''),
         defaultStream: this.getConfigValue('streams.defaultStream', 1),
         connectionTimeout: this.getConfigValue('streams.connectionTimeout', 10000)
