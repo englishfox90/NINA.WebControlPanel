@@ -813,9 +813,9 @@ class NINAService {
   }
 
   // Get image count from NINA
-  async getImageHistoryCount(imageType = 'LIGHT') {
+  async getImageHistoryCount() {
     try {
-      const endpoint = `/image-history?count=true&imageType=${imageType}`;
+      const endpoint = `/image-history?count=true`;
       const response = await this.makeRequest(endpoint);
       
       if (response && response.Success && typeof response.Response === 'number') {
@@ -832,9 +832,9 @@ class NINAService {
   }
 
   // Get image metadata by index from NINA
-  async getImageHistoryByIndex(index, imageType = 'LIGHT') {
+  async getImageHistoryByIndex(index) {
     try {
-      const endpoint = `/image-history?index=${index}&imageType=${imageType}`;
+      const endpoint = `/image-history?index=${index}`;
       const response = await this.makeRequest(endpoint);
       
       if (response && response.Success && response.Response) {
@@ -843,6 +843,7 @@ class NINAService {
         console.log(`📸 NINA image metadata [${index}]:`, {
           ExposureTime: imageData.ExposureTime,
           Filter: imageData.Filter,
+          ImageType: imageData.ImageType,
           Stars: imageData.Stars,
           HFR: imageData.HFR
         });

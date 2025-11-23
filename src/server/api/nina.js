@@ -106,8 +106,8 @@ class NINARoutes {
       try {
         console.log('📸 API: Latest image request received');
         
-        // Step 1: Get image count from NINA
-        const imageCount = await this.ninaService.getImageHistoryCount('LIGHT');
+        // Step 1: Get image count from NINA (all image types)
+        const imageCount = await this.ninaService.getImageHistoryCount();
         
         if (imageCount === 0) {
           console.log('📸 No images available in NINA');
@@ -127,7 +127,7 @@ class NINARoutes {
         const imageIndex = imageCount - 1;
         console.log(`📸 Fetching image metadata for index ${imageIndex} (latest of ${imageCount})`);
         
-        const imageStats = await this.ninaService.getImageHistoryByIndex(imageIndex, 'LIGHT');
+        const imageStats = await this.ninaService.getImageHistoryByIndex(imageIndex);
         
         if (!imageStats) {
           console.warn('⚠️ Failed to get image metadata');

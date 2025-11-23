@@ -18,6 +18,7 @@ export interface UseImageDataReturn {
   sessionData: any;
   refreshImage: () => Promise<void>;
   nextRefreshIn: number | null;
+  isExpired: boolean;
 }
 
 export const useImageData = (): UseImageDataReturn => {
@@ -28,6 +29,7 @@ export const useImageData = (): UseImageDataReturn => {
   const [isImagingSession, setIsImagingSession] = useState<boolean>(false);
   const [sessionData] = useState<any>(null);
   const [nextRefreshIn, setNextRefreshIn] = useState<number | null>(null);
+  const [isExpired, setIsExpired] = useState<boolean>(false);
 
   // Refs for cleanup and timer management
   const refreshTimer = useRef<NodeJS.Timeout | null>(null);
@@ -101,19 +103,32 @@ export const useImageData = (): UseImageDataReturn => {
           
           // Image loaded successfully
           
-          // Schedule next refresh based on last capture time + exposure time + 25s
-          const exposureTime = result.ExposureTime || 30; // Default to 30s
+          // Check if image is expired (over 30 minutes old)
           const imageDate = result.imageStats?.Date ? new Date(result.imageStats.Date) : new Date();
           const now = new Date();
           const timeSinceCapture = Math.floor((now.getTime() - imageDate.getTime()) / 1000); // seconds
+          const thirtyMinutesInSeconds = 30 * 60; // 1800 seconds
           
-          // Calculate time remaining: (exposure + 25) - time since capture
-          const totalCycleTime = exposureTime + 25;
-          const timeRemaining = Math.max(totalCycleTime - timeSinceCapture, 10); // Minimum 10 seconds
-          const refreshDelay = Math.min(timeRemaining * 1000, 300000); // Cap at 5 minutes
-          
-          // Schedule next refresh based on smart timing calculation
-          scheduleNextRefresh(refreshDelay);
+          if (timeSinceCapture > thirtyMinutesInSeconds) {
+            // Image is over 30 minutes old - mark as expired and don't schedule refresh
+            setIsExpired(true);
+            clearTimers();
+            console.log('📸 Image expired (>30min old), auto-refresh disabled');
+          } else {
+            // Image is recent - schedule next refresh
+            setIsExpired(false);
+            
+            // Schedule next refresh based on last capture time + exposure time + 25s
+            const exposureTime = result.ExposureTime || 30; // Default to 30s
+            
+            // Calculate time remaining: (exposure + 25) - time since capture
+            const totalCycleTime = exposureTime + 25;
+            const timeRemaining = Math.max(totalCycleTime - timeSinceCapture, 10); // Minimum 10 seconds
+            const refreshDelay = Math.min(timeRemaining * 1000, 300000); // Cap at 5 minutes
+            
+            // Schedule next refresh based on smart timing calculation
+            scheduleNextRefresh(refreshDelay);
+          }
           
         } catch (blobError) {
           console.error('❌ Error creating blob URL:', blobError);
@@ -242,6 +257,7 @@ export const useImageData = (): UseImageDataReturn => {
     isImagingSession,
     sessionData,
     refreshImage,
-    nextRefreshIn
+    nextRefreshIn,
+    isExpired
   };
 };

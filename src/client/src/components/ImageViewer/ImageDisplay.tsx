@@ -4,9 +4,10 @@
  */
 
 import React, { useState } from 'react';
-import { Box, Flex, Text, Spinner, Callout } from '@radix-ui/themes';
+import { Box, Flex, Text, Spinner, Callout, Badge } from '@radix-ui/themes';
 import { ExclamationTriangleIcon, ClockIcon } from '@radix-ui/react-icons';
 import ImageModal from '../ImageModal';
+import type { ImageStatistics } from '../../interfaces/image';
 
 interface ImageDisplayProps {
   latestImage: string | null;
@@ -14,6 +15,7 @@ interface ImageDisplayProps {
   error: string | null;
   isImagingSession: boolean;
   nextRefreshIn?: number | null;
+  imageStats?: ImageStatistics | null;
 }
 
 export const ImageDisplay: React.FC<ImageDisplayProps> = ({
@@ -21,9 +23,24 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
   imageLoading,
   error,
   isImagingSession,
-  nextRefreshIn
+  nextRefreshIn,
+  imageStats
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Determine image type badge color
+  const getImageTypeBadgeColor = (imageType?: string) => {
+    if (!imageType) return 'gray';
+    const type = imageType.toUpperCase();
+    switch (type) {
+      case 'LIGHT': return 'green';
+      case 'DARK': return 'purple';
+      case 'FLAT': return 'blue';
+      case 'BIAS': return 'orange';
+      case 'DARKFLAT': return 'violet';
+      default: return 'gray';
+    }
+  };
 
   // Error state
   if (error) {
@@ -115,7 +132,29 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
           }}
         />
         
-        {/* Countdown overlay in bottom corner */}
+        {/* Image type badge in bottom left corner */}
+        {imageStats?.ImageType && (
+          <Box
+            style={{
+              position: 'absolute',
+              bottom: '15px',
+              left: '8px',
+              // background: 'rgba(0, 0, 0, 0.7)',
+              borderRadius: 'var(--radius-2)',
+              padding: '4px 8px'
+            }}
+          >
+            <Badge 
+              color={getImageTypeBadgeColor(imageStats.ImageType)} 
+              variant="solid"
+              size="1"
+            >
+              {imageStats.ImageType}
+            </Badge>
+          </Box>
+        )}
+        
+        {/* Countdown overlay in bottom right corner */}
         {nextRefreshIn && nextRefreshIn > 0 && (
           <Box
             style={{

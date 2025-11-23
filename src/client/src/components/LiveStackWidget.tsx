@@ -290,30 +290,38 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
         )}
 
         {/* Controls */}
-        <Flex align="center" gap="3">
-          <Text size="1" color="gray" style={{ minWidth: '45px' }}>Target:</Text>
-          <Select.Root value={selectedTarget} onValueChange={handleTargetChange}>
-            <Select.Trigger style={{ minWidth: '200px' }} />
-            <Select.Content>
-              {availableTargets.map(target => (
-                <Select.Item key={target} value={target}>
-                  {target}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
+        <Flex 
+          direction={{ initial: 'column', sm: 'row' }}
+          align={{ initial: 'stretch', sm: 'center' }}
+          gap="3"
+        >
+          <Flex align="center" gap="3" style={{ width: '100%' }}>
+            <Text size="1" color="gray" style={{ minWidth: '45px' }}>Target:</Text>
+            <Select.Root value={selectedTarget} onValueChange={handleTargetChange}>
+              <Select.Trigger style={{ flex: 1, minWidth: '0' }} />
+              <Select.Content>
+                {availableTargets.map(target => (
+                  <Select.Item key={target} value={target}>
+                    {target}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </Flex>
 
-          <Text size="1" color="gray" style={{ minWidth: '35px' }}>Filter:</Text>
-          <Select.Root value={selectedFilter} onValueChange={handleFilterChange}>
-            <Select.Trigger style={{ minWidth: '100px' }} />
-            <Select.Content>
-              {availableFilters.map(filter => (
-                <Select.Item key={filter} value={filter}>
-                  {filter}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
+          <Flex align="center" gap="3" style={{ width: '100%' }}>
+            <Text size="1" color="gray" style={{ minWidth: '35px' }}>Filter:</Text>
+            <Select.Root value={selectedFilter} onValueChange={handleFilterChange}>
+              <Select.Trigger style={{ flex: 1, minWidth: '0' }} />
+              <Select.Content>
+                {availableFilters.map(filter => (
+                  <Select.Item key={filter} value={filter}>
+                    {filter}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </Flex>
         </Flex>
 
         {/* Error state */}
