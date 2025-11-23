@@ -35,12 +35,10 @@ class StateSeeder {
         return true;
       }
 
-      // Sort events by timestamp (newest first for recent events)
-      const sortedEvents = this._sortEventsByTime(events, true);
-      
-      // Take only the most recent 100 events to process
-      // This ensures we get a diverse set of recent events, not just SESSION events
-      const recentEvents = sortedEvents.slice(0, Math.min(100, sortedEvents.length));
+      // NINA API returns events oldest -> newest
+      // Take the last 100 events (most recent), then reverse for processing
+      const startIndex = Math.max(0, events.length - 100);
+      const recentEvents = events.slice(startIndex).reverse();
       
       console.log(`📚 Processing ${recentEvents.length} most recent events (of ${events.length} total)...`);
 
@@ -67,39 +65,6 @@ class StateSeeder {
       console.log('ℹ️ Continuing with empty state, will populate from live events');
       return false;
     }
-  }
-
-  /**
-   * Sort events by timestamp
-   * @param {Array} events - Events to sort
-   * @param {boolean} newestFirst - If true, sort newest first; otherwise oldest first
-   * @private
-   */
-  _sortEventsByTime(events, newestFirst = false) {
-    return events.sort((a, b) => {
-      const timeA = this._getEventTime(a);
-      const timeB = this._getEventTime(b);
-      return newestFirst ? timeB - timeA : timeA - timeB;
-    });
-  }
-
-  /**
-   * Extract timestamp from event
-   * @private
-   */
-  _getEventTime(event) {
-    // Try multiple common timestamp fields
-    const timestamp = event.Timestamp || event.Time || event.timestamp || event.time;
-    
-    if (timestamp) {
-      const date = new Date(timestamp);
-      if (!isNaN(date.getTime())) {
-        return date.getTime();
-      }
-    }
-    
-    // Fallback to current time if no valid timestamp
-    return Date.now();
   }
 
   /**
