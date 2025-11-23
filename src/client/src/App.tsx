@@ -4,6 +4,8 @@ import '@radix-ui/themes/styles.css';
 import '@fontsource/space-grotesk';
 import './styles/globals.css';
 import { Theme } from '@radix-ui/themes';
+import { Toaster } from 'sonner';
+import { UnifiedStateProvider } from './contexts/UnifiedStateContext';
 
 const App: React.FC = () => {
   return (
@@ -15,7 +17,10 @@ const App: React.FC = () => {
       hasBackground={false}
       scaling="100%"
     >
-      <Dashboard />
+      <UnifiedStateProvider>
+        <Toaster position="top-right" theme="dark" richColors />
+        <Dashboard />
+      </UnifiedStateProvider>
     </Theme>
   );
 };

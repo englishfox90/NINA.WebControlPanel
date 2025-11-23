@@ -47,7 +47,8 @@
     "react-grid-layout": "^1.5.2",
     "react-scripts": "^5.0.1",
     "socket.io-client": "^4.0.0",
-    "systeminformation": "^5.27.8"
+    "systeminformation": "^5.27.8",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.24",

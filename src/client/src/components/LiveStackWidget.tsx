@@ -1,10 +1,11 @@
 /**
  * LiveStack Widget
  * Displays NINA LiveStack plugin images with target and filter selection
- * Features: Target selection, filter selection, image display, stack statistics
+ * ENHANCED: Listens to unified state WebSocket for STACK-UPDATED events
+ * Features: Target selection, filter selection, image display, stack statistics, auto-refresh on stack updates
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card,
   Flex,
@@ -23,6 +24,7 @@ import {
   InfoCircledIcon
 } from '@radix-ui/react-icons';
 import ImageModal from './ImageModal';
+import { useUnifiedState } from '../contexts/UnifiedStateContext';
 
 interface LiveStackOption {
   Filter: string;
@@ -85,12 +87,47 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
   const [lastRefresh, setLastRefresh] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Listen to unified state for STACK-UPDATED events
+  const { state, lastUpdate } = useUnifiedState();
+  const lastStackTime = useRef<string | null>(null);
+
   // Clean up blob URLs
   const cleanupImageUrl = useCallback((url: string) => {
     if (url && url.startsWith('blob:')) {
       URL.revokeObjectURL(url);
     }
   }, []);
+
+  // Listen for STACK-UPDATED events from unified state WebSocket
+  useEffect(() => {
+    if (lastUpdate?.updateKind === 'stack' && 
+        lastUpdate?.updateReason === 'stack-update' &&
+        lastUpdate?.changed?.meta) {
+      
+      const stackUpdate = lastUpdate.changed.meta;
+      const updateTime = lastUpdate.timestamp;
+      
+      // Only process if this is a new stack update
+      if (updateTime !== lastStackTime.current) {
+        console.log('📚 STACK-UPDATED event detected:', stackUpdate);
+        lastStackTime.current = updateTime;
+        
+        const target = stackUpdate.Target;
+        const filter = stackUpdate.Filter;
+        
+        if (target && filter) {
+          console.log(`🎯 Auto-selecting stack: ${target} - ${filter}`);
+          
+          // Update selected target and filter
+          setSelectedTarget(target);
+          setSelectedFilter(filter);
+          
+          // Fetch the updated stack image
+          // Note: fetchImage will be called by the useEffect that watches selectedTarget/selectedFilter
+        }
+      }
+    }
+  }, [lastUpdate]);
 
   // Fetch available options
   const fetchOptions = useCallback(async () => {

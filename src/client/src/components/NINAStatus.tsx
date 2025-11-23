@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, Flex, Text, Badge } from '@radix-ui/themes';
 import { 
   GearIcon, 
@@ -9,11 +9,16 @@ import {
 } from '@radix-ui/react-icons';
 import { getApiUrl } from '../config/api';
 import type { Equipment, EquipmentResponse, NINAStatusProps } from '../interfaces/nina';
+import { useUnifiedState } from '../contexts/UnifiedStateContext';
 
 const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }) => {
   const [data, setData] = useState<EquipmentResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Listen to unified state for equipment events
+  const { lastUpdate } = useUnifiedState();
+  const lastEquipmentUpdate = useRef<string | null>(null);
 
   const fetchEquipmentStatus = useCallback(async () => {
     try {
@@ -42,13 +47,21 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
     return () => clearInterval(interval);
   }, [fetchEquipmentStatus]);
 
-  // Global refresh integration
+  // Listen for equipment events from unified state WebSocket
   useEffect(() => {
-    if (onRefresh) {
-      const handleGlobalRefresh = () => fetchEquipmentStatus();
-      // Listen for global refresh events if needed
+    if (lastUpdate?.updateKind === 'equipment' && 
+        lastUpdate?.timestamp !== lastEquipmentUpdate.current) {
+      
+      lastEquipmentUpdate.current = lastUpdate.timestamp;
+      const equipmentId = lastUpdate.changed?.meta?.equipmentId || 'unknown';
+      const status = lastUpdate.changed?.meta?.status || lastUpdate.updateReason;
+      
+      console.log(`🔧 Equipment event detected: ${equipmentId} - ${status}`);
+      
+      // Refresh equipment status
+      fetchEquipmentStatus();
     }
-  }, [onRefresh, fetchEquipmentStatus]);
+  }, [lastUpdate, fetchEquipmentStatus]);
 
   // Loading state
   if (loading) {

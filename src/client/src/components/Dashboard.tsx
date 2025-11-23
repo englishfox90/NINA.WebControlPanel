@@ -11,6 +11,7 @@ import WeatherWidget from './WeatherWidget';
 import GuiderGraphWidget from './GuiderGraphWidget';
 import NINALogsWidget from './NINALogsWidget';
 import LiveStackWidget from './LiveStackWidget';
+import UnifiedStateWidget from './UnifiedStateWidget';
 import SafetyBanner from './SafetyBanner';
 import { SettingsModal } from './SettingsModal';
 import WidgetService, { WidgetConfig } from '../services/widgetService';
@@ -290,6 +291,9 @@ const Dashboard: React.FC = () => {
         return <NINALogsWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       case 'LiveStackWidget':
         return <LiveStackWidget key={`${config.id}-${refreshTrigger}`} onRefresh={handleRefresh} hideHeader={true} />;
+      case 'UnifiedStateTestWidget':
+      case 'UnifiedStateWidget':
+        return <UnifiedStateWidget key={config.id} />;
       default:
         return <div key={config.id}>Unknown widget: {config.component}</div>;
     }

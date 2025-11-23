@@ -11,6 +11,7 @@ import {
 } from '@radix-ui/react-icons';
 import { getApiUrl } from '../config/api';
 import type { TargetSchedulerProps } from '../interfaces/dashboard';
+import { useUnifiedState } from '../contexts/UnifiedStateContext';
 
 export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefresh, hideHeader = false }) => {
   const [data, setData] = useState<any>(null);
@@ -19,6 +20,10 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
   const [lastApiCall, setLastApiCall] = useState<number>(0);
   const [openFilterCard, setOpenFilterCard] = useState<string | null>(null);
   const [openProgressCard, setOpenProgressCard] = useState<string | null>(null);
+
+  // Get current target from unified state
+  const { state: unifiedState } = useUnifiedState();
+  const currentTargetName = unifiedState?.currentSession?.target?.targetName || null;
 
   const fetchData = useCallback(async (reason = 'manual') => {
     // Throttle API calls - minimum 3 seconds between calls
@@ -260,10 +265,10 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
                         </Flex>
                     </HoverCard.Content>
                   </HoverCard.Root>
-                    {project.isCurrentlyActive && (
-                      <Badge variant="solid" color="green">
+                    {currentTargetName && project.name === currentTargetName && (
+                      <Badge variant="solid" color="green" size="2">
                         <DotFilledIcon width="12" height="12" />
-                        Shooting Now
+                        Currently Shooting
                       </Badge>
                     )}
                   </Flex>

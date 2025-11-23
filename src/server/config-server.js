@@ -5,6 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const path = require('path');
+const WebSocket = require('ws');
 
 // Import organized components
 const APIRoutes = require('./api');
@@ -12,6 +13,7 @@ const { getConfigDatabase } = require('./configDatabase');
 const SystemMonitor = require('../services/systemMonitor');
 const NINAService = require('../services/ninaService');
 const AstronomicalService = require('../services/astronomicalService');
+const UnifiedStateSystem = require('../services/unifiedState');
 
 // Enhanced error handling setup
 process.on('uncaughtException', (error) => {
@@ -52,11 +54,11 @@ async function gracefulShutdown() {
       });
     }
     
-    // if (sessionStateManager) {
-    //   console.log('💥 Destroying SessionStateManager...');
-    //   sessionStateManager.destroy();
-    // }
-    
+    // Shutdown unified state system
+    if (global.unifiedStateSystem) {
+      console.log('🛑 Stopping unified state system...');
+      global.unifiedStateSystem.stop();
+    }
 
     
     console.log('✅ Configuration API server shutdown complete');
@@ -77,6 +79,11 @@ async function initializeServer() {
   const systemMonitor = new SystemMonitor();
   const ninaService = new NINAService();
   const astronomicalService = new AstronomicalService();
+  
+  // Initialize unified state system
+  console.log('🌐 Initializing Unified State System...');
+  const unifiedStateSystem = new UnifiedStateSystem(ninaService);
+  global.unifiedStateSystem = unifiedStateSystem; // Make globally accessible for shutdown
   
   // Initialize target scheduler service with database path from config
   const { TargetSchedulerService } = require('../services/targetSchedulerService');
@@ -124,6 +131,28 @@ async function initializeServer() {
   // Register all API routes
   apiRoutes.register(app);
 
+  // Add unified state API endpoint
+  app.get('/api/state', (req, res) => {
+    try {
+      const state = unifiedStateSystem.getState();
+      res.json(state);
+    } catch (error) {
+      console.error('❌ Error fetching unified state:', error);
+      res.status(500).json({ error: 'Failed to fetch state' });
+    }
+  });
+
+  // Add unified state status endpoint
+  app.get('/api/state/status', (req, res) => {
+    try {
+      const status = unifiedStateSystem.getStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('❌ Error fetching state status:', error);
+      res.status(500).json({ error: 'Failed to fetch status' });
+    }
+  });
+
   // Serve static files from React build
   const buildPath = path.join(__dirname, '..', '..', 'build');
   app.use(express.static(buildPath));
@@ -140,6 +169,71 @@ async function initializeServer() {
   // Create HTTP server
   const server = http.createServer(app);
 
+  // Create WebSocket server
+  const wss = new WebSocket.Server({ server });
+  
+  console.log('🔌 WebSocket server created');
+
+  // Handle WebSocket connections
+  wss.on('connection', (ws) => {
+    console.log('✅ Client connected to unified state WebSocket');
+
+    // Send initial full sync
+    try {
+      const fullSync = {
+        schemaVersion: 1,
+        timestamp: new Date().toISOString(),
+        updateKind: 'fullSync',
+        updateReason: 'initial-state',
+        changed: null,
+        state: unifiedStateSystem.getState()
+      };
+      
+      ws.send(JSON.stringify(fullSync));
+      console.log('📤 Sent initial state to client');
+    } catch (error) {
+      console.error('❌ Error sending initial state:', error);
+    }
+
+    // Subscribe to state changes
+    const unsubscribe = unifiedStateSystem.subscribe((message) => {
+      try {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(message));
+        }
+      } catch (error) {
+        console.error('❌ Error sending state update to client:', error);
+      }
+    });
+
+    // Handle client disconnection
+    ws.on('close', () => {
+      console.log('🔌 Client disconnected from unified state WebSocket');
+      unsubscribe();
+    });
+
+    // Handle errors
+    ws.on('error', (error) => {
+      console.error('❌ WebSocket error:', error);
+    });
+
+    // Optional: Handle heartbeat
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        if (message.type === 'ping') {
+          ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
+        }
+      } catch (error) {
+        // Ignore parse errors
+      }
+    });
+  });
+
+  // Start unified state system
+  console.log('🚀 Starting unified state system...');
+  await unifiedStateSystem.start();
+
   // Start server
   server.listen(PORT, () => {
     console.log('✅ All services initialized successfully');
@@ -147,11 +241,12 @@ async function initializeServer() {
     console.log(`🚀 Enhanced Configuration API server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     console.log(`⚙️  Configuration endpoint: http://localhost:${PORT}/api/config`);
-
+    console.log(`🌐 Unified state endpoint: http://localhost:${PORT}/api/state`);
+    console.log(`🔌 WebSocket endpoint: ws://localhost:${PORT}`);
   });
 
   // Return server components for cleanup
-  return { server };
+  return { server, wss, unifiedStateSystem };
 }
 
 // Global references for cleanup

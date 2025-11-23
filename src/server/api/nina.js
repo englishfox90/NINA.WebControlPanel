@@ -354,6 +354,41 @@ class NINARoutes {
       }
     });
 
+    // Session state endpoint (compatibility - now uses unified state)
+    app.get('/api/nina/session-state', async (req, res) => {
+      try {
+        // Get unified state if available
+        if (global.unifiedStateSystem) {
+          const state = global.unifiedStateSystem.getState();
+          const session = state.currentSession;
+          
+          res.json({
+            isGuiding: session?.guiding?.isGuiding || false,
+            isActive: session?.isActive || false,
+            targetName: session?.target?.targetName || null,
+            currentFilter: session?.imaging?.currentFilter || null,
+            exposureSeconds: session?.imaging?.exposureSeconds || null,
+            frameType: session?.imaging?.frameType || null,
+            source: 'unified-state'
+          });
+        } else {
+          // Fallback to legacy behavior
+          res.json({
+            isGuiding: false,
+            isActive: false,
+            targetName: null,
+            currentFilter: null,
+            exposureSeconds: null,
+            frameType: null,
+            source: 'fallback'
+          });
+        }
+      } catch (error) {
+        console.error('Error getting session state:', error);
+        res.status(500).json({ error: 'Failed to get session state' });
+      }
+    });
+
     app.get('/api/nina/livestack/info/:target/:filter', async (req, res) => {
       try {
         const { target, filter } = req.params;

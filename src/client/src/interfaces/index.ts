@@ -26,3 +26,6 @@ export * from './nina';
 
 // Weather and safety interfaces
 export * from './weather';
+
+// Unified WebSocket State interfaces
+export * from './unifiedState';

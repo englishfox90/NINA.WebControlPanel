@@ -1,16 +1,19 @@
 // Streamlined Guider Graph Widget - Real-time PHD2/NINA guiding performance monitoring
 // Modularized architecture with config support and time-based measurements
+// ENHANCED: Listens to unified state WebSocket for guiding start/stop events
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, TimeScale, LineController, BarController } from 'chart.js';
 import { Chart } from 'react-chartjs-2';
 import { Card, Flex, Text, Badge, Spinner, Callout, Button } from '@radix-ui/themes';
 import { UpdateIcon, ExclamationTriangleIcon, PlayIcon, StopIcon } from '@radix-ui/react-icons';
+import { toast } from 'sonner';
 
 import { GuiderService, GuiderState, GuiderEventData } from '../services/guiderService';
 import { processGuideStepsForChart, getTimeBasedChartOptions, ChartTimeSettings } from '../utils/guiderChart';
 import { getApiUrl } from '../config/api';
 import { GuiderGraphWidgetProps } from '../interfaces/nina';
+import { useUnifiedState } from '../contexts/UnifiedStateContext';
 
 // Register Chart.js components
 ChartJS.register(
@@ -32,6 +35,11 @@ const GuiderGraphWidget: React.FC<GuiderGraphWidgetProps> = ({
     exposureDuration: 2.0
   });
   const [configLoaded, setConfigLoaded] = useState(false);
+
+  // Listen to unified state for guiding events
+  const { state: unifiedState, lastUpdate } = useUnifiedState();
+  const lastGuidingState = useRef<boolean | null>(null);
+  const lastUpdateTime = useRef<string | null>(null);
 
   // Load configuration and initialize guider service
   useEffect(() => {
@@ -99,6 +107,42 @@ const GuiderGraphWidget: React.FC<GuiderGraphWidgetProps> = ({
       }
     };
   }, []); // Empty dependency array - run once on mount
+
+  // Listen for guiding start/stop events from unified state WebSocket
+  useEffect(() => {
+    if (lastUpdate?.updateKind === 'session' && lastUpdate?.timestamp !== lastUpdateTime.current) {
+      const isGuiding = unifiedState?.currentSession?.guiding?.isGuiding;
+      
+      // Check for state change
+      if (isGuiding !== lastGuidingState.current && isGuiding !== null && isGuiding !== undefined) {
+        lastUpdateTime.current = lastUpdate.timestamp;
+        lastGuidingState.current = isGuiding;
+        
+        if (lastUpdate.updateReason === 'guiding-started') {
+          console.log('🟢 Guiding started');
+          toast.success('Guiding Started', {
+            description: 'PHD2/NINA guiding is now active',
+            duration: 3000
+          });
+          
+          // Update local state and refresh data
+          setState(prev => ({ ...prev, isGuidingActive: true }));
+          if (guiderService) {
+            guiderService.fetchGuiderData();
+          }
+        } else if (lastUpdate.updateReason === 'guiding-stopped') {
+          console.log('🔴 Guiding stopped');
+          toast.info('Guiding Stopped', {
+            description: 'PHD2/NINA guiding has been stopped',
+            duration: 3000
+          });
+          
+          // Update local state
+          setState(prev => ({ ...prev, isGuidingActive: false }));
+        }
+      }
+    }
+  }, [lastUpdate, unifiedState?.currentSession?.guiding?.isGuiding, guiderService]);
 
   // Configuration changes handled via manual refresh only
   useEffect(() => {
