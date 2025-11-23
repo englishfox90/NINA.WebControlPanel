@@ -70,11 +70,6 @@ export interface MobileLayoutProps {
   children: ReactNode;
 }
 
-export interface WebSocketStatusProps {
-  connected: boolean;
-  lastEvent?: string;
-}
-
 // Settings Modal interfaces
 export interface SettingsModalProps {
   open: boolean;

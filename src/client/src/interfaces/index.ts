@@ -9,9 +9,6 @@ export * from './session';
 // Equipment interfaces  
 export * from './equipment';
 
-// WebSocket interfaces
-export * from './websocket';
-
 // System monitoring interfaces
 export * from './system';
 

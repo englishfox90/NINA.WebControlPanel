@@ -7,7 +7,6 @@ import {
   CrossCircledIcon,
   ExclamationTriangleIcon
 } from '@radix-ui/react-icons';
-import { useNINAStatusWebSocket } from '../hooks/useUnifiedWebSocket';
 import { getApiUrl } from '../config/api';
 import type { Equipment, EquipmentResponse, NINAStatusProps } from '../interfaces/nina';
 
@@ -15,14 +14,6 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
   const [data, setData] = useState<EquipmentResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastWebSocketUpdate, setLastWebSocketUpdate] = useState<string>('');
-
-  // Use enhanced unified WebSocket for equipment events
-  const { 
-    connected: wsConnected, 
-    onWidgetEvent,
-    lastEvent 
-  } = useNINAStatusWebSocket();
 
   const fetchEquipmentStatus = useCallback(async () => {
     try {
@@ -44,70 +35,11 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
     }
   }, []);
 
-  // WebSocket event handler for equipment changes
-  const handleEquipmentEvent = useCallback((event: any) => {
-    console.log('Equipment event received:', event.Type, event.Data);
-    setLastWebSocketUpdate(event.Timestamp);
-    
-    // Update equipment status efficiently based on WebSocket event
-    if (event.Type && (event.Type.endsWith('-CONNECTED') || event.Type.endsWith('-DISCONNECTED'))) {
-      const isConnected = event.Type.endsWith('-CONNECTED');
-      const equipmentType = event.Type.replace('-CONNECTED', '').replace('-DISCONNECTED', '');
-      
-      console.log(`Equipment ${equipmentType} ${isConnected ? 'connected' : 'disconnected'}, updating locally...`);
-      
-      // Update the local data efficiently instead of full refresh
-      setData(currentData => {
-        if (!currentData || !currentData.equipment || !Array.isArray(currentData.equipment)) {
-          console.warn('❌ Equipment data is not available or not an array, skipping local update');
-          return currentData;
-        }
-        
-        // Find and update the specific equipment
-        const updatedEquipment = currentData.equipment.map(eq => {
-          // Match by equipment type (FOCUSER, CAMERA, MOUNT, etc.)
-          if (eq.name.toUpperCase().includes(equipmentType) || 
-              equipmentType.includes(eq.name.toUpperCase())) {
-            return {
-              ...eq,
-              connected: isConnected,
-              status: isConnected ? 'Connected' : 'Disconnected'
-            };
-          }
-          return eq;
-        });
-        
-        // Recalculate summary
-        const connectedCount = updatedEquipment.filter(eq => eq.connected).length;
-        const totalCount = updatedEquipment.length;
-        const allConnected = connectedCount === totalCount;
-        
-        return {
-          ...currentData,
-          equipment: updatedEquipment,
-          summary: {
-            connected: connectedCount,
-            total: totalCount,
-            allConnected,
-            status: allConnected ? 'All Connected' : `${connectedCount}/${totalCount} Connected`
-          },
-          lastUpdate: new Date().toISOString()
-        };
-      });
-    }
-  }, []);
-
-  // Subscribe to equipment change WebSocket events using enhanced system
-  useEffect(() => {
-    const unsubscribeWidget = onWidgetEvent(handleEquipmentEvent);
-    
-    return () => {
-      unsubscribeWidget();
-    };
-  }, [onWidgetEvent, handleEquipmentEvent]);
-
   useEffect(() => {
     fetchEquipmentStatus();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchEquipmentStatus, 30000);
+    return () => clearInterval(interval);
   }, [fetchEquipmentStatus]);
 
   // Global refresh integration
@@ -174,11 +106,6 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
             <Flex align="center" gap="2">
               <GearIcon />
               <Text size="3" weight="medium">Equipment Status</Text>
-              {lastWebSocketUpdate && (
-                <Badge variant="soft" color="blue" size="1">
-                  WebSocket Live
-                </Badge>
-              )}
             </Flex>
             <Badge 
               color={data.summary.allConnected ? 'green' : 'orange'} 

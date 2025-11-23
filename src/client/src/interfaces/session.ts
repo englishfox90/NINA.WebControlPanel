@@ -196,17 +196,3 @@ export interface BasicSessionWidgetProps {
   hideHeader?: boolean;
   onRefresh?: () => void;
 }
-
-// WebSocket and Manager interfaces
-export interface SessionManagerHealth {
-  hasEnhancedFeatures: boolean;
-  isConnected: boolean;
-  lastEventTime: string | null;
-  eventCount: number;
-}
-
-export interface SessionWebSocketEvent {
-  type: string;
-  data: any;
-  timestamp: string;
-}

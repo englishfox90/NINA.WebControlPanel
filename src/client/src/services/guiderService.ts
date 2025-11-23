@@ -1,9 +1,8 @@
-// Guider Service - Handles guider data fetching using unified WebSocket system
-// Updated to use unified session WebSocket instead of separate connection
+// Guider Service - Handles guider data fetching using REST API polling
+// Data is fetched via manual refresh or periodic polling intervals
 
 import { GuiderGraphResponse } from '../interfaces/nina';
 import { getApiUrl } from '../config/api';
-import { unifiedWebSocket } from './unifiedWebSocket';
 
 export interface GuiderState {
   data: GuiderGraphResponse | null;
@@ -29,7 +28,6 @@ export class GuiderService {
   private lastFetchTime: number = 0;
   private fetchThrottle: number = 2000; // Minimum 2 seconds between API calls
   private isInitialized: boolean = false; // Prevent duplicate events during initial load
-  private sessionUpdateHandler: (sessionData: any) => void;
   
   private state: GuiderState = {
     data: null,
@@ -42,11 +40,6 @@ export class GuiderService {
 
   constructor(exposureDuration: number = 2.0) {
     this.state.exposureDuration = exposureDuration;
-    
-    // Bind event handler for session updates
-    this.sessionUpdateHandler = this.handleUnifiedSessionUpdate.bind(this);
-    
-    this.initializeUnifiedWebSocket();
   }
 
   // Subscribe to guider events
@@ -89,62 +82,6 @@ export class GuiderService {
     this.notifyStateChange();
   }
 
-  // Initialize unified WebSocket connection
-  private initializeUnifiedWebSocket(): void {
-    console.log('🔌 GuiderService: Connecting to unified WebSocket...');
-    
-    // Connect to unified WebSocket
-    unifiedWebSocket.connect();
-    
-    // Subscribe to unified session updates - this is all we need for guiding status
-    unifiedWebSocket.on('session:update', this.sessionUpdateHandler);
-
-    // Add connection status logging
-    unifiedWebSocket.on('connect', () => {
-      console.log('✅ GuiderService: Unified WebSocket connected');
-    });
-
-    unifiedWebSocket.on('disconnect', () => {
-      console.log('❌ GuiderService: Unified WebSocket disconnected');
-    });
-
-    console.log('✅ GuiderService: Connected to unified WebSocket, listening for session updates');
-  }
-
-  // Handle unified session updates - this provides all guiding state information
-  private handleUnifiedSessionUpdate(sessionData: any): void {
-    console.log('🎯 GuiderService received WebSocket session update:', {
-      sessionData: sessionData,
-      dataKeys: Object.keys(sessionData || {}),
-      hasIsGuiding: sessionData?.isGuiding !== undefined,
-      guidingValue: sessionData?.isGuiding,
-      hasDataIsGuiding: sessionData?.data?.isGuiding !== undefined,
-      dataGuidingValue: sessionData?.data?.isGuiding,
-      currentGuidingState: this.state.isGuidingActive
-    });
-
-    if (!sessionData) {
-      console.log('⚠️ GuiderService: No session data received in WebSocket update');
-      return;
-    }
-
-    // Check multiple possible data structures
-    const isGuiding = sessionData?.isGuiding || sessionData?.data?.isGuiding || false;
-    
-    // Update state from unified session data - this is the single source of truth
-    const wasGuiding = this.state.isGuidingActive;
-    this.state.isGuidingActive = Boolean(isGuiding);
-    
-    // Assume guider is connected if we have guiding data in the session
-    this.state.guiderConnected = isGuiding !== undefined;
-
-    console.log(`🎯 GuiderService: Guiding state updated via WebSocket: ${wasGuiding} → ${this.state.isGuidingActive}`);
-
-    // Always update polling when we receive a WebSocket update
-    console.log(`🔄 GuiderService: Updating polling due to WebSocket update...`);
-    this.updatePolling();
-    this.notifyStateChange();
-  }
 
 
 
@@ -264,7 +201,7 @@ export class GuiderService {
     await this.fetchGuiderData();
     this.isInitialized = true; // Mark as initialized
     
-    console.log('✅ GuiderService: Initialization complete, WebSocket events enabled');
+    console.log('✅ GuiderService: Initialization complete, using REST API polling');
   }
 
   // Cleanup resources
@@ -273,9 +210,6 @@ export class GuiderService {
       clearInterval(this.pollInterval);
       this.pollInterval = null;
     }
-
-    // Remove listener from unified WebSocket
-    unifiedWebSocket.off('session:update', this.sessionUpdateHandler);
 
     this.eventCallbacks = [];
     this.dataCallbacks = [];

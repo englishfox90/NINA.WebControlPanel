@@ -2,19 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Callout, Flex, Text, Button } from '@radix-ui/themes';
 import { ExclamationTriangleIcon, CrossCircledIcon } from '@radix-ui/react-icons';
 import { getApiUrl } from '../config/api';
-import { useSafetyWebSocket } from '../hooks/useUnifiedWebSocket';
 import type { FlatPanelResponse, ObservatoryStatus, SafetyBannerProps } from '../interfaces/weather';
 
 const SafetyBanner: React.FC<SafetyBannerProps> = ({ onDismiss }) => {
   const [status, setStatus] = useState<ObservatoryStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
-
-  // Use enhanced unified WebSocket for safety events
-  const { 
-    connected: wsConnected, 
-    onWidgetEvent 
-  } = useSafetyWebSocket();
 
   const fetchFlatPanelStatus = async (): Promise<FlatPanelResponse | null> => {
     try {
@@ -66,30 +59,6 @@ const SafetyBanner: React.FC<SafetyBannerProps> = ({ onDismiss }) => {
     }
   }, []);
 
-  // Enhanced WebSocket event handler for safety events
-  const handleSafetyEvents = useCallback((event: any) => {
-    console.log('🛡️ Safety event received:', event.Type, event.Data);
-    
-    if (event.Type === 'FLAT-LIGHT-TOGGLED') {
-      console.log('💡 Flat panel light toggled');
-      fetchSafetyStatus(); // Refresh to get current state
-      setDismissed(false);
-    } else if (event.Type === 'SAFETY-CHANGED') {
-      console.log('⚠️ Safety status changed');
-      fetchSafetyStatus(); // Refresh to get current state
-      setDismissed(false);
-    }
-  }, [fetchSafetyStatus]);
-
-  // Subscribe to safety events using enhanced system
-  useEffect(() => {
-    const unsubscribeWidget = onWidgetEvent(handleSafetyEvents);
-    
-    return () => {
-      unsubscribeWidget();
-    };
-  }, [onWidgetEvent, handleSafetyEvents]);
-
   useEffect(() => {
     fetchSafetyStatus();
     // Refresh safety status every minute
@@ -129,9 +98,6 @@ const SafetyBanner: React.FC<SafetyBannerProps> = ({ onDismiss }) => {
           <Text size="2">
             Observatory roof is OPEN with flat panel light ON during {status.isDaytime ? 'daytime' : 'nighttime'}! 
             This creates a serious fire hazard and may damage equipment.
-          </Text>
-          <Text size="1" color="gray">
-            WebSocket: {wsConnected ? '🟢 Connected' : '🔴 Disconnected'}
           </Text>
         </Flex>
         <Button 

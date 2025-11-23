@@ -7,13 +7,13 @@ const NINARoutes = require('./nina');
 const DashboardRoutes = require('./dashboard');
 
 class APIRoutes {
-  constructor(configDatabase, systemMonitor, ninaService, astronomicalService, targetSchedulerService, sessionStateManager) {
+  constructor(configDatabase, systemMonitor, ninaService, astronomicalService, targetSchedulerService, sessionStateManager = null) {
     this.configDatabase = configDatabase;
     this.systemMonitor = systemMonitor;
     this.ninaService = ninaService;
     this.astronomicalService = astronomicalService;
     this.targetSchedulerService = targetSchedulerService;
-    this.sessionStateManager = sessionStateManager;
+    this.sessionStateManager = sessionStateManager; // Optional - no longer used
     
     // Initialize Target Scheduler database
     try {

@@ -11,7 +11,6 @@ import { GuiderService, GuiderState, GuiderEventData } from '../services/guiderS
 import { processGuideStepsForChart, getTimeBasedChartOptions, ChartTimeSettings } from '../utils/guiderChart';
 import { getApiUrl } from '../config/api';
 import { GuiderGraphWidgetProps } from '../interfaces/nina';
-import { unifiedWebSocket } from '../services/unifiedWebSocket';
 
 // Register Chart.js components
 ChartJS.register(
@@ -101,38 +100,10 @@ const GuiderGraphWidget: React.FC<GuiderGraphWidgetProps> = ({
     };
   }, []); // Empty dependency array - run once on mount
 
-  // Listen for configuration changes via unified WebSocket
+  // Configuration changes handled via manual refresh only
   useEffect(() => {
     if (!configLoaded || !guiderService) return;
-
-    console.log('🔄 GuiderGraphWidget: Setting up unified WebSocket listener for config changes');
-
-    // Use the unified WebSocket instead of creating a separate connection
-    const handleConfigUpdate = (message: any) => {
-      try {
-        // Handle configuration updates
-        if (message.data) {
-          const newExposureDuration = message.data.nina?.guiderExposureDuration;
-          
-          if (newExposureDuration && newExposureDuration !== state.exposureDuration) {
-            console.log(`🔄 GuiderGraphWidget: Updating exposure duration from ${state.exposureDuration}s to ${newExposureDuration}s`);
-            
-            // Update the guider service with new exposure duration
-            guiderService.setExposureDuration(newExposureDuration);
-          }
-        }
-      } catch (error) {
-        console.error('Error processing config update in GuiderGraphWidget:', error);
-      }
-    };
-
-    unifiedWebSocket.on('config-update', handleConfigUpdate);
-
-    return () => {
-      console.log('🔄 GuiderGraphWidget: Cleaning up unified WebSocket listener');
-      unifiedWebSocket.off('config-update', handleConfigUpdate);
-    };
-  }, [configLoaded, guiderService, state.exposureDuration]);
+  }, [configLoaded, guiderService]);
 
   // Manual refresh handler
   const handleRefresh = async () => {

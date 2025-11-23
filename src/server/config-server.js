@@ -5,14 +5,10 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const path = require('path');
-const WebSocket = require('ws');
 
 // Import organized components
 const APIRoutes = require('./api');
 const { getConfigDatabase } = require('./configDatabase');
-// const SessionStateManager = require('../services/sessionStateManager'); // DISABLED: Using only new modular system
-const UnifiedSessionManager = require('./session/UnifiedSessionManager');
-const SessionAPIRoutes = require('./session/SessionAPIRoutes');
 const SystemMonitor = require('../services/systemMonitor');
 const NINAService = require('../services/ninaService');
 const AstronomicalService = require('../services/astronomicalService');
@@ -50,11 +46,6 @@ process.on('SIGTERM', () => {
 
 async function gracefulShutdown() {
   try {
-    if (wss) {
-      console.log('✅ WebSocket server closed');
-      wss.close();
-    }
-    
     if (server) {
       server.close(() => {
         console.log('✅ HTTP server closed');
@@ -66,10 +57,7 @@ async function gracefulShutdown() {
     //   sessionStateManager.destroy();
     // }
     
-    if (unifiedSessionManager) {
-      console.log('💥 Destroying UnifiedSessionManager...');
-      unifiedSessionManager.destroy();
-    }
+
     
     console.log('✅ Configuration API server shutdown complete');
     process.exit(0);
@@ -102,20 +90,6 @@ async function initializeServer() {
   const targetSchedulerService = new TargetSchedulerService(dbPath);
   
   console.log('🔭 NINA Service configured: ' + ninaService.fullUrl);
-  
-  // Initialize SessionStateManager (legacy support) - DISABLED
-  // const sessionStateManager = new SessionStateManager(ninaService);
-  // await sessionStateManager.initialize();
-  const sessionStateManager = null; // Placeholder to avoid undefined errors
-  
-  // Initialize UnifiedSessionManager (new architecture)
-  const unifiedSessionManager = new UnifiedSessionManager(configDatabase, ninaService);
-  console.log('🔧 Created UnifiedSessionManager, starting initialization...');
-  await unifiedSessionManager.initialize();
-  console.log('✅ UnifiedSessionManager initialization completed');
-  
-  console.log('✅ Unified session manager initialized (legacy disabled)');
-  
   // Initialize Express app
   const app = express();
   const PORT = process.env.CONFIG_API_PORT || 3001;
@@ -138,27 +112,17 @@ async function initializeServer() {
     next();
   });
 
-  // Make session manager available to all routes
-  // app.locals.sessionStateManager = sessionStateManager; // Legacy - DISABLED
-  app.locals.unifiedSessionManager = unifiedSessionManager; // New
-  
   // Initialize API routes with services
   const apiRoutes = new APIRoutes(
     configDatabase,
     systemMonitor,
     ninaService,
     astronomicalService,
-    targetSchedulerService,
-    null // sessionStateManager - DISABLED: Using unified system only
+    targetSchedulerService
   );
-  
-  // Initialize new session API routes
-  console.log('🔧 Creating SessionAPIRoutes with unifiedSessionManager:', unifiedSessionManager ? 'VALID' : 'NULL');
-  const sessionAPIRoutes = new SessionAPIRoutes(unifiedSessionManager);
   
   // Register all API routes
   apiRoutes.register(app);
-  sessionAPIRoutes.register(app);
 
   // Serve static files from React build
   const buildPath = path.join(__dirname, '..', '..', 'build');
@@ -167,7 +131,7 @@ async function initializeServer() {
   // Serve React app for all non-API routes
   app.get('*', (req, res) => {
     // Don't serve React app for API routes
-    if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
+    if (req.path.startsWith('/api/')) {
       return res.status(404).json({ error: 'Endpoint not found' });
     }
     res.sendFile(path.join(buildPath, 'index.html'));
@@ -176,197 +140,6 @@ async function initializeServer() {
   // Create HTTP server
   const server = http.createServer(app);
 
-  // Initialize WebSocket server (matching original implementation)
-  const wss = new WebSocket.Server({ server });
-  const sessionClients = new Set();
-  const ninaClients = new Set();
-  const unifiedClients = new Set(); // New unified client set
-
-  // Handle WebSocket connections from frontend
-  wss.on('connection', (ws, req) => {
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    
-    if (url.pathname === '/ws/unified') {
-      console.log('🔌 Frontend unified client connected');
-      unifiedClients.add(ws);
-      
-      // Send initial connection status
-      ws.send(JSON.stringify({
-        type: 'connection',
-        data: {
-          message: 'Connected to unified event stream',
-          timestamp: new Date().toISOString()
-        },
-        timestamp: new Date().toISOString()
-      }));
-      
-      // Send initial unified session data
-      const initialSessionData = unifiedSessionManager.getCurrentSessionData();
-      ws.send(JSON.stringify({
-        type: 'unifiedSession',
-        data: initialSessionData,
-        timestamp: new Date().toISOString()
-      }));
-      
-      ws.on('close', () => {
-        console.log('❌ Frontend unified client disconnected');
-        unifiedClients.delete(ws);
-      });
-      
-      ws.on('error', (error) => {
-        console.error('❌ Frontend unified WebSocket error:', error);
-        unifiedClients.delete(ws);
-      });
-      
-      // Send heartbeat every 20 seconds
-      const heartbeatInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            type: 'heartbeat',
-            data: { timestamp: new Date().toISOString() },
-            timestamp: new Date().toISOString()
-          }));
-        } else {
-          clearInterval(heartbeatInterval);
-        }
-      }, 20000);
-      
-    } else if (url.pathname === '/ws/session') {
-      console.log('🔌 Frontend session client connected');
-      sessionClients.add(ws);
-      
-      // Send current session state immediately
-      ws.send(JSON.stringify({
-        type: 'sessionUpdate',
-        data: unifiedSessionManager.getCurrentSessionData() // CHANGED: Using unified system instead of legacy
-      }));
-      
-      ws.on('close', () => {
-        console.log('❌ Frontend session client disconnected');
-        sessionClients.delete(ws);
-      });
-      
-      ws.on('error', (error) => {
-        console.error('❌ Frontend session WebSocket error:', error);
-        sessionClients.delete(ws);
-      });
-    } else if (url.pathname === '/ws/nina') {
-      console.log('� Frontend NINA client connected');
-      ninaClients.add(ws);
-      
-      // Send initial connection confirmation
-      ws.send(JSON.stringify({
-        type: 'connection',
-        message: 'Connected to NINA event stream',
-        timestamp: new Date().toISOString()
-      }));
-      
-      ws.on('close', () => {
-        console.log('❌ Frontend NINA client disconnected');
-        ninaClients.delete(ws);
-      });
-      
-      ws.on('error', (error) => {
-        console.error('❌ Frontend NINA WebSocket error:', error);
-        ninaClients.delete(ws);
-      });
-    }
-  });
-
-  // Make WebSocket clients accessible to API routes
-  app.locals.webSocketClients = {
-    unified: unifiedClients,
-    session: sessionClients,
-    nina: ninaClients,
-    // Helper function to broadcast to all clients
-    broadcastToAll: function(message) {
-      const msgString = typeof message === 'string' ? message : JSON.stringify(message);
-      [...unifiedClients, ...sessionClients, ...ninaClients].forEach(client => {
-        if (client.readyState === 1) { // WebSocket.OPEN
-          client.send(msgString);
-        }
-      });
-    }
-  };
-
-  // Broadcast session updates to all connected frontend clients (legacy) - DISABLED
-  // sessionStateManager.on('sessionUpdate', (sessionState) => {
-  //   broadcastSessionUpdate(sessionState);
-  // });
-
-  // Broadcast NINA events to all connected frontend clients (legacy) - DISABLED
-  // sessionStateManager.on('ninaEvent', (eventType, eventData) => {
-  //   broadcastNINAEvent(eventType, eventData);
-  // });
-
-  // Broadcast updates from UnifiedSessionManager (new architecture)
-  unifiedSessionManager.on('sessionUpdate', (sessionData) => {
-    broadcastUnifiedSessionUpdate(sessionData);
-  });
-
-  unifiedSessionManager.on('ninaEvent', (eventType, eventData) => {
-    broadcastNINAEvent(eventType, eventData);
-  });
-
-  // Broadcast NINA events to all connected frontend clients (UNIFIED ONLY)
-  const broadcastNINAEvent = (eventType, eventData) => {
-    const message = JSON.stringify({
-      type: 'nina-event',
-      data: {
-        Type: eventType,
-        Timestamp: new Date().toISOString(),
-        Source: 'NINA',
-        Data: eventData
-      },
-      timestamp: new Date().toISOString()
-    });
-    
-    console.log('📡 Broadcasting NINA event to', unifiedClients.size, 'unified clients:', eventType);
-    
-    // Broadcast to unified clients only
-    unifiedClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      } else {
-        unifiedClients.delete(client);
-      }
-    });
-  };
-
-  // DEPRECATED: Use broadcastUnifiedSessionUpdate instead
-  const broadcastSessionUpdate = (sessionData) => {
-    console.warn('⚠️ broadcastSessionUpdate called - this is deprecated, use unifiedSession type');
-    broadcastUnifiedSessionUpdate(sessionData);
-  };
-
-  // Broadcast unified session updates - send both formats for compatibility
-  const broadcastUnifiedSessionUpdate = (sessionData) => {
-    // Send as both 'unifiedSession' and 'sessionUpdate' for compatibility
-    const unifiedMessage = JSON.stringify({
-      type: 'unifiedSession',
-      data: sessionData,
-      timestamp: new Date().toISOString()
-    });
-    
-    const legacyMessage = JSON.stringify({
-      type: 'sessionUpdate',
-      data: sessionData,
-      timestamp: new Date().toISOString()
-    });
-    
-    console.log('📡 Broadcasting session update to', unifiedClients.size, 'unified clients');
-    
-    // Broadcast to unified clients (send both message types)
-    unifiedClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(unifiedMessage);
-        client.send(legacyMessage); // Also send legacy format for backward compatibility
-      } else {
-        unifiedClients.delete(client);
-      }
-    });
-  };
-
   // Start server
   server.listen(PORT, () => {
     console.log('✅ All services initialized successfully');
@@ -374,27 +147,23 @@ async function initializeServer() {
     console.log(`🚀 Enhanced Configuration API server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     console.log(`⚙️  Configuration endpoint: http://localhost:${PORT}/api/config`);
-    console.log(`📡 Unified WebSocket available at ws://localhost:${PORT}/ws`);
-    console.log(`⚠️  Legacy endpoints /ws/session and /ws/nina deprecated (auto-redirect to /ws)`);
-    console.log(`👥 Max WebSocket clients: 100`);
+
   });
 
   // Return server components for cleanup
-  return { server, wss, sessionStateManager: null, unifiedSessionManager };
+  return { server };
 }
 
 // Global references for cleanup
-let server, wss, sessionStateManager, unifiedSessionManager;
+let server;
 
 // Initialize server
 initializeServer()
   .then((components) => {
     server = components.server;
-    wss = components.wss;
-    sessionStateManager = components.sessionStateManager;
-    unifiedSessionManager = components.unifiedSessionManager;
   })
   .catch((error) => {
     console.error('💥 Failed to initialize server:', error);
     process.exit(1);
   });
+

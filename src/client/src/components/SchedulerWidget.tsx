@@ -9,7 +9,6 @@ import {
   ImageIcon,
   ClockIcon
 } from '@radix-ui/react-icons';
-import { useUnifiedWebSocket } from '../hooks/useUnifiedWebSocket';
 import { getApiUrl } from '../config/api';
 import type { TargetSchedulerProps } from '../interfaces/dashboard';
 
@@ -17,23 +16,9 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastImageSave, setLastImageSave] = useState<string>('');
   const [lastApiCall, setLastApiCall] = useState<number>(0);
   const [openFilterCard, setOpenFilterCard] = useState<string | null>(null);
   const [openProgressCard, setOpenProgressCard] = useState<string | null>(null);
-
-  // Use unified WebSocket for NINA events
-  const { 
-    connected: wsConnected, 
-    onNINAEvent,
-    lastEvent 
-  } = useUnifiedWebSocket({
-    widgetType: 'target_scheduler',
-    eventTypes: ['IMAGE-SAVE', 'SEQUENCE-FINISHED']
-  });
-
-  // Bootstrap pattern: Session state management
-  const [sessionData, setSessionData] = useState<any>(null);
 
   const fetchData = useCallback(async (reason = 'manual') => {
     // Throttle API calls - minimum 3 seconds between calls
@@ -61,61 +46,13 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
     }
   }, [lastApiCall]);
 
-  // Handle unified session updates (moved after fetchData declaration)
-  const handleUnifiedSessionUpdate = useCallback((session: any) => {
-    setSessionData(session);
-    
-    // Only update scheduler if target changed (affects "Shooting Now" badge)
-    const newTarget = session?.target?.name;
-    const currentTarget = data?.find((p: any) => p.isCurrentlyActive)?.targets?.[0]?.name;
-    
-    if (newTarget !== currentTarget) {
-      console.log('📊 Target changed, updating "Shooting Now" badge:', newTarget);
-      fetchData('target-changed');
-    }
-  }, [data, fetchData]);
-
-  // Enhanced WebSocket event handler - only for IMAGE-SAVE events
-  const handleWidgetEvent = useCallback((event: any) => {
-    console.log('📊 Scheduler widget event received:', event.Type, event.Data?.ImageStatistics?.ImageType);
-    
-    // Only process IMAGE-SAVE events with ImageStatistics (light frames)
-    if (event.Type === 'IMAGE-SAVE' && event.Data?.ImageStatistics) {
-      const imageStats = event.Data.ImageStatistics;
-      
-      // Skip calibration frames (darks, flats, bias)
-      if (imageStats.ImageType && imageStats.ImageType !== 'LIGHT') {
-        console.log('📊 Ignoring calibration frame:', imageStats.ImageType);
-        return;
-      }
-      
-      console.log('✅ Processing light frame for scheduler progress update');
-      setLastImageSave(event.Timestamp);
-      fetchData('light-frame-captured');
-    } else if (event.Type === 'SEQUENCE-FINISHED') {
-      console.log('📊 Sequence finished, updating scheduler progress');
-      fetchData('sequence-finished');
-    }
-  }, [fetchData]);
-
-  // Subscribe to unified WebSocket events
+  // Auto-refresh every 30 seconds
   useEffect(() => {
-    // Subscribe to NINA events (IMAGE-SAVE, SEQUENCE-FINISHED)
-    const unsubscribeNINA = onNINAEvent(handleWidgetEvent);
-    
-    // Subscribe to session updates using unified WebSocket service directly
-    const { unifiedWebSocket } = require('../services/unifiedWebSocket');
-    const handleSessionEvent = (sessionData: any) => {
-      handleUnifiedSessionUpdate(sessionData);
-    };
-    
-    unifiedWebSocket.on('session:update', handleSessionEvent);
-    
-    return () => {
-      unsubscribeNINA();
-      unifiedWebSocket.off('session:update', handleSessionEvent);
-    };
-  }, [onNINAEvent, handleWidgetEvent, handleUnifiedSessionUpdate]);
+    const interval = setInterval(() => {
+      fetchData('auto-refresh');
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   // Initial data load
   useEffect(() => {
@@ -173,11 +110,6 @@ export const TargetSchedulerWidget: React.FC<TargetSchedulerProps> = ({ onRefres
             <Flex align="center" gap="2">
               <TargetIcon />
               <Text size="3" weight="medium">Target Scheduler</Text>
-              {lastImageSave && (
-                <Badge variant="soft" color="green" size="1">
-                  Live Updates
-                </Badge>
-              )}
             </Flex>
             <Badge color="green" size="2">
               <CheckCircledIcon width="12" height="12" />

@@ -52,19 +52,6 @@ class ConfigRoutes {
         this.configDatabase.setConfig(req.body);
         const updatedConfig = this.configDatabase.getConfig();
         
-        // Broadcast configuration change to all connected WebSocket clients
-        if (req.app.locals.webSocketClients) {
-          const configUpdateMessage = JSON.stringify({
-            type: 'config-update',
-            data: updatedConfig,
-            timestamp: new Date().toISOString()
-          });
-          
-          // Use the helper function to broadcast to all client types
-          req.app.locals.webSocketClients.broadcastToAll(configUpdateMessage);
-          console.log('📡 Configuration update broadcasted to all WebSocket clients');
-        }
-        
         res.json(updatedConfig);
       } catch (error) {
         console.error('Error updating config:', error);
