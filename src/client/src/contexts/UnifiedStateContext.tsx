@@ -15,8 +15,19 @@ interface UnifiedStateContextValue {
 
 const UnifiedStateContext = createContext<UnifiedStateContextValue | null>(null);
 
-const API_BASE = 'http://localhost:3001';
-const WS_BASE = 'ws://localhost:3001';
+// Dynamically get the current host from the browser's location
+const getCurrentHost = (): string => {
+  if (typeof window !== 'undefined') {
+    const { protocol, hostname } = window.location;
+    return `${protocol}//${hostname}`;
+  }
+  return 'http://localhost';
+};
+
+// API base URL uses same host as website but port 3001
+const API_BASE = `${getCurrentHost()}:3001`;
+// WebSocket URL uses ws:// or wss:// depending on the page protocol
+const WS_BASE = `${getCurrentHost().replace('https:', 'wss:').replace('http:', 'ws:')}:3001`;
 
 interface UnifiedStateProviderProps {
   children: ReactNode;
