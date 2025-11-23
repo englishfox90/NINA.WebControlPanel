@@ -206,25 +206,7 @@ export function useNINAStatusWebSocket() {
 
 
 
-export function useSessionWebSocket() {
-  return useUnifiedWebSocket({
-    widgetType: 'current_session',
-    eventTypes: [
-      'SEQUENCE-STARTING', 'SEQUENCE-FINISHED',
-      'IMAGE-SAVE', 'AUTOFOCUS-RUNNING', 'AUTOFOCUS-FINISHED',
-      'GUIDING-STARTED', 'GUIDING-STOPPED',
-      'MOUNT-SLEWING', 'MOUNT-TRACKING',
-      'FILTERWHEEL-CHANGED'
-    ]
-  });
-}
 
-export function useSchedulerWebSocket() {
-  return useUnifiedWebSocket({
-    widgetType: 'target_scheduler',
-    eventTypes: ['IMAGE-SAVE', 'SEQUENCE-FINISHED']
-  });
-}
 
 export function useSafetyWebSocket() {
   return useUnifiedWebSocket({

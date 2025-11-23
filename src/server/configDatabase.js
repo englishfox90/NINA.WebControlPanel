@@ -90,7 +90,6 @@ class ConfigDatabase {
       { id: 'image-viewer', component: 'ImageViewer', title: 'Recent Images', x: 0, y: 14, w: 8, h: 6, minW: 4, minH: 4 },
       { id: 'nina-logs', component: 'NINALogsWidget', title: 'NINA Logs', x: 0, y: 20, w: 8, h: 6, minW: 4, minH: 4 },
       { id: 'livestack-viewer', component: 'LiveStackWidget', title: 'LiveStack', x: 8, y: 20, w: 8, h: 8, minW: 4, minH: 6 },
-      { id: 'session-widget', component: 'SessionWidget', title: 'Current Session', x: 12, y: 0, w: 4, h: 15, minW: 3, minH: 10 },
       { id: 'guider-graph', component: 'GuiderGraphWidget', title: 'Guider Graph', x: 8, y: 14, w: 6, h: 8, minW: 4, minH: 6 }
     ];
   }

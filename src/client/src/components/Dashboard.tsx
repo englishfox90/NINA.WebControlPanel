@@ -5,7 +5,6 @@ import NINAStatus from './NINAStatus';
 import SystemStatusWidget from './SystemStatusWidget';
 import SchedulerWidget from './SchedulerWidget';
 import RTSPViewer from './RTSPViewer';
-import SessionWidgetEnhanced from './SessionWidget/Enhanced';
 import TimeAstronomicalWidget from './TimeAstronomicalWidget';
 import ImageViewerWidget from './ImageViewer';
 import WeatherWidget from './WeatherWidget';
@@ -279,8 +278,6 @@ const Dashboard: React.FC = () => {
         return <SchedulerWidget key={config.id} hideHeader={true} />;
       case 'RTSPViewer':
         return <RTSPViewer key={`${config.id}-${refreshTrigger}`} streams={rtspFeeds} isConnected={true} hideHeader={true} />;
-      case 'SessionWidget':
-        return <SessionWidgetEnhanced key={config.id} hideHeader={true} />;
       case 'TimeAstronomicalWidget':
         return <TimeAstronomicalWidget key={config.id} onRefresh={handleRefresh} hideHeader={true} />;
       case 'ImageViewer':
