@@ -308,7 +308,7 @@ async function initializeServer() {
     broadcastNINAEvent(eventType, eventData);
   });
 
-  // Broadcast NINA events to all connected frontend clients
+  // Broadcast NINA events to all connected frontend clients (UNIFIED ONLY)
   const broadcastNINAEvent = (eventType, eventData) => {
     const message = JSON.stringify({
       type: 'nina-event',
@@ -321,18 +321,9 @@ async function initializeServer() {
       timestamp: new Date().toISOString()
     });
     
-    console.log('📡 Broadcasting NINA event to', (ninaClients.size + unifiedClients.size), 'clients:', eventType);
+    console.log('📡 Broadcasting NINA event to', unifiedClients.size, 'unified clients:', eventType);
     
-    // Broadcast to original NINA clients (legacy support)
-    ninaClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      } else {
-        ninaClients.delete(client);
-      }
-    });
-
-    // Broadcast to unified clients (new architecture)
+    // Broadcast to unified clients only
     unifiedClients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
@@ -342,47 +333,34 @@ async function initializeServer() {
     });
   };
 
-  // Broadcast session updates to unified clients (legacy format)
+  // DEPRECATED: Use broadcastUnifiedSessionUpdate instead
   const broadcastSessionUpdate = (sessionData) => {
-    const message = JSON.stringify({
-      type: 'sessionUpdate',
-      data: sessionData,
-      timestamp: new Date().toISOString()
-    });
-    
-    console.log('📡 Broadcasting session update to', (sessionClients.size + unifiedClients.size), 'clients');
-    
-    // Broadcast to original session clients (legacy support)
-    sessionClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      } else {
-        sessionClients.delete(client);
-      }
-    });
-
-    // Broadcast to unified clients (new architecture)
-    unifiedClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      } else {
-        unifiedClients.delete(client);
-      }
-    });
+    console.warn('⚠️ broadcastSessionUpdate called - this is deprecated, use unifiedSession type');
+    broadcastUnifiedSessionUpdate(sessionData);
   };
 
-  // Broadcast unified session updates (new format)
+  // Broadcast unified session updates - send both formats for compatibility
   const broadcastUnifiedSessionUpdate = (sessionData) => {
-    const message = JSON.stringify({
+    // Send as both 'unifiedSession' and 'sessionUpdate' for compatibility
+    const unifiedMessage = JSON.stringify({
       type: 'unifiedSession',
       data: sessionData,
       timestamp: new Date().toISOString()
     });
     
-    // Only broadcast to unified clients (new architecture)
+    const legacyMessage = JSON.stringify({
+      type: 'sessionUpdate',
+      data: sessionData,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log('📡 Broadcasting session update to', unifiedClients.size, 'unified clients');
+    
+    // Broadcast to unified clients (send both message types)
     unifiedClients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
+        client.send(unifiedMessage);
+        client.send(legacyMessage); // Also send legacy format for backward compatibility
       } else {
         unifiedClients.delete(client);
       }
@@ -396,8 +374,8 @@ async function initializeServer() {
     console.log(`🚀 Enhanced Configuration API server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     console.log(`⚙️  Configuration endpoint: http://localhost:${PORT}/api/config`);
-    console.log(`📡 Session WebSocket available at ws://localhost:${PORT}/ws/session`);
-    console.log(`🔧 NINA WebSocket available at ws://localhost:${PORT}/ws/nina`);
+    console.log(`📡 Unified WebSocket available at ws://localhost:${PORT}/ws`);
+    console.log(`⚠️  Legacy endpoints /ws/session and /ws/nina deprecated (auto-redirect to /ws)`);
     console.log(`👥 Max WebSocket clients: 100`);
   });
 
