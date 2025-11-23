@@ -36,13 +36,14 @@ class StateSeeder {
       }
 
       // NINA API returns events oldest -> newest
-      // Take the last 100 events (most recent), then reverse for processing
+      // Take the last 100 events (most recent) and process in chronological order
+      // This ensures the most recent state changes (filter, target, etc.) are applied last
       const startIndex = Math.max(0, events.length - 100);
-      const recentEvents = events.slice(startIndex).reverse();
+      const recentEvents = events.slice(startIndex);
       
       console.log(`📚 Processing ${recentEvents.length} most recent events (of ${events.length} total)...`);
 
-      // Process each event through the normalizer
+      // Process each event through the normalizer (oldest to newest)
       let processedCount = 0;
       for (const event of recentEvents) {
         try {
