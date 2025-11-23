@@ -119,10 +119,23 @@ class EventNormalizer {
     console.log(`🎯 Guiding: ${isGuiding ? 'Active' : 'Stopped'} (${updateReason})`);
 
     this.stateManager.updateSession({ guiding: guidingData });
+    
+    // Create specific summary based on event type
+    let eventSummary = 'Guiding update';
+    if (/start/i.test(type)) {
+      eventSummary = 'Guiding started';
+    } else if (/stop/i.test(type)) {
+      eventSummary = 'Guiding stopped';
+    } else if (/dither/i.test(type)) {
+      eventSummary = 'Dithering';
+    } else if (guidingData.lastRmsTotal !== null) {
+      eventSummary = `RMS: ${guidingData.lastRmsTotal.toFixed(2)}"`;
+    }
+    
     this.stateManager.addRecentEvent({
       time: event.Time || new Date().toISOString(),
       type: 'GUIDING',
-      summary: `Guiding ${isGuiding ? 'active' : 'stopped'}`,
+      summary: eventSummary,
       meta: { rms: guidingData.lastRmsTotal }
     });
 
@@ -141,6 +154,16 @@ class EventNormalizer {
     const eventData = event.Data || event;
     let updateReason = 'session-update';
     const sessionData = {};
+    
+    // Fix timezone issue for TS-TARGETSTART events (UTC timestamps need -6 hours)
+    let eventTime = event.Time || new Date().toISOString();
+    if (/ts-targetstart/i.test(type) && eventTime && !eventTime.includes('-06:00')) {
+      // This is a UTC timestamp that needs timezone adjustment
+      const utcDate = new Date(eventTime);
+      utcDate.setHours(utcDate.getHours() - 6);
+      eventTime = utcDate.toISOString();
+      console.log(`🕐 Adjusted TS-TARGETSTART time from ${event.Time} to ${eventTime}`);
+    }
 
     if (/target.*changed|targetstart/i.test(type)) {
       updateReason = 'target-changed';
@@ -170,11 +193,20 @@ class EventNormalizer {
     }
 
     this.stateManager.updateSession(sessionData);
+    
+    // Create meaningful summary
+    let eventSummary = updateReason.replace(/-/g, ' ');
+    if (sessionData.target?.targetName) {
+      eventSummary = `Target: ${sessionData.target.targetName}`;
+    } else if (sessionData.imaging?.sequenceName) {
+      eventSummary = `Sequence: ${sessionData.imaging.sequenceName}`;
+    }
+    
     this.stateManager.addRecentEvent({
-      time: event.Time || new Date().toISOString(),
+      time: eventTime,
       type: 'SESSION',
-      summary: updateReason.replace(/-/g, ' '),
-      meta: eventData
+      summary: eventSummary,
+      meta: { TargetName: sessionData.target?.targetName }
     });
 
     this.stateManager.notifyListeners('session', updateReason, {
@@ -296,11 +328,21 @@ class EventNormalizer {
         }
       });
 
+      // Create concise image summary
+      let imageSummary = 'Image saved';
+      if (filter && exposure) {
+        imageSummary = `${filter} ${exposure}s`;
+      } else if (filter) {
+        imageSummary = `${filter} image`;
+      } else if (frameType && frameType !== 'LIGHT') {
+        imageSummary = `${frameType} frame`;
+      }
+      
       this.stateManager.addRecentEvent({
         time: event.Time || new Date().toISOString(),
         type: 'IMAGE-SAVE',
-        summary: `${frameType} ${filter} ${exposure}s saved`,
-        meta: eventData
+        summary: imageSummary,
+        meta: { Filter: filter, Exposure: exposure, FrameType: frameType }
       });
 
       this.stateManager.notifyListeners('image', 'image-saved', {
@@ -320,12 +362,23 @@ class EventNormalizer {
     
     console.log('ℹ️ Stack event received:', type);
     
-    // Placeholder for future stack event handling
+    // Create concise stack summary
+    const target = event.Target || eventData.Target || 'Unknown';
+    const filter = event.Filter || eventData.Filter || '';
+    const stackCount = event.StackCount || eventData.StackCount || 0;
+    
+    let stackSummary = `${target}`;
+    if (filter) {
+      stackSummary = `${filter}: ${stackCount} frames`;
+    } else {
+      stackSummary = `${target}: ${stackCount} frames`;
+    }
+    
     this.stateManager.addRecentEvent({
       time: event.Time || new Date().toISOString(),
       type: 'STACK',
-      summary: `Stack updated: ${event.Target || 'unknown'} - ${event.StackCount || 0} frames`,
-      meta: eventData
+      summary: stackSummary,
+      meta: { Target: target, Filter: filter, StackCount: stackCount }
     });
 
     this.stateManager.notifyListeners('stack', 'stack-update', {

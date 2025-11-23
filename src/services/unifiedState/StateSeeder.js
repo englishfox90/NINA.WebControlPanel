@@ -35,12 +35,18 @@ class StateSeeder {
         return true;
       }
 
-      // Sort events by timestamp (oldest first)
-      const sortedEvents = this._sortEventsByTime(events);
+      // Sort events by timestamp (newest first for recent events)
+      const sortedEvents = this._sortEventsByTime(events, true);
+      
+      // Take only the most recent 100 events to process
+      // This ensures we get a diverse set of recent events, not just SESSION events
+      const recentEvents = sortedEvents.slice(0, Math.min(100, sortedEvents.length));
+      
+      console.log(`📚 Processing ${recentEvents.length} most recent events (of ${events.length} total)...`);
 
       // Process each event through the normalizer
       let processedCount = 0;
-      for (const event of sortedEvents) {
+      for (const event of recentEvents) {
         try {
           this.eventNormalizer.processEvent(event);
           processedCount++;
@@ -64,14 +70,16 @@ class StateSeeder {
   }
 
   /**
-   * Sort events by timestamp (oldest first)
+   * Sort events by timestamp
+   * @param {Array} events - Events to sort
+   * @param {boolean} newestFirst - If true, sort newest first; otherwise oldest first
    * @private
    */
-  _sortEventsByTime(events) {
+  _sortEventsByTime(events, newestFirst = false) {
     return events.sort((a, b) => {
       const timeA = this._getEventTime(a);
       const timeB = this._getEventTime(b);
-      return timeA - timeB;
+      return newestFirst ? timeB - timeA : timeA - timeB;
     });
   }
 
