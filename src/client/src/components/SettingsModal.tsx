@@ -133,19 +133,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
         return;
       }
 
-      // Configure file picker for SQLite database files
-      const filePickerOptions = {
+      // Configure file picker based on config path
+      let filePickerOptions: any = {
         multiple: false,
-        types: [
+        excludeAcceptAllOption: false
+      };
+
+      if (configPath === 'streams.localCameraPath') {
+        // Image files for local camera
+        filePickerOptions.types = [
+          {
+            description: "Image Files",
+            accept: { 
+              "image/*": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff"]
+            }
+          }
+        ];
+      } else if (configPath === 'database.targetSchedulerPath') {
+        // SQLite database files
+        filePickerOptions.types = [
           {
             description: "SQLite Database Files",
             accept: { 
               "application/x-sqlite3": [".sqlite", ".db", ".sqlite3"]
             }
           }
-        ],
-        excludeAcceptAllOption: false
-      };
+        ];
+      }
 
       // Show file picker
       const [fileHandle] = await window.showOpenFilePicker(filePickerOptions);
@@ -165,6 +179,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
         
         // Show helpful message
         alert(`Selected: ${fileName}\n\nPath set to: ${suggestedPath}\n\nNote: You may need to adjust the directory path to match your actual file location.`);
+      } else if (configPath === 'streams.localCameraPath') {
+        // For image files, we need the full path which the user must provide
+        alert(`Selected: ${fileName}\n\nPlease enter the full file path manually (e.g., C:\\Astrophotography\\AllSkEye\\AllSkEye\\LatestImage\\${fileName})`);
       }
       
     } catch (err: any) {

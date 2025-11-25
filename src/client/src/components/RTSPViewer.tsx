@@ -12,13 +12,30 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [naturalDimensions, setNaturalDimensions] = useState<{width: number, height: number} | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [fileAge, setFileAge] = useState<number | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  // Update image source when streams change
+  // Update image source and check file age when streams change
   useEffect(() => {
     if (streams.length > 0 && streams[activeStream]) {
-      const updateImg = () => {
-        setImgSrc(`${streams[activeStream]}?t=${Date.now()}`);
+      const updateImg = async () => {
+        const streamUrl = streams[activeStream];
+        setImgSrc(`${streamUrl}?t=${Date.now()}`);
+        
+        // Check file age for local camera endpoint
+        if (streamUrl.includes('/api/camera/local')) {
+          try {
+            const response = await fetch(streamUrl, { method: 'HEAD' });
+            const ageHeader = response.headers.get('X-File-Age');
+            if (ageHeader) {
+              setFileAge(parseInt(ageHeader, 10));
+            }
+          } catch (error) {
+            console.error('Failed to check file age:', error);
+          }
+        } else {
+          setFileAge(null); // Not a local file
+        }
       };
       
       updateImg(); // Update immediately
@@ -239,9 +256,15 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
                 alt={`Live Stream ${activeStream + 1}`}
                 style={{
                   ...getImageStyle(getStreamType(activeStream)),
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  userSelect: 'none'
                 }}
                 onClick={() => setIsModalOpen(true)}
+                onMouseDown={(e) => {
+                  // Prevent dragging behavior on desktop
+                  e.preventDefault();
+                  setIsModalOpen(true);
+                }}
                 onLoad={handleImageLoad}
                 onError={handleImageError}
               />
@@ -283,19 +306,37 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
             </Flex>
           )}
 
-          {/* Live Badge */}
+          {/* Live Badge - Bottom Right */}
           <Badge 
             color="red" 
             size="1" 
             style={{
               position: 'absolute',
-              top: '8px',
+              bottom: '8px',
               right: '8px',
               zIndex: 1
             }}
           >
             LIVE
           </Badge>
+
+          {/* File Age Warning - Top Right */}
+          {fileAge !== null && fileAge > 1800 && (
+            <Badge 
+              color="orange" 
+              size="1" 
+              style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                zIndex: 1
+              }}
+            >
+              {fileAge > 3600 
+                ? `Stale (${Math.floor(fileAge / 3600)}h old)` 
+                : `Stale (${Math.floor(fileAge / 60)}m old)`}
+            </Badge>
+          )}
         </Box>
       </Box>
 

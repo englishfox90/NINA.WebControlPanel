@@ -106,11 +106,22 @@ const Dashboard: React.FC = () => {
     try {
       const response = await fetch(getApiUrl('config'));
       const config = await response.json();
-      const feeds = [
-        config.streams?.liveFeed1 || '',
-        config.streams?.liveFeed2 || '',
-        config.streams?.liveFeed3 || ''
-      ].filter(Boolean); // Remove empty strings
+      
+      // Build feeds array, prioritizing local camera if configured
+      const feeds: string[] = [];
+      
+      // If local camera path is set, add it as the local camera endpoint
+      if (config.streams?.localCameraPath) {
+        // Use the server's local camera endpoint
+        const serverUrl = window.location.origin.replace(':3000', ':3001');
+        feeds.push(`${serverUrl}/api/camera/local`);
+      }
+      
+      // Add other feeds
+      if (config.streams?.liveFeed1) feeds.push(config.streams.liveFeed1);
+      if (config.streams?.liveFeed2) feeds.push(config.streams.liveFeed2);
+      if (config.streams?.liveFeed3) feeds.push(config.streams.liveFeed3);
+      
       setRtspFeeds(feeds);
     } catch (error) {
       console.error('Failed to fetch config:', error);
