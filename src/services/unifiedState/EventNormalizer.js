@@ -52,7 +52,7 @@ class EventNormalizer {
    * Check if event is guiding-related
    */
   _isGuidingEvent(type) {
-    return /guiding|guider.*start|guider.*stop|guider.*dither/i.test(type);
+    return /guiding|guider.*start|guider.*stop|guider.*disconnect|guider.*dither/i.test(type);
   }
 
   /**
@@ -94,8 +94,8 @@ class EventNormalizer {
     if (/start/i.test(type)) {
       updateReason = 'guiding-started';
       isGuiding = true;
-    } else if (/stop/i.test(type)) {
-      updateReason = 'guiding-stopped';
+    } else if (/stop|disconnect/i.test(type)) {
+      updateReason = type.includes('DISCONNECT') ? 'guiding-disconnected' : 'guiding-stopped';
       isGuiding = false;
     } else if (/dither/i.test(type)) {
       updateReason = 'guiding-dithering';
@@ -126,6 +126,8 @@ class EventNormalizer {
       eventSummary = 'Guiding started';
     } else if (/stop/i.test(type)) {
       eventSummary = 'Guiding stopped';
+    } else if (/disconnect/i.test(type)) {
+      eventSummary = 'Guiding disconnected';
     } else if (/dither/i.test(type)) {
       eventSummary = 'Dithering';
     } else if (guidingData.lastRmsTotal !== null) {
@@ -176,6 +178,23 @@ class EventNormalizer {
         panelIndex: eventData.PanelIndex || null,
         rotation: event.Rotation || eventData.Rotation || null
       };
+      
+      // Check if target has ended based on TargetEndTime
+      const targetEndTime = event.TargetEndTime || eventData.TargetEndTime;
+      if (targetEndTime) {
+        const endTime = new Date(targetEndTime);
+        const now = new Date();
+        
+        // If we're past the target end time, session is not active
+        if (now > endTime) {
+          console.log(`⏰ Target ended at ${endTime.toISOString()}, current time ${now.toISOString()}`);
+          sessionData.isActive = false;
+        } else {
+          // Target is still active
+          sessionData.isActive = true;
+          console.log(`✅ Target active until ${endTime.toISOString()}`);
+        }
+      }
     } else if (/sequence.*started/i.test(type)) {
       updateReason = 'sequence-started';
       sessionData.isActive = true;
@@ -187,26 +206,37 @@ class EventNormalizer {
         exposureSeconds: eventData.ExposureTime || null,
         frameType: eventData.FrameType || 'LIGHT'
       };
-    } else if (/sequence.*(completed|stopped)/i.test(type)) {
+    } else if (/sequence.*(completed|stopped|finished)/i.test(type)) {
       updateReason = 'sequence-completed';
       sessionData.isActive = false;
     }
 
     this.stateManager.updateSession(sessionData);
     
-    // Create meaningful summary
-    let eventSummary = updateReason.replace(/-/g, ' ');
+    // Create enriched session event summary
+    let eventSummary = 'Session update';
     if (sessionData.target?.targetName) {
       eventSummary = `Target: ${sessionData.target.targetName}`;
+      if (sessionData.target.projectName) {
+        eventSummary += ` (${sessionData.target.projectName})`;
+      }
     } else if (sessionData.imaging?.sequenceName) {
       eventSummary = `Sequence: ${sessionData.imaging.sequenceName}`;
+    } else if (/completed|stopped|finished/i.test(updateReason)) {
+      eventSummary = 'Sequence completed';
+    } else if (/started/i.test(updateReason)) {
+      eventSummary = 'Sequence started';
     }
     
     this.stateManager.addRecentEvent({
       time: eventTime,
       type: 'SESSION',
       summary: eventSummary,
-      meta: { TargetName: sessionData.target?.targetName }
+      meta: { 
+        TargetName: sessionData.target?.targetName,
+        ProjectName: sessionData.target?.projectName,
+        SequenceName: sessionData.imaging?.sequenceName
+      }
     });
 
     this.stateManager.notifyListeners('session', updateReason, {
@@ -282,11 +312,21 @@ class EventNormalizer {
       details: eventData
     });
 
+    // Create enriched equipment event summary
+    let equipmentSummary = `${this._formatEquipmentName(equipmentId)}`;
+    if (!connected) {
+      equipmentSummary += ': disconnected';
+    } else if (status === 'idle') {
+      equipmentSummary += ': connected';
+    } else {
+      equipmentSummary += `: ${status}`;
+    }
+
     this.stateManager.addRecentEvent({
       time: event.Time || new Date().toISOString(),
       type: 'EQUIPMENT',
-      summary: `${this._formatEquipmentName(equipmentId)}: ${status}`,
-      meta: { equipmentId, status }
+      summary: equipmentSummary,
+      meta: { equipmentId, status, connected }
     });
 
     this.stateManager.notifyListeners('equipment', updateReason, {

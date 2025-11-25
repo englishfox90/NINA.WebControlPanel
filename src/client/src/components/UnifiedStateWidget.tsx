@@ -105,117 +105,122 @@ const UnifiedStateWidget: React.FC = () => {
                     )}
                   </Grid>
 
-                  {/* Target Information */}
-                  {session.target?.targetName && (
+                  {/* Only show Target and Imaging when session is active */}
+                  {isSessionActive && (
                     <>
-                      <Separator size="2" />
-                      <Flex direction="column" gap="1">
-                        <Text size="1" color="gray">Target</Text>
-                        <Flex align="center" gap="1">
-                          <TargetIcon width="14" height="14" />
-                          <Text size="2" weight="medium">{session.target.targetName}</Text>
-                        </Flex>
-                        {session.target.projectName && session.target.projectName !== session.target.targetName && (
-                          <Text size="1" color="gray">Project: {session.target.projectName}</Text>
-                        )}
-                        <Flex gap="3" mt="1">
-                          <Text size="1" color="gray">
-                            RA: {session.target.ra?.toFixed(2)}h
-                          </Text>
-                          <Text size="1" color="gray">
-                            Dec: {session.target.dec?.toFixed(2)}°
-                          </Text>
-                          {session.target.rotation !== null && (
-                            <Text size="1" color="gray">
-                              Rot: {session.target.rotation}°
-                            </Text>
-                          )}
-                        </Flex>
-                      </Flex>
-                    </>
-                  )}
-
-                  {/* Imaging Information */}
-                  {session.imaging && (session.isActive || session.imaging.lastImage) && (
-                    <>
-                      <Separator size="2" />
-                      <Flex direction="column" gap="2">
-                        <Text size="1" color="gray" weight="bold">Imaging</Text>
-                        <Grid columns="2" gap="2">
-                          {currentFilter && currentFilter !== 'Unknown' && (
-                            <Flex direction="column" gap="1">
-                              <Text size="1" color="gray">Filter</Text>
-                              <Badge color={getFilterColor(currentFilter)} variant="soft">{currentFilter}</Badge>
-                            </Flex>
-                          )}
-                          {session.imaging.exposureSeconds && (
-                            <Flex direction="column" gap="1">
-                              <Text size="1" color="gray">Exposure</Text>
-                              <Text size="1">{session.imaging.exposureSeconds}s</Text>
-                            </Flex>
-                          )}
-                          {session.imaging.frameType && (
-                            <Flex direction="column" gap="1">
-                              <Text size="1" color="gray">Frame Type</Text>
-                              <Badge color={
-                                session.imaging.frameType === 'LIGHT' ? 'green' :
-                                session.imaging.frameType === 'DARK' ? 'gray' :
-                                session.imaging.frameType === 'FLAT' ? 'orange' : 'blue'
-                              } variant="soft">
-                                {session.imaging.frameType}
-                              </Badge>
-                            </Flex>
-                          )}
-                        </Grid>
-                        
-                        {session.imaging.lastImage && (
-                          <Flex direction="column" gap="1" mt="1">
-                            <Text size="1" color="gray">Last Image</Text>
+                      {/* Target Information */}
+                      {session.target?.targetName && (
+                        <>
+                          <Separator size="2" />
+                          <Flex direction="column" gap="1">
+                            <Text size="1" color="gray">Target</Text>
                             <Flex align="center" gap="1">
-                              <ClockIcon width="12" height="12" />
-                              <Text size="1">
-                                {new Date(session.imaging.lastImage.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                              </Text>
+                              <TargetIcon width="14" height="14" />
+                              <Text size="2" weight="medium">{session.target.targetName}</Text>
                             </Flex>
-                            {session.imaging.lastImage.stars !== null && (
+                            {session.target.projectName && session.target.projectName !== session.target.targetName && (
+                              <Text size="1" color="gray">Project: {session.target.projectName}</Text>
+                            )}
+                            <Flex gap="3" mt="1">
                               <Text size="1" color="gray">
-                                Stars: {session.imaging.lastImage.stars} | 
-                                HFR: {session.imaging.lastImage.hfr?.toFixed(2)}"
+                                RA: {session.target.ra?.toFixed(2)}h
                               </Text>
+                              <Text size="1" color="gray">
+                                Dec: {session.target.dec?.toFixed(2)}°
+                              </Text>
+                              {session.target.rotation !== null && (
+                                <Text size="1" color="gray">
+                                  Rot: {session.target.rotation}°
+                                </Text>
+                              )}
+                            </Flex>
+                          </Flex>
+                        </>
+                      )}
+
+                      {/* Imaging Information */}
+                      {session.imaging && session.imaging.lastImage && (
+                        <>
+                          <Separator size="2" />
+                          <Flex direction="column" gap="2">
+                            <Text size="1" color="gray" weight="bold">Imaging</Text>
+                            <Grid columns="2" gap="2">
+                              {currentFilter && currentFilter !== 'Unknown' && (
+                                <Flex direction="column" gap="1">
+                                  <Text size="1" color="gray">Filter</Text>
+                                  <Badge color={getFilterColor(currentFilter)} variant="soft">{currentFilter}</Badge>
+                                </Flex>
+                              )}
+                              {session.imaging.exposureSeconds && (
+                                <Flex direction="column" gap="1">
+                                  <Text size="1" color="gray">Exposure</Text>
+                                  <Text size="1">{session.imaging.exposureSeconds}s</Text>
+                                </Flex>
+                              )}
+                              {session.imaging.frameType && (
+                                <Flex direction="column" gap="1">
+                                  <Text size="1" color="gray">Frame Type</Text>
+                                  <Badge color={
+                                    session.imaging.frameType === 'LIGHT' ? 'green' :
+                                    session.imaging.frameType === 'DARK' ? 'gray' :
+                                    session.imaging.frameType === 'FLAT' ? 'orange' : 'blue'
+                                  } variant="soft">
+                                    {session.imaging.frameType}
+                                  </Badge>
+                                </Flex>
+                              )}
+                            </Grid>
+                            
+                            {session.imaging.lastImage && (
+                              <Flex direction="column" gap="1" mt="1">
+                                <Text size="1" color="gray">Last Image</Text>
+                                <Flex align="center" gap="1">
+                                  <ClockIcon width="12" height="12" />
+                                  <Text size="1">
+                                    {new Date(session.imaging.lastImage.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                  </Text>
+                                </Flex>
+                                {session.imaging.lastImage.stars !== null && (
+                                  <Text size="1" color="gray">
+                                    Stars: {session.imaging.lastImage.stars} | 
+                                    HFR: {session.imaging.lastImage.hfr?.toFixed(2)}"
+                                  </Text>
+                                )}
+                              </Flex>
                             )}
                           </Flex>
-                        )}
-                      </Flex>
-                    </>
-                  )}
+                        </>
+                      )}
 
-                  {/* Guiding Details */}
-                  {isGuidingActive && session.guiding.lastRmsTotal !== null && (
-                    <>
-                      <Separator size="2" />
-                      <Flex direction="column" gap="1">
-                        <Text size="1" color="gray" weight="bold">Guiding RMS</Text>
-                        <Grid columns="3" gap="2">
-                          <Flex direction="column">
-                            <Text size="1" color="gray">Total</Text>
-                            <Text size="2" weight="medium">
-                              {session.guiding.lastRmsTotal?.toFixed(2)}"
-                            </Text>
+                      {/* Guiding Details */}
+                      {isGuidingActive && session.guiding.lastRmsTotal !== null && (
+                        <>
+                          <Separator size="2" />
+                          <Flex direction="column" gap="1">
+                            <Text size="1" color="gray" weight="bold">Guiding RMS</Text>
+                            <Grid columns="3" gap="2">
+                              <Flex direction="column">
+                                <Text size="1" color="gray">Total</Text>
+                                <Text size="2" weight="medium">
+                                  {session.guiding.lastRmsTotal?.toFixed(2)}"
+                                </Text>
+                              </Flex>
+                              {session.guiding.lastRmsRa !== null && (
+                                <Flex direction="column">
+                                  <Text size="1" color="gray">RA</Text>
+                                  <Text size="2">{session.guiding.lastRmsRa?.toFixed(2)}"</Text>
+                                </Flex>
+                              )}
+                              {session.guiding.lastRmsDec !== null && (
+                                <Flex direction="column">
+                                  <Text size="1" color="gray">Dec</Text>
+                                  <Text size="2">{session.guiding.lastRmsDec?.toFixed(2)}"</Text>
+                                </Flex>
+                              )}
+                            </Grid>
                           </Flex>
-                          {session.guiding.lastRmsRa !== null && (
-                            <Flex direction="column">
-                              <Text size="1" color="gray">RA</Text>
-                              <Text size="2">{session.guiding.lastRmsRa?.toFixed(2)}"</Text>
-                            </Flex>
-                          )}
-                          {session.guiding.lastRmsDec !== null && (
-                            <Flex direction="column">
-                              <Text size="1" color="gray">Dec</Text>
-                              <Text size="2">{session.guiding.lastRmsDec?.toFixed(2)}"</Text>
-                            </Flex>
-                          )}
-                        </Grid>
-                      </Flex>
+                        </>
+                      )}
                     </>
                   )}
                 </Flex>
