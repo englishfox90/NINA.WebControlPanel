@@ -15,6 +15,15 @@ import { useUnifiedState } from '../contexts/UnifiedStateContext';
 const UnifiedStateWidget: React.FC = () => {
   const { state, loading, error, connected, lastUpdate } = useUnifiedState();
 
+  // Filter color coding (same as ImageStats)
+  const getFilterColor = (filter: string): 'blue' | 'red' | 'green' | 'yellow' => {
+    const filterLower = filter.toLowerCase();
+    if (filterLower.includes('blue') || filterLower.includes('oiii')) return 'blue';
+    if (filterLower.includes('red') || filterLower.includes('ha')) return 'red';
+    if (filterLower.includes('green') || filterLower.includes('sii')) return 'green';
+    return 'yellow';
+  };
+
   if (loading) {
     return (
       <Card>
@@ -46,6 +55,12 @@ const UnifiedStateWidget: React.FC = () => {
   const session = state?.currentSession;
   const filterWheel = state?.equipment.find(e => e.type === 'filterWheel');
   const currentFilter = session?.imaging?.currentFilter || filterWheel?.details?.New?.Name || 'Unknown';
+  
+  // Check if session is truly active (has a target and recent activity)
+  const isSessionActive = session?.isActive === true && session?.target?.targetName != null;
+  
+  // Check if guiding is actually active (based on guiding state)
+  const isGuidingActive = session?.guiding?.isGuiding === true;
 
   return (
     <Card>
@@ -75,16 +90,16 @@ const UnifiedStateWidget: React.FC = () => {
                   <Grid columns="2" gap="2">
                     <Flex direction="column" gap="1">
                       <Text size="1" color="gray">Active</Text>
-                      <Badge color={session.isActive ? 'green' : 'gray'} variant="soft">
-                        {session.isActive ? 'Yes' : 'No'}
+                      <Badge color={isSessionActive ? 'green' : 'gray'} variant="soft">
+                        {isSessionActive ? 'Yes' : 'No'}
                       </Badge>
                     </Flex>
                     
                     {session.guiding && (
                       <Flex direction="column" gap="1">
                         <Text size="1" color="gray">Guiding</Text>
-                        <Badge color={session.guiding.isGuiding ? 'blue' : 'gray'} variant="soft">
-                          {session.guiding.isGuiding ? 'Active' : 'Inactive'}
+                        <Badge color={isGuidingActive ? 'blue' : 'gray'} variant="soft">
+                          {isGuidingActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </Flex>
                     )}
@@ -130,7 +145,7 @@ const UnifiedStateWidget: React.FC = () => {
                           {currentFilter && currentFilter !== 'Unknown' && (
                             <Flex direction="column" gap="1">
                               <Text size="1" color="gray">Filter</Text>
-                              <Badge color="blue" variant="soft">{currentFilter}</Badge>
+                              <Badge color={getFilterColor(currentFilter)} variant="soft">{currentFilter}</Badge>
                             </Flex>
                           )}
                           {session.imaging.exposureSeconds && (
@@ -175,7 +190,7 @@ const UnifiedStateWidget: React.FC = () => {
                   )}
 
                   {/* Guiding Details */}
-                  {session.guiding?.isGuiding && session.guiding.lastRmsTotal !== null && (
+                  {isGuidingActive && session.guiding.lastRmsTotal !== null && (
                     <>
                       <Separator size="2" />
                       <Flex direction="column" gap="1">
