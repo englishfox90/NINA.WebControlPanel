@@ -506,6 +506,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
 
                       <Box>
                         <Text as="label" size="2" weight="medium" mb="1">
+                          Local Camera Image Path
+                        </Text>
+                        <Flex gap="2">
+                          <TextField.Root
+                            value={config?.streams.localCameraPath || ''}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig('streams.localCameraPath', e.target.value)}
+                            placeholder="C:\Astrophotography\AllSkEye\AllSkEye\LatestImage\Latest_image.jpg"
+                            style={{ flex: 1 }}
+                          />
+                          <Button 
+                            variant="outline" 
+                            onClick={() => openDirectoryPicker('streams.localCameraPath')}
+                            disabled={!browserSupportsFilePicker}
+                          >
+                            <FileTextIcon />
+                            Browse
+                          </Button>
+                        </Flex>
+                        <Callout.Root size="1" mt="2" color="blue">
+                          <Callout.Icon>
+                            <InfoCircledIcon />
+                          </Callout.Icon>
+                          <Callout.Text>
+                            Path to a local image file that updates automatically (e.g., AllSky camera). 
+                            Will be served as a camera stream at: http://YOUR_SERVER_IP:3001/api/camera/local
+                          </Callout.Text>
+                        </Callout.Root>
+                      </Box>
+
+                      <Separator />
+
+                      <Box>
+                        <Text as="label" size="2" weight="medium" mb="1">
                           Connection Timeout (ms)
                         </Text>
                         <TextField.Root

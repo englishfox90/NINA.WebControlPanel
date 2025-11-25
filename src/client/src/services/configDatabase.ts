@@ -61,6 +61,7 @@ export class ConfigDatabase {
         liveFeed1: "https://live.starfront.tools/allsky/",
         liveFeed2: "https://live.starfront.tools/b8/",
         liveFeed3: "",
+        localCameraPath: "C:\\Astrophotography\\AllSkEye\\AllSkEye\\LatestImage\\Latest_image.jpg",
         defaultStream: 1,
         connectionTimeout: 10000
       },
@@ -197,6 +198,7 @@ export class ConfigDatabase {
         liveFeed1: this.getConfigValue('streams.liveFeed1', 'https://live.starfront.tools/allsky/'),
         liveFeed2: this.getConfigValue('streams.liveFeed2', 'https://live.starfront.tools/b8/'),
         liveFeed3: this.getConfigValue('streams.liveFeed3', ''),
+        localCameraPath: this.getConfigValue('streams.localCameraPath', 'C:\\Astrophotography\\AllSkEye\\AllSkEye\\LatestImage\\Latest_image.jpg'),
         defaultStream: this.getConfigValue('streams.defaultStream', 1),
         connectionTimeout: this.getConfigValue('streams.connectionTimeout', 10000)
       },

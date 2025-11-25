@@ -18,6 +18,7 @@ export interface StreamsConfig {
   liveFeed1: string;
   liveFeed2: string;
   liveFeed3: string;
+  localCameraPath: string; // Local file path for third camera stream
   defaultStream: number;
   connectionTimeout: number; // milliseconds
 }
@@ -97,6 +98,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     liveFeed1: "rtsp://192.168.1.100:554/stream1",
     liveFeed2: "rtsp://192.168.1.101:554/stream2", 
     liveFeed3: "rtsp://192.168.1.102:554/stream3",
+    localCameraPath: "C:\\Astrophotography\\AllSkEye\\AllSkEye\\LatestImage\\Latest_image.jpg",
     defaultStream: 1,
     connectionTimeout: 10000
   },
@@ -156,6 +158,7 @@ export interface ConfigData {
     liveFeed1: string;
     liveFeed2: string;
     liveFeed3: string;
+    localCameraPath: string;
     defaultStream: number;
     connectionTimeout: number;
   };

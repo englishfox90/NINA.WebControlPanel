@@ -5,6 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const path = require('path');
+const fs = require('fs');
 const WebSocket = require('ws');
 
 // Import organized components
@@ -150,6 +151,48 @@ async function initializeServer() {
     } catch (error) {
       console.error('❌ Error fetching state status:', error);
       res.status(500).json({ error: 'Failed to fetch status' });
+    }
+  });
+
+  // Serve local camera image file (updates externally every 30 seconds)
+  app.get('/api/camera/local', (req, res) => {
+    try {
+      // Get the local camera path from config
+      const db = getConfigDatabase();
+      const config = db.getConfig();
+      const localCameraPath = config?.streams?.localCameraPath || 'C:\\Astrophotography\\AllSkEye\\AllSkEye\\LatestImage\\Latest_image.jpg';
+      
+      // Check if file exists
+      if (!fs.existsSync(localCameraPath)) {
+        console.error(`❌ Local camera image not found at: ${localCameraPath}`);
+        return res.status(404).json({ 
+          error: 'Local camera image not found',
+          path: localCameraPath,
+          message: 'Please check the file path in Settings > Live Feeds > Local Camera Path'
+        });
+      }
+
+      // Get file stats to check if it's being updated
+      const stats = fs.statSync(localCameraPath);
+      const fileAge = Date.now() - stats.mtimeMs;
+      
+      // Set cache headers to prevent caching (image updates every 30s)
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('X-File-Age', Math.floor(fileAge / 1000)); // Age in seconds
+      
+      console.log(`📷 Serving local camera image: ${localCameraPath} (${Math.floor(fileAge / 1000)}s old)`);
+      
+      // Send the file
+      res.sendFile(path.resolve(localCameraPath));
+    } catch (error) {
+      console.error('❌ Error serving local camera image:', error);
+      res.status(500).json({ 
+        error: 'Failed to serve local camera image',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

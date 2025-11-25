@@ -25,6 +25,7 @@ export class ConfigService {
         liveFeed1: "https://live.starfront.tools/allsky/",
         liveFeed2: "https://live.starfront.tools/b8/",
         liveFeed3: "",
+        localCameraPath: "C:\\Astrophotography\\AllSkEye\\AllSkEye\\LatestImage\\Latest_image.jpg",
         defaultStream: 1,
         connectionTimeout: 10000
       },
