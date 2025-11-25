@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, Flex, Text, Badge } from '@radix-ui/themes';
+import { Card, Flex, Text, Badge, Skeleton } from '@radix-ui/themes';
 import { 
   GearIcon, 
   ReloadIcon, 
@@ -11,9 +11,25 @@ import { getApiUrl } from '../config/api';
 import type { Equipment, EquipmentResponse, NINAStatusProps } from '../interfaces/nina';
 import { useUnifiedState } from '../contexts/UnifiedStateContext';
 
+// Fixed equipment types that will always be displayed
+const EQUIPMENT_TYPES = [
+  'Camera',
+  'Telescope',
+  'Focuser',
+  'Filter Wheel',
+  'Rotator',
+  'Flat Device',
+  'Guider',
+  'Dome',
+  'Switch',
+  'Safety Monitor',
+  'Weather Data'
+];
+
 const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }) => {
   const [data, setData] = useState<EquipmentResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Listen to unified state for equipment events
@@ -22,7 +38,6 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
 
   const fetchEquipmentStatus = useCallback(async () => {
     try {
-      setLoading(true);
       setError(null);
       
       const response = await fetch(getApiUrl('nina/equipment'));
@@ -32,18 +47,24 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
       
       const result = await response.json();
       setData(result);
+      setLoading(false);
+      setRefreshing(false);
     } catch (err) {
       console.error('Error fetching NINA equipment status:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch equipment status');
-    } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
+    setLoading(true);
     fetchEquipmentStatus();
     // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchEquipmentStatus, 30000);
+    const interval = setInterval(() => {
+      setRefreshing(true);
+      fetchEquipmentStatus();
+    }, 30000);
     return () => clearInterval(interval);
   }, [fetchEquipmentStatus]);
 
@@ -59,12 +80,13 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
       console.log(`🔧 Equipment event detected: ${equipmentId} - ${status}`);
       
       // Refresh equipment status
+      setRefreshing(true);
       fetchEquipmentStatus();
     }
   }, [lastUpdate, fetchEquipmentStatus]);
 
-  // Loading state
-  if (loading) {
+  // Loading state (initial load only)
+  if (loading && !data) {
     return (
       <Card>
         <Flex direction="column" gap="3" p="4">
@@ -74,11 +96,16 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
               <Text size="3" weight="medium">Equipment Status</Text>
             </Flex>
           )}
-          <Flex align="center" justify="center" style={{ minHeight: hideHeader ? '150px' : '200px' }}>
-            <Flex direction="column" align="center" gap="2">
-              <ReloadIcon className="loading-spinner" />
-              <Text size="2" color="gray">Loading equipment status...</Text>
-            </Flex>
+          <Flex direction="column" gap="3">
+            {EQUIPMENT_TYPES.map((type, index) => (
+              <Flex key={index} justify="between" align="center">
+                <Flex direction="column" gap="1" style={{ flex: 1 }}>
+                  <Skeleton><Text size="2">{type}</Text></Skeleton>
+                  <Skeleton><Text size="1">Loading device...</Text></Skeleton>
+                </Flex>
+                <Skeleton><Badge size="1">Connected</Badge></Skeleton>
+              </Flex>
+            ))}
           </Flex>
         </Flex>
       </Card>
@@ -153,25 +180,40 @@ const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }
 
         {/* Equipment List */}
         <Flex direction="column" gap="3">
-          {data.equipment.map((equipment, index) => (
-            <Flex key={index} justify="between" align="center">
-              <Flex direction="column" gap="1">
-                <Text size="2" weight="medium">{equipment.name}</Text>
-                <Text size="1" color="gray">{equipment.deviceName}</Text>
-              </Flex>
-              <Badge 
-                color={equipment.connected ? 'green' : 'red'} 
-                size="1"
-              >
-                {equipment.connected ? (
-                  <CheckCircledIcon width="12" height="12" />
+          {EQUIPMENT_TYPES.map((equipmentType, index) => {
+            // Find matching equipment from data
+            const equipment = data.equipment.find(e => e.name === equipmentType);
+            
+            return (
+              <Flex key={index} justify="between" align="center">
+                <Flex direction="column" gap="1" style={{ flex: 1 }}>
+                  <Text size="2" weight="medium">{equipmentType}</Text>
+                  {refreshing ? (
+                    <Skeleton><Text size="1">Updating...</Text></Skeleton>
+                  ) : (
+                    <Text size="1" color="gray">
+                      {equipment?.deviceName || 'Not configured'}
+                    </Text>
+                  )}
+                </Flex>
+                {refreshing ? (
+                  <Skeleton><Badge size="1">Connected</Badge></Skeleton>
                 ) : (
-                  <CrossCircledIcon width="12" height="12" />
+                  <Badge 
+                    color={equipment?.connected ? 'green' : 'red'} 
+                    size="1"
+                  >
+                    {equipment?.connected ? (
+                      <CheckCircledIcon width="12" height="12" />
+                    ) : (
+                      <CrossCircledIcon width="12" height="12" />
+                    )}
+                    {equipment?.connected ? 'Connected' : 'Disconnected'}
+                  </Badge>
                 )}
-                {equipment.connected ? 'Connected' : 'Disconnected'}
-              </Badge>
-            </Flex>
-          ))}
+              </Flex>
+            );
+          })}
         </Flex>
       </Flex>
     </Card>

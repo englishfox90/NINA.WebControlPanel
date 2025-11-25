@@ -110,27 +110,39 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
   return (
     <>
       <Box style={{ position: 'relative' }}>
-        <img
-          src={latestImage}
-          alt="Latest captured image"
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsModalOpen(true);
+          }}
           style={{
             width: '100%',
-            height: 'auto',
-            maxHeight: '400px',
-            objectFit: 'contain',
-            borderRadius: 'var(--radius-3)',
-            border: '1px solid var(--gray-6)',
-            background: 'var(--gray-1)',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            position: 'relative'
           }}
-          onClick={() => setIsModalOpen(true)}
-          onError={(e) => {
-            console.error('📸 Image failed to load:', e);
-          }}
-          onLoad={() => {
-            // Image loaded successfully
-          }}
-        />
+        >
+          <img
+            src={latestImage}
+            alt="Latest captured image"
+            style={{
+              width: '100%',
+              height: 'auto',
+              maxHeight: '400px',
+              objectFit: 'contain',
+              borderRadius: 'var(--radius-3)',
+              border: '1px solid var(--gray-6)',
+              background: 'var(--gray-1)',
+              userSelect: 'none',
+              pointerEvents: 'none'
+            }}
+            onError={(e) => {
+              console.error('📸 Image failed to load:', e);
+            }}
+            onLoad={() => {
+              // Image loaded successfully
+            }}
+          />
+        </div>
         
         {/* Image type badge in bottom left corner */}
         {imageStats?.ImageType && (
@@ -139,9 +151,9 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
               position: 'absolute',
               bottom: '15px',
               left: '8px',
-              // background: 'rgba(0, 0, 0, 0.7)',
               borderRadius: 'var(--radius-2)',
-              padding: '4px 8px'
+              padding: '4px 8px',
+              pointerEvents: 'none'
             }}
           >
             <Badge 

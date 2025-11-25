@@ -412,29 +412,41 @@ const LiveStackWidget: React.FC<LiveStackWidgetProps> = ({
               borderRadius: '6px',
               border: '1px solid var(--gray-4)'
             }}>
-              <img
-                src={imageData}
-                alt={`LiveStack - ${imageInfo.Target} (${imageInfo.Filter})`}
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsModalOpen(true);
+                }}
                 style={{
                   width: '100%',
-                  height: 'auto',
-                  maxHeight: '400px',
-                  objectFit: 'contain',
-                  borderRadius: 'var(--radius-3)',
-                  border: '1px solid var(--gray-6)',
-                  background: 'var(--gray-1)',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  position: 'relative'
                 }}
-                onClick={() => setIsModalOpen(true)}
-                onLoad={() => {
-                  console.log('✅ LiveStack image displayed successfully');
-                }}
-                onError={(e) => {
-                  console.error('❌ Error loading LiveStack image:', e);
-                  console.error('Image src:', imageData);
-                  setError('Failed to display image');
-                }}
-              />
+              >
+                <img
+                  src={imageData}
+                  alt={`LiveStack - ${imageInfo.Target} (${imageInfo.Filter})`}
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    maxHeight: '400px',
+                    objectFit: 'contain',
+                    borderRadius: 'var(--radius-3)',
+                    border: '1px solid var(--gray-6)',
+                    background: 'var(--gray-1)',
+                    userSelect: 'none',
+                    pointerEvents: 'none'
+                  }}
+                  onLoad={() => {
+                    console.log('✅ LiveStack image displayed successfully');
+                  }}
+                  onError={(e) => {
+                    console.error('❌ Error loading LiveStack image:', e);
+                    console.error('Image src:', imageData);
+                    setError('Failed to display image');
+                  }}
+                />
+              </div>
             </Flex>
           </Flex>
         )}

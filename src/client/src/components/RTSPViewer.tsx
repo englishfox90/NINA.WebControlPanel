@@ -249,25 +249,33 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
                 </Flex>
               )}
 
-              {/* Video Image */}
-              <img
-                ref={imgRef}
-                src={imgSrc}
-                alt={`Live Stream ${activeStream + 1}`}
-                style={{
-                  ...getImageStyle(getStreamType(activeStream)),
-                  cursor: 'pointer',
-                  userSelect: 'none'
-                }}
-                onClick={() => setIsModalOpen(true)}
-                onMouseDown={(e) => {
-                  // Prevent dragging behavior on desktop
-                  e.preventDefault();
+              {/* Video Image Container */}
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
                   setIsModalOpen(true);
                 }}
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-              />
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  zIndex: 1
+                }}
+              >
+                <img
+                  ref={imgRef}
+                  src={imgSrc}
+                  alt={`Live Stream ${activeStream + 1}`}
+                  style={{
+                    ...getImageStyle(getStreamType(activeStream)),
+                    userSelect: 'none',
+                    pointerEvents: 'none' // Let clicks pass to container
+                  }}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                />
+              </div>
 
               {/* Connection Error State */}
               {connectionStatus === 'error' && (
@@ -314,7 +322,8 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
               position: 'absolute',
               bottom: '8px',
               right: '8px',
-              zIndex: 1
+              zIndex: 10,
+              pointerEvents: 'none'
             }}
           >
             LIVE
@@ -329,7 +338,8 @@ const RTSPViewer: React.FC<RTSPViewerProps> = ({ streams, isConnected, hideHeade
                 position: 'absolute',
                 top: '8px',
                 right: '8px',
-                zIndex: 1
+                zIndex: 10,
+                pointerEvents: 'none'
               }}
             >
               {fileAge > 3600 
