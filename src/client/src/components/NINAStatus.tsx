@@ -12,18 +12,19 @@ import type { Equipment, EquipmentResponse, NINAStatusProps } from '../interface
 import { useUnifiedState } from '../contexts/UnifiedStateContext';
 
 // Fixed equipment types that will always be displayed
+// These names MUST match the backend ninaService.js equipment names exactly
 const EQUIPMENT_TYPES = [
   'Camera',
-  'Telescope',
-  'Focuser',
   'Filter Wheel',
+  'Focuser',
   'Rotator',
-  'Flat Device',
+  'Mount',
   'Guider',
-  'Dome',
   'Switch',
-  'Safety Monitor',
-  'Weather Data'
+  'Flat Panel',
+  'Weather',
+  'Dome',
+  'Safety Monitor'
 ];
 
 const NINAStatus: React.FC<NINAStatusProps> = ({ onRefresh, hideHeader = false }) => {

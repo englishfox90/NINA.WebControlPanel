@@ -257,11 +257,11 @@ const GuiderGraphWidget: React.FC<GuiderGraphWidgetProps> = ({
           <Flex align="center" gap="2">
             <Text weight="medium">Guider Graph</Text>
             <Badge 
-              color={state.guiderConnected ? (state.isGuidingActive ? 'green' : 'blue') : 'gray'}
+              color={state.guiderConnected ? (unifiedState?.currentSession?.guiding?.isGuiding ? 'green' : 'blue') : 'gray'}
               size="1"
             >
-              {state.isGuidingActive ? <PlayIcon /> : <StopIcon />}
-              {state.isGuidingActive ? 'Guiding' : state.guiderConnected ? 'Connected' : 'Disconnected'}
+              {unifiedState?.currentSession?.guiding?.isGuiding ? <PlayIcon /> : <StopIcon />}
+              {unifiedState?.currentSession?.guiding?.isGuiding ? 'Guiding' : state.guiderConnected ? 'Connected' : 'Disconnected'}
             </Badge>
           </Flex>
           <Flex align="center" gap="2">
@@ -330,7 +330,7 @@ const GuiderGraphWidget: React.FC<GuiderGraphWidgetProps> = ({
             <Flex justify="center" align="center" style={{ height: '100%' }}>
               <Text color="gray">
                 {state.guiderConnected ? 
-                  (state.isGuidingActive ? 'Waiting for guide steps...' : 'Guider connected, not actively guiding') : 
+                  (unifiedState?.currentSession?.guiding?.isGuiding ? 'Waiting for guide steps...' : 'Guider connected, not actively guiding') : 
                   'No guiding data available'}
               </Text>
             </Flex>
