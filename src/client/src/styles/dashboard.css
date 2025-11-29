@@ -182,6 +182,27 @@
   display: none !important;
 }
 
+/* Hidden widget styling in edit mode */
+.widget-container.widget-hidden {
+  opacity: 0.5;
+  border: 1px dashed var(--gray-6);
+}
+
+.widget-container.widget-hidden:hover {
+  opacity: 0.7;
+  border-color: var(--red-8);
+}
+
+.widget-container.widget-hidden .drag-handle {
+  background: var(--red-2);
+  color: var(--red-11);
+}
+
+.widget-container.widget-hidden .widget-content {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 /* Desktop only class for responsive behavior */
 @media (max-width: 768px) {
   .desktop-only {

@@ -426,6 +426,27 @@ class ConfigDatabase {
     }));
   }
 
+  getAllWidgets() {
+    const stmt = this.db.prepare('SELECT * FROM dashboard_widgets ORDER BY x, y');
+    const widgets = stmt.all();
+    
+    return widgets.map(widget => ({
+      id: widget.id,
+      component: widget.component,
+      title: widget.title,
+      enabled: widget.enabled === 1,
+      layout: {
+        i: widget.id,
+        x: widget.x,
+        y: widget.y,
+        w: widget.w,
+        h: widget.h,
+        minW: widget.minW,
+        minH: widget.minH
+      }
+    }));
+  }
+
   addWidget(widget) {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO dashboard_widgets (id, component, title, x, y, w, h, minW, minH)

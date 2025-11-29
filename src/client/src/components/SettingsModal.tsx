@@ -17,7 +17,8 @@ import {
   CheckIcon,
   ExclamationTriangleIcon,
   InfoCircledIcon,
-  FileTextIcon
+  FileTextIcon,
+  TrashIcon
 } from '@radix-ui/react-icons';
 import { getApiUrl } from '../config/api';
 import type { SettingsModalProps } from '../interfaces/dashboard';
@@ -481,11 +482,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
                         <Text as="label" size="2" weight="medium" mb="1">
                           Live Feed 1 URL
                         </Text>
-                        <TextField.Root
-                          value={config?.streams.liveFeed1 || ''}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig('streams.liveFeed1', e.target.value)}
-                          placeholder="https://example.com/stream1"
-                        />
+                        <Flex gap="2" align="center">
+                          <TextField.Root
+                            value={config?.streams.liveFeed1 || ''}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig('streams.liveFeed1', e.target.value)}
+                            placeholder="https://example.com/stream1"
+                            style={{ flex: 1 }}
+                          />
+                          <Button
+                            variant="solid"
+                            color="red"
+                            onClick={() => updateConfig('streams.liveFeed1', '')}
+                            disabled={!config?.streams.liveFeed1}
+                          >
+                            <TrashIcon />
+                          </Button>
+                        </Flex>
                         <Text size="1" color="gray" mt="1">
                           Primary live video stream URL
                         </Text>
@@ -495,11 +507,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
                         <Text as="label" size="2" weight="medium" mb="1">
                           Live Feed 2 URL
                         </Text>
-                        <TextField.Root
-                          value={config?.streams.liveFeed2 || ''}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig('streams.liveFeed2', e.target.value)}
-                          placeholder="https://example.com/stream2"
-                        />
+                        <Flex gap="2" align="center">
+                          <TextField.Root
+                            value={config?.streams.liveFeed2 || ''}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig('streams.liveFeed2', e.target.value)}
+                            placeholder="https://example.com/stream2"
+                            style={{ flex: 1 }}
+                          />
+                          <Button
+                            variant="solid"
+                            color="red"
+                            onClick={() => updateConfig('streams.liveFeed2', '')}
+                            disabled={!config?.streams.liveFeed2}
+                          >
+                            <TrashIcon />
+                          </Button>
+                        </Flex>
                         <Text size="1" color="gray" mt="1">
                           Secondary live video stream URL
                         </Text>
@@ -509,11 +532,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
                         <Text as="label" size="2" weight="medium" mb="1">
                           Live Feed 3 URL
                         </Text>
-                        <TextField.Root
-                          value={config?.streams.liveFeed3 || ''}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig('streams.liveFeed3', e.target.value)}
-                          placeholder="https://example.com/stream3"
-                        />
+                        <Flex gap="2" align="center">
+                          <TextField.Root
+                            value={config?.streams.liveFeed3 || ''}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig('streams.liveFeed3', e.target.value)}
+                            placeholder="https://example.com/stream3"
+                            style={{ flex: 1 }}
+                          />
+                          <Button
+                            variant="solid"
+                            color="red"
+                            onClick={() => updateConfig('streams.liveFeed3', '')}
+                            disabled={!config?.streams.liveFeed3}
+                          >
+                            <TrashIcon />
+                          </Button>
+                        </Flex>
                         <Text size="1" color="gray" mt="1">
                           Optional third live video stream URL
                         </Text>

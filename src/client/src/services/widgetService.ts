@@ -16,6 +16,7 @@ export interface WidgetConfig {
   component: string;
   title: string;
   layout: WidgetLayout;
+  enabled?: boolean;
 }
 
 interface WidgetResponse {
@@ -42,6 +43,24 @@ export class WidgetService {
       return widgets;
     } catch (error) {
       console.error('Failed to load widgets from API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Load all widgets including hidden ones (for edit mode)
+   */
+  static async loadAllWidgets(): Promise<WidgetConfig[]> {
+    try {
+      const response = await fetch(`${API_BASE}/dashboard-widgets/all`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const widgets: WidgetConfig[] = await response.json();
+      return widgets;
+    } catch (error) {
+      console.error('Failed to load all widgets from API:', error);
       throw error;
     }
   }
@@ -175,6 +194,34 @@ export class WidgetService {
       }
     } catch (error) {
       console.error('Failed to remove widget:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Toggle widget visibility (enabled/disabled)
+   */
+  static async toggleWidgetVisibility(id: string, enabled: boolean): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE}/dashboard-widgets/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ enabled: enabled ? 1 : 0 }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result: WidgetResponse = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to toggle widget visibility');
+      }
+    } catch (error) {
+      console.error('Failed to toggle widget visibility:', error);
       throw error;
     }
   }

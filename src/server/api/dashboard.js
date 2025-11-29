@@ -7,7 +7,7 @@ class DashboardRoutes {
   }
 
   register(app) {
-    // Get dashboard widgets configuration
+    // Get dashboard widgets configuration (visible only)
     app.get('/api/dashboard-widgets', (req, res) => {
       try {
         const widgets = this.configDatabase.getWidgets();
@@ -15,6 +15,17 @@ class DashboardRoutes {
       } catch (error) {
         console.error('Error getting widgets:', error);
         res.status(500).json({ error: 'Failed to get widgets' });
+      }
+    });
+
+    // Get all dashboard widgets including hidden ones (for edit mode)
+    app.get('/api/dashboard-widgets/all', (req, res) => {
+      try {
+        const widgets = this.configDatabase.getAllWidgets();
+        res.json(widgets);
+      } catch (error) {
+        console.error('Error getting all widgets:', error);
+        res.status(500).json({ error: 'Failed to get all widgets' });
       }
     });
 

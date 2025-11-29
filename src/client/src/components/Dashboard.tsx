@@ -24,7 +24,9 @@ import {
   DragHandleDots2Icon,
   Pencil1Icon,
   CheckIcon,
-  GearIcon
+  GearIcon,
+  EyeOpenIcon,
+  EyeClosedIcon
 } from '@radix-ui/react-icons';
 import type { NinaConnectionStatus } from '../interfaces/equipment';
 
@@ -83,10 +85,12 @@ const Dashboard: React.FC = () => {
   const { isMobile } = useResponsive();
 
   // Load widgets from database
-  const loadWidgets = async () => {
+  const loadWidgets = async (includeHidden: boolean = false) => {
     try {
       setLayoutLoading(true);
-      const savedWidgets = await WidgetService.loadWidgets();
+      const savedWidgets = includeHidden 
+        ? await WidgetService.loadAllWidgets()
+        : await WidgetService.loadWidgets();
       if (savedWidgets && savedWidgets.length > 0) {
         setWidgetConfig(savedWidgets);
       } else {
@@ -259,12 +263,33 @@ const Dashboard: React.FC = () => {
     setTimeout(() => setLoading(false), 1000);
   };
 
-  const handleEditToggle = () => {
+  const handleEditToggle = async () => {
     if (isEditMode) {
       // Save layout when exiting edit mode
-      handleSaveLayout();
+      await handleSaveLayout();
+      // Reload only visible widgets
+      loadWidgets(false);
+    } else {
+      // Load all widgets including hidden when entering edit mode
+      loadWidgets(true);
     }
     setIsEditMode(!isEditMode);
+  };
+
+  const handleToggleWidgetVisibility = async (widgetId: string, currentEnabled: boolean, event: React.MouseEvent) => {
+    // Stop event propagation to prevent drag behavior
+    event.stopPropagation();
+    event.preventDefault();
+    
+    try {
+      await WidgetService.toggleWidgetVisibility(widgetId, !currentEnabled);
+      // Update local state
+      setWidgetConfig(prev => prev.map(w => 
+        w.id === widgetId ? { ...w, enabled: !currentEnabled } : w
+      ));
+    } catch (error) {
+      console.error('Failed to toggle widget visibility:', error);
+    }
   };
 
   const handleSaveLayout = async () => {
@@ -431,7 +456,7 @@ const Dashboard: React.FC = () => {
       {isMobile ? (
         /* Mobile Layout */
         <Flex direction="column" gap="4" p="4">
-          {widgetConfig.map((config) => (
+          {widgetConfig.filter(w => w.enabled !== false).map((config) => (
             <div key={config.id}>
               {renderWidget(config)}
             </div>
@@ -450,11 +475,11 @@ const Dashboard: React.FC = () => {
               {...gridLayoutProps}
               {...responsiveProps}
               layouts={{
-                lg: getGridLayout(widgetConfig),
-                md: getGridLayout(widgetConfig),
-                sm: getGridLayout(widgetConfig),
-                xs: getGridLayout(widgetConfig),
-                xxs: getGridLayout(widgetConfig)
+                lg: getGridLayout(isEditMode ? widgetConfig : widgetConfig.filter(w => w.enabled !== false)),
+                md: getGridLayout(isEditMode ? widgetConfig : widgetConfig.filter(w => w.enabled !== false)),
+                sm: getGridLayout(isEditMode ? widgetConfig : widgetConfig.filter(w => w.enabled !== false)),
+                xs: getGridLayout(isEditMode ? widgetConfig : widgetConfig.filter(w => w.enabled !== false)),
+                xxs: getGridLayout(isEditMode ? widgetConfig : widgetConfig.filter(w => w.enabled !== false))
               }}
               onLayoutChange={handleLayoutChange}
               isDraggable={isEditMode}
@@ -463,13 +488,26 @@ const Dashboard: React.FC = () => {
               margin={[24, 24]}
               containerPadding={[0, 0]}
             >
-              {widgetConfig.map((config) => (
-                <div key={config.layout.i} className={`widget-container ${isEditMode ? 'edit-mode' : 'view-mode'}`}>
+              {(isEditMode ? widgetConfig : widgetConfig.filter(w => w.enabled !== false)).map((config) => (
+                <div key={config.layout.i} className={`widget-container ${isEditMode ? 'edit-mode' : 'view-mode'} ${!config.enabled && isEditMode ? 'widget-hidden' : ''}`}>
                   {isEditMode && (
                     <div className="drag-handle">
-                      <Flex align="center" gap="2">
-                        <DragHandleDots2Icon width="14" height="14" />
-                        <Text size="2" weight="medium">{config.title}</Text>
+                      <Flex align="center" gap="2" justify="between">
+                        <Flex align="center" gap="2">
+                          <DragHandleDots2Icon width="14" height="14" />
+                          <Text size="2" weight="medium">{config.title}</Text>
+                        </Flex>
+                        <Button
+                          size="1"
+                          variant="ghost"
+                          color={config.enabled !== false ? "gray" : "red"}
+                          onClick={(e) => handleToggleWidgetVisibility(config.id, config.enabled !== false, e)}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {config.enabled !== false ? <EyeOpenIcon width="14" height="14" /> : <EyeClosedIcon width="14" height="14" />}
+                        </Button>
                       </Flex>
                     </div>
                   )}
