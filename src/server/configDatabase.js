@@ -289,6 +289,7 @@ class ConfigDatabase {
       this.setConfigValue('streams.liveFeed1', config.streams.liveFeed1, 'streams');
       this.setConfigValue('streams.liveFeed2', config.streams.liveFeed2, 'streams');
       this.setConfigValue('streams.liveFeed3', config.streams.liveFeed3, 'streams');
+      this.setConfigValue('streams.localCameraPath', config.streams.localCameraPath, 'streams');
       this.setConfigValue('streams.defaultStream', config.streams.defaultStream, 'streams');
       this.setConfigValue('streams.connectionTimeout', config.streams.connectionTimeout, 'streams');
 
