@@ -559,7 +559,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
                         <Text as="label" size="2" weight="medium" mb="1">
                           Local Camera Image Path
                         </Text>
-                        <Flex gap="2">
+                        <Flex gap="2" align="center">
                           <TextField.Root
                             value={config?.streams.localCameraPath || ''}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig('streams.localCameraPath', e.target.value)}
@@ -573,6 +573,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
                           >
                             <FileTextIcon />
                             Browse
+                          </Button>
+                          <Button
+                            variant="solid"
+                            color="red"
+                            onClick={() => updateConfig('streams.localCameraPath', '')}
+                            disabled={!config?.streams.localCameraPath}
+                          >
+                            <TrashIcon />
                           </Button>
                         </Flex>
                         <Callout.Root size="1" mt="2" color="blue">
