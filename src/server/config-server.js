@@ -95,7 +95,21 @@ async function initializeServer() {
   const dbPath = path.resolve(__dirname, '../..', schedulerPath);
   console.log('🔍 Resolved Target Scheduler path:', dbPath);
   
-  const targetSchedulerService = new TargetSchedulerService(dbPath);
+  // Check if database exists before trying to connect
+  let targetSchedulerService = null;
+  if (fs.existsSync(dbPath)) {
+    try {
+      targetSchedulerService = new TargetSchedulerService(dbPath);
+      console.log('✅ Target Scheduler database connected successfully');
+    } catch (error) {
+      console.warn('⚠️ Target Scheduler database found but failed to connect:', error.message);
+      console.warn('Target Scheduler features will be unavailable');
+    }
+  } else {
+    console.warn('⚠️ Target Scheduler database not found at:', dbPath);
+    console.warn('Target Scheduler features will be unavailable - this is optional');
+    console.warn('To enable Target Scheduler: Copy your NINA schedulerdb.sqlite to:', dbPath);
+  }
   
   console.log('🔭 NINA Service configured: ' + ninaService.fullUrl);
   // Initialize Express app

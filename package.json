@@ -25,6 +25,7 @@
     "health": "node scripts/monitoring/health-monitor.js",
     "monitor": "node scripts/monitoring/backend-monitor.js",
     "fix-backend": "node scripts/development/backend-stability-fix.js",
+    "reset-db": "pwsh -File scripts/database/reset-dashboard-database.ps1",
     "apply-server-fix": "copy src\\server\\config-server.enhanced.js src\\server\\config-server.js",
     "stop": "node scripts/deployment/process-manager.js stop",
     "restart": "node scripts/deployment/process-manager.js restart",

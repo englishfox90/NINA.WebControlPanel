@@ -43,7 +43,7 @@ A modern, full-stack web dashboard for monitoring and controlling remote astroph
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/NINA.WebControlPanel.git
+   git clone https://github.com/englishfox90/NINA.WebControlPanel.git
    cd NINA.WebControlPanel
    ```
 
@@ -59,6 +59,94 @@ A modern, full-stack web dashboard for monitoring and controlling remote astroph
    ```
 
 This will start both the backend API server (port 3001) and frontend React app (port 3000).
+
+## 🔧 Troubleshooting
+
+### Common Installation Issues
+
+#### **Issue: "allowedHosts[0] should be a non-empty string" Error**
+**Symptom**: Webpack dev server fails to start with error about `allowedHosts` configuration
+
+**Solution**: This is fixed in the latest version. The `.env` file in `src/client/` should include:
+```bash
+WDS_SOCKET_HOST=localhost
+WDS_SOCKET_PORT=3000
+DISABLE_ESLINT_PLUGIN=true
+```
+
+If you're still experiencing this issue, try:
+```bash
+cd src/client
+rm -rf node_modules package-lock.json
+npm install
+npm start
+```
+
+#### **Issue: "fs.F_OK is deprecated" Warning**
+**Symptom**: Console warning about `fs.F_OK` deprecation
+
+**Solution**: This warning is harmless and has been fixed in the latest version. If you see it, update to the latest version:
+```bash
+git pull origin main
+npm install
+```
+
+#### **Issue: Server Won't Start - Target Scheduler Database Missing**
+**Symptom**: Backend fails to start with error about missing `schedulerdb.sqlite`
+
+**Solution**: The Target Scheduler database is **optional**. The latest version gracefully handles missing databases. You'll see:
+```
+⚠️ Target Scheduler database not found at: [path]
+Target Scheduler features will be unavailable - this is optional
+To enable Target Scheduler: Copy your NINA schedulerdb.sqlite to: [path]
+```
+
+**To enable Target Scheduler features**:
+1. Locate your NINA Target Scheduler database (usually in NINA's data folder)
+2. Copy `schedulerdb.sqlite` to `resources/schedulerdb.sqlite` in the project directory
+3. Or configure the path in the Settings modal after starting the app
+
+The dashboard will work perfectly fine without it - you'll just see "Target Scheduler unavailable" in the scheduler widget.
+
+#### **Issue: React App Won't Build on Node.js 22+**
+**Symptom**: Build errors related to OpenSSL
+
+**Solution**: The start scripts automatically handle this with `NODE_OPTIONS="--openssl-legacy-provider"`. If you're running scripts manually:
+```bash
+export NODE_OPTIONS="--openssl-legacy-provider"  # macOS/Linux
+$env:NODE_OPTIONS="--openssl-legacy-provider"   # Windows PowerShell
+npm start
+```
+
+#### **Issue: Can't Connect to NINA**
+**Symptom**: Equipment status shows "Mock Mode" or connection errors
+
+**Solution**:
+1. Ensure NINA is running on the target machine
+2. Enable NINA's Advanced API (Tools → Options → API → Enable HTTP Server)
+3. Note the port (default: 1888)
+4. Update configuration in the Settings modal or via API:
+   ```bash
+   curl -X POST http://localhost:3001/api/config \
+     -H "Content-Type: application/json" \
+     -d '{"nina": {"baseUrl": "http://YOUR_NINA_IP", "apiPort": 1888}}'
+   ```
+5. Check firewall settings allow connections on port 1888
+
+#### **Issue: RTSP Streams Not Loading**
+**Symptom**: Video feeds show loading spinner or errors
+
+**Common Causes**:
+- Browser limitations (not all browsers support RTSP natively)
+- Network connectivity issues
+- Incorrect stream URLs
+- Camera/server not streaming
+
+**Solutions**:
+1. Test stream URLs in VLC or similar player first
+2. Verify network connectivity to observatory
+3. Check stream URLs in Settings modal
+4. Some browsers may need WebRTC or HLS conversion - consider using AllSky camera software that provides multiple stream formats
 
 ## 📁 Project Structure
 
