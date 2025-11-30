@@ -112,7 +112,7 @@ const Dashboard: React.FC = () => {
 
   const handleOnboardingComplete = async () => {
     setOnboardingOpen(false);
-    
+
     // Remove onboarding URL parameter if present
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('onboarding')) {
@@ -120,7 +120,7 @@ const Dashboard: React.FC = () => {
       const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
       window.history.replaceState({}, '', newUrl);
     }
-    
+
     // Reload configuration and widgets after onboarding
     await fetchConfig();
     await loadWidgets();

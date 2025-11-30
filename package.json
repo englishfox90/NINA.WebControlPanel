@@ -1,6 +1,6 @@
 {
   "name": "nina-web-control-panel",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A dashboard for monitoring and controlling astro gear in a remote observatory using NINA.",
   "main": "src/client/app/index.tsx",
   "scripts": {
