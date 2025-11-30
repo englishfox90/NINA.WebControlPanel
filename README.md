@@ -242,8 +242,11 @@ npm run start:debug-all      # Full debug mode (all logging)
 - `npm run start:stable` - Start with auto-restart on crashes
 
 **Production:**
-- `npm run build` - Build for production
+- `npm run build` - Build for production (creates optimized bundle)
+- `npm run deploy` - Build and deploy in production mode
 - `npm run start:prod` - Start in production mode with PM2
+- **Access**: Production mode serves everything on **http://localhost:3001** (no port 3000)
+- **Note**: CSS calc() warnings from Radix UI are suppressed - they're harmless
 
 **Logging & Monitoring:**
 - `npm run logs` - View all logs (live tail)

@@ -40,6 +40,11 @@ class WindowsSafeDeployment {
       
       console.log('🎉 Production deployment completed successfully!');
       console.log('📊 Dashboard available at: http://localhost:3001');
+      console.log('');
+      console.log('⚠️  NOTE: In production mode, there is NO port 3000.');
+      console.log('   Everything is served from the backend on port 3001.');
+      console.log('   Open your browser to: http://localhost:3001');
+      console.log('');
       
     } catch (error) {
       console.error('❌ Deployment failed:', error.message);
