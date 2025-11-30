@@ -54,14 +54,17 @@ A modern, full-stack web dashboard for monitoring and controlling remote astroph
    cd ../..
    ```
 
+   **Note**: API proxy configuration is handled via `src/client/src/setupProxy.js` to avoid dev server errors.
+
 3. **Start development environment**:
    ```bash
    npm start
    ```
 
-   **Note**: The `.env` file is now created automatically from `.env.example` on first run to prevent webpack configuration errors.
-
 This will start both the backend API server (port 3001) and frontend React app (port 3000).
+- Backend runs at: `http://localhost:3001`
+- Frontend dev server runs at: `http://localhost:3000`
+- API requests from frontend to `/api/*` are automatically proxied to the backend
 
 ## 🔧 Troubleshooting
 

@@ -29,6 +29,8 @@ In the project directory, you can run:
 Runs the app in the development mode.\
 Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
+**API Proxy Configuration**: API requests to `/api/*` are automatically proxied to the backend server at `http://localhost:3001` via `src/setupProxy.js`. This configuration avoids dev server errors and is automatically picked up by Create React App.
+
 The page will reload if you make edits.\
 You will also see any lint errors in the console.
 
@@ -79,9 +81,11 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 ## 🔧 Configuration
 
 The frontend connects to the Express.js backend on port 3001 for:
-- **API Integration**: RESTful endpoints for configuration and data
+- **API Integration**: RESTful endpoints for configuration and data (proxied via `/api/*` in development)
 - **WebSocket Events**: Real-time NINA session and image updates
 - **Database Operations**: SQLite configuration persistence
+
+**Development Proxy**: The `src/setupProxy.js` file handles API request proxying during development, forwarding all `/api/*` requests from the webpack dev server (port 3000) to the backend (port 3001). This avoids CORS issues and dev server configuration errors.
 
 ## Learn More
 
