@@ -46,8 +46,21 @@ class ConfigRoutes {
       }
     });
 
-    // Update configuration
+    // Update configuration (PUT)
     app.put('/api/config', (req, res) => {
+      try {
+        this.configDatabase.setConfig(req.body);
+        const updatedConfig = this.configDatabase.getConfig();
+        
+        res.json(updatedConfig);
+      } catch (error) {
+        console.error('Error updating config:', error);
+        res.status(500).json({ error: 'Failed to update configuration' });
+      }
+    });
+
+    // Update configuration (POST) - for compatibility with onboarding
+    app.post('/api/config', (req, res) => {
       try {
         this.configDatabase.setConfig(req.body);
         const updatedConfig = this.configDatabase.getConfig();
