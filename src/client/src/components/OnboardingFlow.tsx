@@ -34,12 +34,55 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete }) =
     const [useLocalCamera, setUseLocalCamera] = useState(false);
     const [isDevMode, setIsDevMode] = useState(false);
 
+    // Load existing configuration when component opens
+    useEffect(() => {
+        if (isOpen) {
+            loadExistingConfig();
+        }
+    }, [isOpen]);
+
+    const loadExistingConfig = async () => {
+        try {
+            const response = await fetch('http://localhost:3001/api/config');
+            const config = await response.json();
+
+            // Populate fields with existing values if they exist
+            if (config.nina) {
+                // Extract IP from baseUrl (e.g., "http://172.26.81.152/" -> "172.26.81.152")
+                const baseUrl = config.nina.baseUrl || 'http://127.0.0.1/';
+                const ipMatch = baseUrl.match(/https?:\/\/([^/:]+)/);
+                if (ipMatch && ipMatch[1]) {
+                    setNinaIp(ipMatch[1]);
+                }
+                if (config.nina.apiPort) {
+                    setNinaPort(String(config.nina.apiPort));
+                }
+            }
+
+            if (config.database?.targetSchedulerPath) {
+                setSchedulerPath(config.database.targetSchedulerPath);
+            }
+
+            if (config.streams) {
+                if (config.streams.liveFeed1) setLiveFeed1(config.streams.liveFeed1);
+                if (config.streams.liveFeed2) setLiveFeed2(config.streams.liveFeed2);
+                if (config.streams.liveFeed3) setLiveFeed3(config.streams.liveFeed3);
+                if (config.streams.localCameraPath) {
+                    setLocalCameraPath(config.streams.localCameraPath);
+                    setUseLocalCamera(true);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load existing configuration:', error);
+            // If loading fails, keep default values
+        }
+    };
+
     useEffect(() => {
         // Detect if running in development mode
         // Production: Built React app served from port 3001
         // Development: React dev server on port 3000, or NODE_ENV !== 'production'
         const isProductionBuild = process.env.NODE_ENV === 'production';
-        const isProductionPort = window.location.port === '3001' || window.location.port === '';
         const isDev = !isProductionBuild || (window.location.port === '3000');
         setIsDevMode(isDev);
     }, []);
