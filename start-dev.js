@@ -10,6 +10,17 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
+// Auto-create .env file if missing (fixes webpack allowedHosts error)
+const clientDir = path.join(__dirname, 'src', 'client');
+const envPath = path.join(clientDir, '.env');
+const envExamplePath = path.join(clientDir, '.env.example');
+
+if (!fs.existsSync(envPath) && fs.existsSync(envExamplePath)) {
+  console.log('📝 Creating .env file from .env.example...');
+  fs.copyFileSync(envExamplePath, envPath);
+  console.log('✅ .env file created successfully');
+}
+
 const date = new Date().toISOString().split('T')[0];
 const backendLogPath = path.join(logsDir, `backend-startup-${date}.log`);
 const frontendLogPath = path.join(logsDir, `frontend-startup-${date}.log`);

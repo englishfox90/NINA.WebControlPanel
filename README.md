@@ -51,12 +51,15 @@ A modern, full-stack web dashboard for monitoring and controlling remote astroph
    ```bash
    npm install
    cd src/client && npm install
+   cd ../..
    ```
 
 3. **Start development environment**:
    ```bash
    npm start
    ```
+
+   **Note**: The `.env` file is now created automatically from `.env.example` on first run to prevent webpack configuration errors.
 
 This will start both the backend API server (port 3001) and frontend React app (port 3000).
 
@@ -67,18 +70,16 @@ This will start both the backend API server (port 3001) and frontend React app (
 #### **Issue: "allowedHosts[0] should be a non-empty string" Error**
 **Symptom**: Webpack dev server fails to start with error about `allowedHosts` configuration
 
-**Solution**: This is fixed in the latest version. The `.env` file in `src/client/` should include:
-```bash
-WDS_SOCKET_HOST=localhost
-WDS_SOCKET_PORT=3000
-DISABLE_ESLINT_PLUGIN=true
-```
+**Solution**: This is now automatically fixed! The start script creates the `.env` file from `.env.example` if it's missing.
 
-If you're still experiencing this issue, try:
+If you still see this error after updating:
 ```bash
 cd src/client
-rm -rf node_modules package-lock.json
-npm install
+# Manually copy the example file
+cp .env.example .env
+# Or on Windows:
+copy .env.example .env
+cd ../..
 npm start
 ```
 
