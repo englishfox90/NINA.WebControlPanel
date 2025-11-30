@@ -5,6 +5,7 @@
   "main": "src/client/app/index.tsx",
   "scripts": {
     "start": "node start-dev.js",
+    "start:windows": "start-windows.bat",
     "start:dev": "node start-dev.js",
     "start:logged": "node start-dev-logged.js",
     "start:debug": "DEBUG=true node start-dev.js",
