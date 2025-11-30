@@ -62,7 +62,7 @@ class ConfigDatabase {
     if (count.count === 0) {
       this.initializeDefaultConfig();
     }
-    
+
     // Initialize default widgets if empty
     const widgetCount = this.db.prepare('SELECT COUNT(*) as count FROM dashboard_widgets').get();
     if (widgetCount.count === 0) {
@@ -107,7 +107,7 @@ class ConfigDatabase {
     // Add missing widgets
     if (missingWidgets.length > 0) {
       console.log(`🔧 Adding ${missingWidgets.length} missing default widgets:`, missingWidgets.map(w => w.id));
-      
+
       const stmt = this.db.prepare(`
         INSERT INTO dashboard_widgets (id, component, title, x, y, w, h, minW, minH)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -150,21 +150,21 @@ class ConfigDatabase {
         guiderExposureDuration: 2.0
       },
       database: {
-        targetSchedulerPath: "./schedulerdb.sqlite",
+        targetSchedulerPath: "%LOCALAPPDATA%\\NINA\\SchedulerPlugin\\schedulerdb.sqlite",
         backupEnabled: true,
         backupInterval: 24
       },
       streams: {
-        liveFeed1: "https://live.starfront.tools/allsky/",
-        liveFeed2: "https://zyssufjepmbhqznfuwcw.supabase.co/storage/v1/object/public/status-assets-public/building-0008/current.jpg",
+        liveFeed1: "",
+        liveFeed2: "",
         liveFeed3: "",
         localCameraPath: "",
         defaultStream: 1,
         connectionTimeout: 10000
       },
       directories: {
-        liveStackDirectory: "D:/Observatory/LiveStacks",
-        capturedImagesDirectory: "D:/Observatory/Captured",
+        liveStackDirectory: "",
+        capturedImagesDirectory: "",
         logsDirectory: "./logs",
         tempDirectory: "./temp"
       },
@@ -203,14 +203,14 @@ class ConfigDatabase {
           },
           {
             id: "system-monitor",
-            component: "SystemStatusWidget", 
+            component: "SystemStatusWidget",
             title: "System Monitor",
             layout: { i: "system-monitor", x: 4, y: 0, w: 4, h: 6, minW: 3, minH: 4 }
           },
           {
             id: "scheduler",
             component: "SchedulerWidget",
-            title: "Target Scheduler", 
+            title: "Target Scheduler",
             layout: { i: "scheduler", x: 8, y: 0, w: 4, h: 8, minW: 3, minH: 6 }
           },
           {
@@ -238,6 +238,10 @@ class ConfigDatabase {
         logLevel: "info",
         enableMockData: true,
         corsEnabled: true
+      },
+      onboarding: {
+        completed: false,
+        completedAt: null
       }
     };
 
@@ -257,7 +261,7 @@ class ConfigDatabase {
   getConfigValue(key, defaultValue) {
     const stmt = this.db.prepare('SELECT value FROM config WHERE key = ?');
     const result = stmt.get(key);
-    
+
     if (result) {
       try {
         return JSON.parse(result.value);
@@ -266,7 +270,7 @@ class ConfigDatabase {
         return defaultValue;
       }
     }
-    
+
     return defaultValue;
   }
 
@@ -318,6 +322,11 @@ class ConfigDatabase {
 
       // Advanced configuration
       this.setConfigValue('advanced', config.advanced, 'advanced');
+
+      // Onboarding configuration
+      if (config.onboarding) {
+        this.setConfigValue('onboarding', config.onboarding, 'onboarding');
+      }
     });
 
     transaction();
@@ -334,21 +343,21 @@ class ConfigDatabase {
         guiderExposureDuration: this.getConfigValue('nina.guiderExposureDuration', 2)
       },
       database: {
-        targetSchedulerPath: this.getConfigValue('database.targetSchedulerPath', './schedulerdb.sqlite'),
+        targetSchedulerPath: this.getConfigValue('database.targetSchedulerPath', '%LOCALAPPDATA%\\NINA\\SchedulerPlugin\\schedulerdb.sqlite'),
         backupEnabled: this.getConfigValue('database.backupEnabled', true),
         backupInterval: this.getConfigValue('database.backupInterval', 24)
       },
       streams: {
-        liveFeed1: this.getConfigValue('streams.liveFeed1', 'https://live.starfront.tools/allsky/'),
-        liveFeed2: this.getConfigValue('streams.liveFeed2', 'https://zyssufjepmbhqznfuwcw.supabase.co/storage/v1/object/public/status-assets-public/building-0008/current.jpg'),
+        liveFeed1: this.getConfigValue('streams.liveFeed1', ''),
+        liveFeed2: this.getConfigValue('streams.liveFeed2', ''),
         liveFeed3: this.getConfigValue('streams.liveFeed3', ''),
-        localCameraPath: this.getConfigValue('streams.localCameraPath', 'C:\\Astrophotography\\AllSkEye\\AllSkEye\\LatestImage\\Latest_image.jpg'),
+        localCameraPath: this.getConfigValue('streams.localCameraPath', ''),
         defaultStream: this.getConfigValue('streams.defaultStream', 1),
         connectionTimeout: this.getConfigValue('streams.connectionTimeout', 10000)
       },
       directories: {
-        liveStackDirectory: this.getConfigValue('directories.liveStackDirectory', 'D:/Observatory/LiveStacks'),
-        capturedImagesDirectory: this.getConfigValue('directories.capturedImagesDirectory', 'D:/Observatory/Captured'),
+        liveStackDirectory: this.getConfigValue('directories.liveStackDirectory', ''),
+        capturedImagesDirectory: this.getConfigValue('directories.capturedImagesDirectory', ''),
         logsDirectory: this.getConfigValue('directories.logsDirectory', './logs'),
         tempDirectory: this.getConfigValue('directories.tempDirectory', './temp')
       },
@@ -385,6 +394,10 @@ class ConfigDatabase {
         logLevel: "info",
         enableMockData: true,
         corsEnabled: true
+      }),
+      onboarding: this.getConfigValue('onboarding', {
+        completed: false,
+        completedAt: null
       })
     };
   }
@@ -393,7 +406,7 @@ class ConfigDatabase {
   getConfigByCategory(category) {
     const stmt = this.db.prepare('SELECT key, value FROM config WHERE category = ?');
     const results = stmt.all(category);
-    
+
     const config = {};
     results.forEach(row => {
       try {
@@ -402,7 +415,7 @@ class ConfigDatabase {
         console.error(`Error parsing config value for key ${row.key}:`, error);
       }
     });
-    
+
     return config;
   }
 
@@ -410,7 +423,7 @@ class ConfigDatabase {
   getWidgets() {
     const stmt = this.db.prepare('SELECT * FROM dashboard_widgets WHERE enabled = 1 ORDER BY x, y');
     const widgets = stmt.all();
-    
+
     return widgets.map(widget => ({
       id: widget.id,
       component: widget.component,
@@ -430,7 +443,7 @@ class ConfigDatabase {
   getAllWidgets() {
     const stmt = this.db.prepare('SELECT * FROM dashboard_widgets ORDER BY x, y');
     const widgets = stmt.all();
-    
+
     return widgets.map(widget => ({
       id: widget.id,
       component: widget.component,

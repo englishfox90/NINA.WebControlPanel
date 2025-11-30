@@ -14,11 +14,12 @@ import LiveStackWidget from './LiveStackWidget';
 import UnifiedStateWidget from './UnifiedStateWidget';
 import SafetyBanner from './SafetyBanner';
 import { SettingsModal } from './SettingsModal';
+import OnboardingFlow from './OnboardingFlow';
 import WidgetService, { WidgetConfig } from '../services/widgetService';
 import { useResponsive } from '../hooks/useResponsive';
 import { getApiUrl } from '../config/api';
-import { 
-  ReloadIcon, 
+import {
+  ReloadIcon,
   DotFilledIcon,
   CornerBottomRightIcon,
   DragHandleDots2Icon,
@@ -34,9 +35,8 @@ import type { NinaConnectionStatus } from '../interfaces/equipment';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
-
-// Grid layout configuration
+// Cast to any to avoid React 18 type issues with react-grid-layout
+const ResponsiveGridLayout = WidthProvider(Responsive) as any;// Grid layout configuration
 const gridLayoutProps = {
   className: "layout",
   cols: { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 },
@@ -73,22 +73,54 @@ const Dashboard: React.FC = () => {
   });
   const [isEditMode, setIsEditMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
   // Pull-to-refresh state
   const [pullStartY, setPullStartY] = useState(0);
   const [pullDistance, setPullDistance] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
+
   // Get responsive state
   const { isMobile } = useResponsive();
+
+  // Check onboarding status on mount
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        const response = await fetch(getApiUrl('config'));
+        const config = await response.json();
+
+        const completed = config.onboarding?.completed || false;
+
+        // Check URL parameter for forced onboarding
+        const urlParams = new URLSearchParams(window.location.search);
+        const forceOnboarding = urlParams.get('onboarding') === 'true';
+
+        if (forceOnboarding || !completed) {
+          setOnboardingOpen(true);
+        }
+      } catch (error) {
+        console.error('Failed to check onboarding status:', error);
+      }
+    };
+
+    checkOnboarding();
+  }, []);
+
+  const handleOnboardingComplete = async () => {
+    setOnboardingOpen(false);
+    // Reload configuration and widgets after onboarding
+    await fetchConfig();
+    await loadWidgets();
+  };
 
   // Load widgets from database
   const loadWidgets = async (includeHidden: boolean = false) => {
     try {
       setLayoutLoading(true);
-      const savedWidgets = includeHidden 
+      const savedWidgets = includeHidden
         ? await WidgetService.loadAllWidgets()
         : await WidgetService.loadWidgets();
       if (savedWidgets && savedWidgets.length > 0) {
@@ -110,22 +142,22 @@ const Dashboard: React.FC = () => {
     try {
       const response = await fetch(getApiUrl('config'));
       const config = await response.json();
-      
+
       // Build feeds array, prioritizing local camera if configured
       const feeds: string[] = [];
-      
+
       // If local camera path is set, add it as the local camera endpoint
       if (config.streams?.localCameraPath) {
         // Use the server's local camera endpoint
         const serverUrl = window.location.origin.replace(':3000', ':3001');
         feeds.push(`${serverUrl}/api/camera/local`);
       }
-      
+
       // Add other feeds
       if (config.streams?.liveFeed1) feeds.push(config.streams.liveFeed1);
       if (config.streams?.liveFeed2) feeds.push(config.streams.liveFeed2);
       if (config.streams?.liveFeed3) feeds.push(config.streams.liveFeed3);
-      
+
       setRtspFeeds(feeds);
     } catch (error) {
       console.error('Failed to fetch config:', error);
@@ -173,7 +205,7 @@ const Dashboard: React.FC = () => {
     if (isPulling && pullStartY > 0) {
       const currentY = e.touches[0].clientY;
       const distance = Math.max(0, currentY - pullStartY);
-      
+
       // Only allow pull down, max 150px
       if (distance > 0 && distance <= 150 && window.scrollY === 0) {
         setPullDistance(distance);
@@ -190,20 +222,20 @@ const Dashboard: React.FC = () => {
       // Trigger refresh if pulled more than 80px
       setIsRefreshing(true);
       setPullDistance(60); // Snap to loading position
-      
+
       // Perform refresh
       await Promise.all([
         fetchConfig(),
         fetchNinaConnectionStatus(),
         new Promise(resolve => setTimeout(resolve, 800)) // Minimum refresh time for UX
       ]);
-      
+
       // Trigger widget refreshes (especially image widgets)
       setRefreshTrigger(prev => prev + 1);
-      
+
       setIsRefreshing(false);
     }
-    
+
     // Reset pull state
     setIsPulling(false);
     setPullStartY(0);
@@ -231,7 +263,7 @@ const Dashboard: React.FC = () => {
   // Handle layout changes and save to database
   const handleLayoutChange = useCallback((layout: Layout[], layouts: { [key: string]: Layout[] }) => {
     if (layoutLoading || !isEditMode) return; // Only save in edit mode
-    
+
     // Update the widget config with new layout positions
     const updatedConfig = widgetConfig.map(widget => {
       const layoutItem = layout.find(item => item.i === widget.id);
@@ -249,7 +281,7 @@ const Dashboard: React.FC = () => {
       }
       return widget;
     });
-    
+
     setWidgetConfig(updatedConfig);
   }, [widgetConfig, layoutLoading, isEditMode]);
 
@@ -280,11 +312,11 @@ const Dashboard: React.FC = () => {
     // Stop event propagation to prevent drag behavior
     event.stopPropagation();
     event.preventDefault();
-    
+
     try {
       await WidgetService.toggleWidgetVisibility(widgetId, !currentEnabled);
       // Update local state
-      setWidgetConfig(prev => prev.map(w => 
+      setWidgetConfig(prev => prev.map(w =>
         w.id === widgetId ? { ...w, enabled: !currentEnabled } : w
       ));
     } catch (error) {
@@ -350,20 +382,20 @@ const Dashboard: React.FC = () => {
             opacity: Math.min(pullDistance / 80, 1)
           }}
         >
-          <Flex 
-            align="center" 
-            justify="center" 
-            style={{ 
-              width: '40px', 
-              height: '40px', 
+          <Flex
+            align="center"
+            justify="center"
+            style={{
+              width: '40px',
+              height: '40px',
               borderRadius: '50%',
               background: 'var(--accent-9)',
               boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
             }}
           >
-            <ReloadIcon 
-              width="20" 
-              height="20" 
+            <ReloadIcon
+              width="20"
+              height="20"
               color="white"
               className={isRefreshing ? 'loading-spinner' : ''}
               style={{
@@ -374,22 +406,22 @@ const Dashboard: React.FC = () => {
           </Flex>
         </Box>
       )}
-      
+
       {/* Header */}
-      <Flex 
+      <Flex
         direction={{ initial: 'column', md: 'row' }}
-        justify={{ md: 'between' }} 
+        justify={{ md: 'between' }}
         align={{ initial: 'start', md: 'center' }}
         gap="3"
-        p="4" 
-        style={{ 
+        p="4"
+        style={{
           borderBottom: '1px solid var(--gray-6)',
           background: 'var(--color-background)'
         }}
       >
         {/* Row 1: Title and Settings */}
-        <Flex 
-          justify="between" 
+        <Flex
+          justify="between"
           align="center"
           width={{ initial: '100%', md: 'auto' }}
           gap="4"
@@ -398,7 +430,7 @@ const Dashboard: React.FC = () => {
             NINA Observatory Dashboard
           </Heading>
           <Flex gap="2" align="center">
-            <Button 
+            <Button
               variant="soft"
               onClick={() => setSettingsOpen(true)}
             >
@@ -406,7 +438,7 @@ const Dashboard: React.FC = () => {
               Settings
             </Button>
             {!isMobile && (
-              <Button 
+              <Button
                 variant="soft"
                 onClick={handleEditToggle}
                 disabled={loading || layoutLoading}
@@ -428,14 +460,14 @@ const Dashboard: React.FC = () => {
         </Flex>
 
         {/* Row 2: Status and Last Update */}
-        <Flex 
-          align="center" 
+        <Flex
+          align="center"
           gap="3"
           justify={{ initial: 'start', md: 'end' }}
           width={{ initial: '100%', md: 'auto' }}
         >
-          <Badge 
-            color={ninaConnectionStatus.connected ? "green" : "red"} 
+          <Badge
+            color={ninaConnectionStatus.connected ? "green" : "red"}
             variant="soft"
             size={{ initial: '1', md: '2' }}
           >
@@ -530,9 +562,15 @@ const Dashboard: React.FC = () => {
           )}
         </Box>
       )}      {/* Settings Modal */}
-      <SettingsModal 
+      <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+      />
+
+      {/* Onboarding Flow */}
+      <OnboardingFlow
+        isOpen={onboardingOpen}
+        onComplete={handleOnboardingComplete}
       />
     </Box>
   );

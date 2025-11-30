@@ -15,15 +15,15 @@ class SchedulerRoutes {
         }
 
         const projects = this.targetSchedulerDb.getProjectProgress();
-        
+
         // Get current session target to determine which project is currently active
         let currentTargetName = null;
         try {
           const sessionStateManager = req.app.locals.sessionStateManager;
           if (sessionStateManager) {
             const sessionState = sessionStateManager.getSessionState(); // Fix: use correct method name
-            currentTargetName = sessionState?.target?.name || 
-                               sessionState?.target?.TargetName;
+            currentTargetName = sessionState?.target?.name ||
+              sessionState?.target?.TargetName;
           }
         } catch (error) {
           console.log('Could not determine current target from session:', error.message);
@@ -32,11 +32,11 @@ class SchedulerRoutes {
         // Mark project as currently active if its target matches the current session target
         const enhancedProjects = projects.map(project => ({
           ...project,
-          isCurrentlyActive: currentTargetName && 
-                            project.targets?.some(target => 
-                              target.name === currentTargetName ||
-                              target.name === currentTargetName?.trim()
-                            )
+          isCurrentlyActive: currentTargetName &&
+            project.targets?.some(target =>
+              target.name === currentTargetName ||
+              target.name === currentTargetName?.trim()
+            )
         }));
 
         // Sort projects: currently active first, then by priority, then by completion
@@ -46,7 +46,7 @@ class SchedulerRoutes {
           if (b.priority !== a.priority) return b.priority - a.priority;
           return b.totalCompletion - a.totalCompletion;
         });
-        
+
         res.json({
           projects: enhancedProjects,
           lastUpdate: new Date().toISOString(),
@@ -69,7 +69,7 @@ class SchedulerRoutes {
 
         const projectId = parseInt(req.params.id);
         const project = this.targetSchedulerDb.getProjectDetails(projectId);
-        
+
         if (!project) {
           return res.status(404).json({ error: 'Project not found' });
         }
@@ -109,6 +109,48 @@ class SchedulerRoutes {
       } catch (error) {
         console.error('Error getting scheduler activity:', error);
         res.status(500).json({ error: 'Failed to get scheduler activity' });
+      }
+    });
+
+    // Check if scheduler database file exists
+    app.post('/api/scheduler/check-file', async (req, res) => {
+      try {
+        const { path } = req.body;
+
+        if (!path) {
+          return res.status(400).json({
+            exists: false,
+            message: 'Path is required'
+          });
+        }
+
+        const fs = require('fs');
+        const pathModule = require('path');
+
+        // Resolve environment variables (Windows)
+        let resolvedPath = path;
+        if (process.platform === 'win32') {
+          resolvedPath = path.replace(/%([^%]+)%/g, (_, variable) => {
+            return process.env[variable] || `%${variable}%`;
+          });
+        }
+
+        // Check if file exists
+        const fileExists = fs.existsSync(resolvedPath);
+
+        res.json({
+          exists: fileExists,
+          message: fileExists
+            ? 'Database file found successfully'
+            : 'Database file not found at the specified path',
+          resolvedPath: fileExists ? resolvedPath : undefined
+        });
+      } catch (error) {
+        console.error('Error checking scheduler file:', error);
+        res.status(500).json({
+          exists: false,
+          message: 'Error checking file: ' + error.message
+        });
       }
     });
   }

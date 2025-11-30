@@ -60,9 +60,9 @@ class NINARoutes {
         res.json(guiderGraph);
       } catch (error) {
         console.error('Error getting guider graph:', error);
-        res.status(500).json({ 
+        res.status(500).json({
           error: 'Failed to fetch guider graph data',
-          details: error.message 
+          details: error.message
         });
       }
     });
@@ -105,10 +105,10 @@ class NINARoutes {
     app.get('/api/nina/latest-image', async (req, res) => {
       try {
         console.log('📸 API: Latest image request received');
-        
+
         // Step 1: Get image count from NINA (all image types)
         const imageCount = await this.ninaService.getImageHistoryCount();
-        
+
         if (imageCount === 0) {
           console.log('📸 No images available in NINA');
           return res.json({
@@ -122,13 +122,13 @@ class NINARoutes {
             Error: null
           });
         }
-        
+
         // Step 2: Get latest image metadata (count - 1)
         const imageIndex = imageCount - 1;
         console.log(`📸 Fetching image metadata for index ${imageIndex} (latest of ${imageCount})`);
-        
+
         const imageStats = await this.ninaService.getImageHistoryByIndex(imageIndex);
-        
+
         if (!imageStats) {
           console.warn('⚠️ Failed to get image metadata');
           return res.json({
@@ -142,26 +142,26 @@ class NINARoutes {
             Error: 'Image metadata not available'
           });
         }
-        
+
         // Step 3: Get prepared image as binary data
         let imageBase64 = null;
         let imageContentType = null;
-        
+
         try {
           const imageData = await this.ninaService.getPreparedImageArrayBuffer();
-          
+
           // Convert array buffer to base64
           const buffer = Buffer.from(imageData.bytes);
           imageBase64 = buffer.toString('base64');
           imageContentType = imageData.contentType;
-          
+
           console.log(`📸 Image encoded to base64: ${imageBase64.length} characters`);
         } catch (imageError) {
           console.error('❌ Failed to get prepared image:', imageError.message);
           console.error('❌ Full error details:', imageError);
           // Continue without image - still return metadata
         }
-        
+
         // Return combined response
         const response = {
           Success: true,
@@ -173,13 +173,13 @@ class NINARoutes {
           message: imageBase64 ? 'Image and metadata retrieved successfully' : 'Metadata retrieved, image unavailable',
           Error: null
         };
-        
+
         console.log(`📸 Returning response: ${imageBase64 ? 'with' : 'without'} image, ExposureTime: ${response.ExposureTime}s`);
         res.json(response);
-        
+
       } catch (error) {
         console.error('❌ Error getting latest image:', error);
-        res.status(500).json({ 
+        res.status(500).json({
           Success: false,
           StatusCode: 500,
           imageBase64: null,
@@ -203,14 +203,14 @@ class NINARoutes {
           format: req.query.format || 'jpeg',
           quality: req.query.quality ? parseInt(req.query.quality) : undefined
         };
-        
+
         const imageData = await this.ninaService.getImageByIndex(index, options);
         res.json(imageData);
       } catch (error) {
         console.error(`Error getting NINA image ${req.params.index}:`, error);
-        res.status(500).json({ 
+        res.status(500).json({
           error: 'Failed to get NINA image',
-          details: error.message 
+          details: error.message
         });
       }
     });
@@ -241,20 +241,20 @@ class NINARoutes {
     app.get('/api/nina/logs', async (req, res) => {
       try {
         const lineCount = parseInt(req.query.lineCount) || 25;
-        
+
         // Validate line count range (10-100)
         const validLineCount = Math.min(Math.max(lineCount, 10), 100);
-        
+
         console.log(`📋 API: NINA logs request - ${validLineCount} lines`);
-        
+
         const logsData = await this.ninaService.getNINALogs(validLineCount);
-        
+
         if (logsData.Success) {
           console.log(`📋 Returning ${logsData.lineCount} log entries`);
         } else {
           console.warn('⚠️ NINA logs request failed:', logsData.Error);
         }
-        
+
         res.json(logsData);
       } catch (error) {
         console.error('❌ Error getting NINA logs:', error);
@@ -277,16 +277,16 @@ class NINARoutes {
         // Remove trailing slash from baseUrl if present
         const baseUrl = config.nina.baseUrl.replace(/\/$/, '');
         const ninaApiUrl = `${baseUrl}:${config.nina.apiPort}`;
-        
+
         // Build query parameters from request
         const queryParams = new URLSearchParams();
         if (req.query.resize) queryParams.set('resize', req.query.resize);
         if (req.query.size) queryParams.set('size', req.query.size);
         if (req.query.autoPrepare) queryParams.set('autoPrepare', req.query.autoPrepare);
-        
+
         const preparedImageUrl = `${ninaApiUrl}/v2/api/prepared-image?${queryParams.toString()}`;
         console.log('📸 Proxying prepared-image request to:', preparedImageUrl);
-        
+
         // Use axios for HTTP request instead of fetch
         const axios = require('axios');
         const response = await axios.get(preparedImageUrl, {
@@ -297,41 +297,41 @@ class NINARoutes {
             return (status >= 200 && status < 300) || status === 304;
           }
         });
-        
+
         // Handle 304 Not Modified - return empty response
         if (response.status === 304) {
           console.log('📸 Image not modified (304), sending empty response');
           return res.status(304).end();
         }
-        
+
         if (response.status === 404) {
           return res.status(404).json({
             error: 'No prepared image available',
             message: 'NINA has no prepared image ready yet'
           });
         }
-        
+
         if (response.status !== 200) {
           throw new Error(`NINA API error: ${response.status} ${response.statusText}`);
         }
-        
+
         // Get content type from response headers
         const contentType = response.headers['content-type'] || 'image/jpeg';
-        
+
         res.set({
           'Content-Type': contentType,
           'Content-Length': response.data.length,
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         });
-        
+
         res.send(response.data);
         console.log('✅ Prepared image proxied successfully:', response.data.length, 'bytes');
-        
+
       } catch (error) {
         console.error('❌ Error proxying prepared-image:', error.message);
-        res.status(500).json({ 
+        res.status(500).json({
           error: 'Failed to get prepared image',
-          details: error.message 
+          details: error.message
         });
       }
     });
@@ -361,7 +361,7 @@ class NINARoutes {
         if (global.unifiedStateSystem) {
           const state = global.unifiedStateSystem.getState();
           const session = state.currentSession;
-          
+
           res.json({
             isGuiding: session?.guiding?.isGuiding || false,
             isActive: session?.isActive || false,
@@ -389,6 +389,68 @@ class NINARoutes {
       }
     });
 
+    // Test NINA connection endpoint for onboarding
+    app.post('/api/nina/test-connection', async (req, res) => {
+      try {
+        const { ip, port } = req.body;
+
+        if (!ip || !port) {
+          return res.status(400).json({
+            connected: false,
+            message: 'IP address and port are required'
+          });
+        }
+
+        console.log(`🔍 Testing NINA connection: ${ip}:${port}`);
+
+        // Use the same endpoint that getConnectionStatus() uses
+        const axios = require('axios');
+        const testUrl = `http://${ip}:${port}/v2/api/application-start`;
+
+        const response = await axios.get(testUrl, {
+          timeout: 3000, // 3 second timeout for testing
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        // Check for the expected response format
+        if (response.data && response.data.Success) {
+          console.log(`✅ NINA connection test successful: ${ip}:${port}`);
+          res.json({
+            connected: true,
+            message: 'Successfully connected to NINA!',
+            applicationStart: response.data.Response
+          });
+        } else {
+          console.log(`⚠️ NINA returned unexpected response`);
+          res.json({
+            connected: false,
+            message: 'NINA API returned unexpected response. Please verify Advanced API is enabled.'
+          });
+        }
+      } catch (error) {
+        console.error(`❌ NINA connection test failed: ${error.message}`);
+
+        let errorMessage = 'Failed to connect to NINA.';
+        if (error.code === 'ECONNREFUSED') {
+          errorMessage = 'Connection refused. Is NINA running and Advanced API enabled?';
+        } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+          errorMessage = 'Connection timeout. Please check IP address and network connectivity.';
+        } else if (error.code === 'ENOTFOUND') {
+          errorMessage = 'Host not found. Please verify the IP address.';
+        } else {
+          errorMessage = `Connection error: ${error.message}`;
+        }
+
+        res.json({
+          connected: false,
+          message: errorMessage
+        });
+      }
+    });
+
     app.get('/api/nina/livestack/info/:target/:filter', async (req, res) => {
       try {
         const { target, filter } = req.params;
@@ -411,16 +473,16 @@ class NINARoutes {
       try {
         const { target, filter } = req.params;
         const { stream } = req.query;
-        
+
         console.log(`📋 API: LiveStack image request - ${target} - ${filter}`);
         console.log('🔍 Query parameters:', req.query);
         console.log('🔍 Stream parameter:', stream, 'Type:', typeof stream);
-        
+
         if (stream === 'true') {
           console.log('📡 Using stream mode for PNG response');
           // Stream the image directly
           const response = await this.ninaService.getLiveStackImageStream(target, filter);
-          
+
           if (response.Success && response.imageBuffer) {
             res.set({
               'Content-Type': 'image/png',
