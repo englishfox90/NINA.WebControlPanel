@@ -194,41 +194,66 @@ npm run fix-backend
 npm run health
 ```
 
-### **Debug & Logging Commands**
+### Logging & Troubleshooting
 ```bash
-# Normal startup (no debug logging)
-npm start                    # Clean startup, no log files created
+# Enhanced logging (recommended for troubleshooting)
+npm run start:logged         # Starts with comprehensive logging to files
+npm run logs                 # View all logs in real-time
+npm run logs:backend         # View backend logs only
+npm run logs:frontend        # View frontend logs only
 
-# Debug modes (creates log files in src/logs/)
+# Advanced log viewing (PowerShell)
+.\scripts\monitoring\view-logs.ps1 -Type backend -Lines 100
+.\scripts\monitoring\view-logs.ps1 -Type frontend -Follow
+.\scripts\monitoring\view-logs.ps1 -Clean  # Delete old logs
+
+# Debug modes
 npm run start:debug          # General debug logging
 npm run start:debug-websocket # WebSocket event logging (verbose)
 npm run start:debug-all      # Full debug mode (all logging)
 ```
 
-**WebSocket Event Logging**:
-- **Default**: No logging (clean operation)  
-- **Debug Mode**: Creates `src/logs/websocket-events.log` with detailed event flow
-- **Use When**: Debugging IMAGE-SAVE event processing, WebSocket connection issues
-- **File Size**: Can grow large quickly - only enable when needed
+**Log Management**:
+- **Location**: `logs/` directory in project root
+- **Retention**: Automatic 7-day rotation (old logs auto-deleted)
+- **Files**: 
+  - `backend-YYYY-MM-DD.log` - Backend server logs
+  - `frontend-startup-YYYY-MM-DD.log` - Frontend build logs
+  - `build-YYYY-MM-DD.log` - Build process logs
+- **Best Practice**: Use `npm run start:logged` when experiencing issues for comprehensive troubleshooting
 
 ## 🛠️ Development
 
 ### Available Scripts
 
-- `npm start` - Start both frontend and backend in unified development mode (no debug logging)
-- `npm run start:debug` - Start with general debug logging enabled
-- `npm run start:debug-websocket` - Start with verbose WebSocket event logging (creates websocket-events.log)
-- `npm run start:debug-all` - Start with all debug logging enabled (full debugging mode)
-- `npm run start:stable` - Start with automatic restart on crashes and monitoring  
-- `npm run start:prod` - Start in production mode with PM2 process management
-- `npm run server` - Start only the backend server (enhanced stability)
-- `npm run client` - Start only the frontend React app
+**Development:**
+- `npm start` - Start both frontend and backend (standard mode)
+- `npm run start:logged` - Start with comprehensive file logging (7-day rotation)
+- `npm run start:debug` - Start with debug logging enabled
+- `npm run start:debug-websocket` - Start with verbose WebSocket logging
+- `npm run start:stable` - Start with auto-restart on crashes
+
+**Production:**
 - `npm run build` - Build for production
-- `npm test` - Run tests
+- `npm run start:prod` - Start in production mode with PM2
+
+**Logging & Monitoring:**
+- `npm run logs` - View all logs (live tail)
+- `npm run logs:backend` - View backend logs only
+- `npm run logs:frontend` - View frontend logs only
+- `npm run logs:clean` - Clean all log files
 - `npm run monitor` - Real-time backend health monitoring
 - `npm run health` - Check system and backend health
-- `npm run fix-backend` - Apply stability fixes automatically
-- `npm run validate` - Validate configuration and dependencies
+
+**Database & Maintenance:**
+- `npm run reset-db` - Reset database to fresh state
+- `npm run validate` - Validate configuration
+- `npm run fix-backend` - Apply stability fixes
+
+**Component Testing:**
+- `npm run server` - Start backend only
+- `npm run client` - Start frontend only
+- `npm test` - Run tests
 
 ### Configuration
 

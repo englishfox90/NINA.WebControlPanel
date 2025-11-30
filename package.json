@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node start-dev.js",
     "start:dev": "node start-dev.js",
+    "start:logged": "node start-dev-logged.js",
     "start:debug": "DEBUG=true node start-dev.js",
     "start:debug-websocket": "DEBUG_WEBSOCKET=verbose node start-dev.js",
     "start:debug-all": "DEBUG=all DEBUG_WEBSOCKET=verbose node start-dev.js",
@@ -26,6 +27,10 @@
     "monitor": "node scripts/monitoring/backend-monitor.js",
     "fix-backend": "node scripts/development/backend-stability-fix.js",
     "reset-db": "pwsh -File scripts/database/reset-dashboard-database.ps1",
+    "logs": "pwsh -Command \"Get-Content logs/*.log -Tail 50 -Wait\"",
+    "logs:backend": "pwsh -Command \"Get-Content logs/backend-*.log -Tail 50 -Wait\"",
+    "logs:frontend": "pwsh -Command \"Get-Content logs/frontend-*.log -Tail 50 -Wait\"",
+    "logs:clean": "pwsh -Command \"Remove-Item logs/*.log -Force\"",
     "apply-server-fix": "copy src\\server\\config-server.enhanced.js src\\server\\config-server.js",
     "stop": "node scripts/deployment/process-manager.js stop",
     "restart": "node scripts/deployment/process-manager.js restart",

@@ -7,6 +7,7 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const WebSocket = require('ws');
+const { getBackendLogger, requestLoggerMiddleware } = require('./utils/logger');
 
 // Import organized components
 const APIRoutes = require('./api');
@@ -71,6 +72,9 @@ async function gracefulShutdown() {
 }
 
 async function initializeServer() {
+  const logger = getBackendLogger();
+  
+  logger.info('🔧 Initializing services...');
   console.log('🔧 Initializing services...');
   
   // Initialize database
@@ -123,16 +127,7 @@ async function initializeServer() {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Request logging middleware
-  app.use((req, res, next) => {
-    const start = Date.now();
-    
-    res.on('finish', () => {
-      const duration = Date.now() - start;
-      console.log(`${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
-    });
-    
-    next();
-  });
+  app.use(requestLoggerMiddleware(logger));
 
   // Initialize API routes with services
   const apiRoutes = new APIRoutes(
@@ -293,13 +288,21 @@ async function initializeServer() {
 
   // Start server
   server.listen(PORT, () => {
-    console.log('✅ All services initialized successfully');
-    console.log('✅ Event listeners set up successfully');
-    console.log(`🚀 Enhanced Configuration API server running on port ${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-    console.log(`⚙️  Configuration endpoint: http://localhost:${PORT}/api/config`);
-    console.log(`🌐 Unified state endpoint: http://localhost:${PORT}/api/state`);
-    console.log(`🔌 WebSocket endpoint: ws://localhost:${PORT}`);
+    const messages = [
+      '✅ All services initialized successfully',
+      '✅ Event listeners set up successfully',
+      `🚀 Enhanced Configuration API server running on port ${PORT}`,
+      `📊 Health check: http://localhost:${PORT}/api/health`,
+      `⚙️  Configuration endpoint: http://localhost:${PORT}/api/config`,
+      `🌐 Unified state endpoint: http://localhost:${PORT}/api/state`,
+      `🔌 WebSocket endpoint: ws://localhost:${PORT}`,
+      `📝 Logs directory: ${path.join(__dirname, '../../logs')}`
+    ];
+    
+    messages.forEach(msg => {
+      console.log(msg);
+      logger.info(msg);
+    });
   });
 
   // Return server components for cleanup
