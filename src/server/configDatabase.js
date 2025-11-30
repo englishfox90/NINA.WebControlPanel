@@ -144,7 +144,7 @@ class ConfigDatabase {
     const defaultConfig = {
       nina: {
         apiPort: 1888,
-        baseUrl: "http://172.26.81.152/",
+        baseUrl: "http://127.0.0.1/",
         timeout: 5000,
         retryAttempts: 3,
         guiderExposureDuration: 2.0
@@ -158,7 +158,7 @@ class ConfigDatabase {
         liveFeed1: "https://live.starfront.tools/allsky/",
         liveFeed2: "https://zyssufjepmbhqznfuwcw.supabase.co/storage/v1/object/public/status-assets-public/building-0008/current.jpg",
         liveFeed3: "",
-        localCameraPath: "C:\\Astrophotography\\AllSkEye\\AllSkEye\\LatestImage\\Latest_image.jpg",
+        localCameraPath: "",
         defaultStream: 1,
         connectionTimeout: 10000
       },
