@@ -195,9 +195,15 @@ npm run health
 ```
 
 ### Logging & Troubleshooting
+
+**Automatic Logging** (All modes generate logs):
+- `npm start` - Logs to `logs/backend-startup-*.log` and `logs/frontend-startup-*.log`
+- `npm run start:prod` - Logs to `logs/backend-startup-*.log` (production)
+- `npm run start:stable` - Logs to `logs/backend-startup-*.log` and `logs/backend-monitor-*.log`
+- `npm run start:logged` - Same as `npm start` (legacy alias for clarity)
+
+**View Logs**:
 ```bash
-# Enhanced logging (recommended for troubleshooting)
-npm run start:logged         # Starts with comprehensive logging to files
 npm run logs                 # View all logs in real-time
 npm run logs:backend         # View backend logs only
 npm run logs:frontend        # View frontend logs only
@@ -207,7 +213,7 @@ npm run logs:frontend        # View frontend logs only
 .\scripts\monitoring\view-logs.ps1 -Type frontend -Follow
 .\scripts\monitoring\view-logs.ps1 -Clean  # Delete old logs
 
-# Debug modes
+# Debug modes (extra verbose console output)
 npm run start:debug          # General debug logging
 npm run start:debug-websocket # WebSocket event logging (verbose)
 npm run start:debug-all      # Full debug mode (all logging)
@@ -217,10 +223,11 @@ npm run start:debug-all      # Full debug mode (all logging)
 - **Location**: `logs/` directory in project root
 - **Retention**: Automatic 7-day rotation (old logs auto-deleted)
 - **Files**: 
-  - `backend-YYYY-MM-DD.log` - Backend server logs
-  - `frontend-startup-YYYY-MM-DD.log` - Frontend build logs
-  - `build-YYYY-MM-DD.log` - Build process logs
-- **Best Practice**: Use `npm run start:logged` when experiencing issues for comprehensive troubleshooting
+  - `backend-YYYY-MM-DD.log` - Backend server operations (API calls, errors)
+  - `backend-startup-YYYY-MM-DD.log` - Backend initialization logs
+  - `frontend-startup-YYYY-MM-DD.log` - Frontend build/webpack logs
+  - `backend-monitor-YYYY-MM-DD.log` - Stability monitor logs (if using start:stable)
+- **All Modes Generate Logs**: Logs are created automatically for normal start, production, and stable modes
 
 ## 🛠️ Development
 

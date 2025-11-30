@@ -12,23 +12,30 @@ class BackendMonitor {
     this.restartCount = 0;
     this.maxRestarts = 10;
     this.backendProcess = null;
-    this.logFile = path.join(__dirname, '../../logs/backend-monitor.log');
     this.startTime = Date.now();
     
-    // Ensure logs directory exists
-    const logsDir = path.dirname(this.logFile);
+    // Setup logging
+    const logsDir = path.join(__dirname, '../../logs');
     if (!fs.existsSync(logsDir)) {
       fs.mkdirSync(logsDir, { recursive: true });
     }
     
+    const date = new Date().toISOString().split('T')[0];
+    this.monitorLogFile = path.join(logsDir, `backend-monitor-${date}.log`);
+    this.backendLogFile = path.join(logsDir, `backend-startup-${date}.log`);
+    this.backendLogStream = fs.createWriteStream(this.backendLogFile, { flags: 'a' });
+    
     this.log('🚀 Backend Monitor starting...');
+    this.backendLogStream.write(`\n${'='.repeat(80)}\n`);
+    this.backendLogStream.write(`Backend Started via Monitor: ${new Date().toISOString()}\n`);
+    this.backendLogStream.write(`${'='.repeat(80)}\n\n`);
   }
 
   log(message) {
     const timestamp = new Date().toISOString();
     const logEntry = `[${timestamp}] ${message}\n`;
     console.log(message);
-    fs.appendFileSync(this.logFile, logEntry);
+    fs.appendFileSync(this.monitorLogFile, logEntry);
   }
 
   startBackend() {
@@ -41,10 +48,12 @@ class BackendMonitor {
 
     this.backendProcess.stdout.on('data', (data) => {
       process.stdout.write(`[BACKEND] ${data}`);
+      this.backendLogStream.write(`[${new Date().toISOString()}] ${data}`);
     });
 
     this.backendProcess.stderr.on('data', (data) => {
       process.stderr.write(`[BACKEND ERROR] ${data}`);
+      this.backendLogStream.write(`[${new Date().toISOString()}] [ERROR] ${data}`);
     });
 
     this.backendProcess.on('exit', (code, signal) => {
@@ -78,6 +87,10 @@ class BackendMonitor {
     this.log('🛑 Stopping backend monitor...');
     if (this.backendProcess) {
       this.backendProcess.kill('SIGTERM');
+    }
+    if (this.backendLogStream) {
+      this.backendLogStream.write(`\n[${new Date().toISOString()}] Backend monitor stopped by user\n`);
+      this.backendLogStream.end();
     }
     process.exit(0);
   }

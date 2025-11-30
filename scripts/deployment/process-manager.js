@@ -38,28 +38,35 @@ class ProcessManager {
     // Write PID for management
     fs.writeFileSync(this.pidFile, serverProcess.pid.toString());
 
-    // Set up logging
-    const logFile = path.join(this.logDir, `server-${new Date().toISOString().split('T')[0]}.log`);
+    // Set up logging with daily rollover
+    const date = new Date().toISOString().split('T')[0];
+    const logFile = path.join(this.logDir, `backend-startup-${date}.log`);
     const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+    
+    logStream.write(`\n${'='.repeat(80)}\n`);
+    logStream.write(`Production Backend Started: ${new Date().toISOString()}\n`);
+    logStream.write(`PID: ${serverProcess.pid}\n`);
+    logStream.write(`${'='.repeat(80)}\n\n`);
 
     serverProcess.stdout.on('data', (data) => {
       const timestamp = new Date().toISOString();
-      const logEntry = `[${timestamp}] [STDOUT] ${data}`;
+      const logEntry = `[${timestamp}] ${data}`;
       logStream.write(logEntry);
       console.log(data.toString().trim());
     });
 
     serverProcess.stderr.on('data', (data) => {
       const timestamp = new Date().toISOString();
-      const logEntry = `[${timestamp}] [STDERR] ${data}`;
+      const logEntry = `[${timestamp}] [ERROR] ${data}`;
       logStream.write(logEntry);
       console.error(data.toString().trim());
     });
 
     serverProcess.on('exit', (code, signal) => {
       const timestamp = new Date().toISOString();
-      const logEntry = `[${timestamp}] [EXIT] Process exited with code ${code}, signal ${signal}\n`;
+      const logEntry = `[${timestamp}] Process exited with code ${code}, signal ${signal}\n`;
       logStream.write(logEntry);
+      logStream.end();
       
       if (fs.existsSync(this.pidFile)) {
         fs.unlinkSync(this.pidFile);
