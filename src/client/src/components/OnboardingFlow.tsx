@@ -36,7 +36,11 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete }) =
 
     useEffect(() => {
         // Detect if running in development mode
-        const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        // Production: Built React app served from port 3001
+        // Development: React dev server on port 3000, or NODE_ENV !== 'production'
+        const isProductionBuild = process.env.NODE_ENV === 'production';
+        const isProductionPort = window.location.port === '3001' || window.location.port === '';
+        const isDev = !isProductionBuild || (window.location.port === '3000');
         setIsDevMode(isDev);
     }, []);
 

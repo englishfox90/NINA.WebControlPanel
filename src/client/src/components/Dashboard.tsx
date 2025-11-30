@@ -98,6 +98,7 @@ const Dashboard: React.FC = () => {
         const urlParams = new URLSearchParams(window.location.search);
         const forceOnboarding = urlParams.get('onboarding') === 'true';
 
+        // Only show onboarding if forced via URL or not completed
         if (forceOnboarding || !completed) {
           setOnboardingOpen(true);
         }
@@ -111,6 +112,15 @@ const Dashboard: React.FC = () => {
 
   const handleOnboardingComplete = async () => {
     setOnboardingOpen(false);
+    
+    // Remove onboarding URL parameter if present
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('onboarding')) {
+      urlParams.delete('onboarding');
+      const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+      window.history.replaceState({}, '', newUrl);
+    }
+    
     // Reload configuration and widgets after onboarding
     await fetchConfig();
     await loadWidgets();

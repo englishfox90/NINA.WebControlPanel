@@ -278,42 +278,56 @@ class ConfigDatabase {
   setConfig(config) {
     const transaction = this.db.transaction(() => {
       // NINA configuration
-      this.setConfigValue('nina.apiPort', config.nina.apiPort, 'nina');
-      this.setConfigValue('nina.baseUrl', config.nina.baseUrl, 'nina');
-      this.setConfigValue('nina.timeout', config.nina.timeout, 'nina');
-      this.setConfigValue('nina.retryAttempts', config.nina.retryAttempts, 'nina');
-      this.setConfigValue('nina.guiderExposureDuration', config.nina.guiderExposureDuration, 'nina');
+      if (config.nina) {
+        if (config.nina.apiPort !== undefined) this.setConfigValue('nina.apiPort', config.nina.apiPort, 'nina');
+        if (config.nina.baseUrl !== undefined) this.setConfigValue('nina.baseUrl', config.nina.baseUrl, 'nina');
+        if (config.nina.timeout !== undefined) this.setConfigValue('nina.timeout', config.nina.timeout, 'nina');
+        if (config.nina.retryAttempts !== undefined) this.setConfigValue('nina.retryAttempts', config.nina.retryAttempts, 'nina');
+        if (config.nina.guiderExposureDuration !== undefined) this.setConfigValue('nina.guiderExposureDuration', config.nina.guiderExposureDuration, 'nina');
+      }
 
       // Database configuration
-      this.setConfigValue('database.targetSchedulerPath', config.database.targetSchedulerPath, 'database');
-      this.setConfigValue('database.backupEnabled', config.database.backupEnabled, 'database');
-      this.setConfigValue('database.backupInterval', config.database.backupInterval, 'database');
+      if (config.database) {
+        if (config.database.targetSchedulerPath !== undefined) this.setConfigValue('database.targetSchedulerPath', config.database.targetSchedulerPath, 'database');
+        if (config.database.backupEnabled !== undefined) this.setConfigValue('database.backupEnabled', config.database.backupEnabled, 'database');
+        if (config.database.backupInterval !== undefined) this.setConfigValue('database.backupInterval', config.database.backupInterval, 'database');
+      }
 
       // Streams configuration
-      this.setConfigValue('streams.liveFeed1', config.streams.liveFeed1, 'streams');
-      this.setConfigValue('streams.liveFeed2', config.streams.liveFeed2, 'streams');
-      this.setConfigValue('streams.liveFeed3', config.streams.liveFeed3, 'streams');
-      this.setConfigValue('streams.localCameraPath', config.streams.localCameraPath, 'streams');
-      this.setConfigValue('streams.defaultStream', config.streams.defaultStream, 'streams');
-      this.setConfigValue('streams.connectionTimeout', config.streams.connectionTimeout, 'streams');
+      if (config.streams) {
+        if (config.streams.liveFeed1 !== undefined) this.setConfigValue('streams.liveFeed1', config.streams.liveFeed1, 'streams');
+        if (config.streams.liveFeed2 !== undefined) this.setConfigValue('streams.liveFeed2', config.streams.liveFeed2, 'streams');
+        if (config.streams.liveFeed3 !== undefined) this.setConfigValue('streams.liveFeed3', config.streams.liveFeed3, 'streams');
+        if (config.streams.localCameraPath !== undefined) this.setConfigValue('streams.localCameraPath', config.streams.localCameraPath, 'streams');
+        if (config.streams.defaultStream !== undefined) this.setConfigValue('streams.defaultStream', config.streams.defaultStream, 'streams');
+        if (config.streams.connectionTimeout !== undefined) this.setConfigValue('streams.connectionTimeout', config.streams.connectionTimeout, 'streams');
+      }
 
       // Directories configuration
-      this.setConfigValue('directories.liveStackDirectory', config.directories.liveStackDirectory, 'directories');
-      this.setConfigValue('directories.capturedImagesDirectory', config.directories.capturedImagesDirectory, 'directories');
-      this.setConfigValue('directories.logsDirectory', config.directories.logsDirectory, 'directories');
-      this.setConfigValue('directories.tempDirectory', config.directories.tempDirectory, 'directories');
+      if (config.directories) {
+        if (config.directories.liveStackDirectory !== undefined) this.setConfigValue('directories.liveStackDirectory', config.directories.liveStackDirectory, 'directories');
+        if (config.directories.capturedImagesDirectory !== undefined) this.setConfigValue('directories.capturedImagesDirectory', config.directories.capturedImagesDirectory, 'directories');
+        if (config.directories.logsDirectory !== undefined) this.setConfigValue('directories.logsDirectory', config.directories.logsDirectory, 'directories');
+        if (config.directories.tempDirectory !== undefined) this.setConfigValue('directories.tempDirectory', config.directories.tempDirectory, 'directories');
+      }
 
       // Dashboard configuration
-      this.setConfigValue('dashboard.refreshInterval', config.dashboard.refreshInterval, 'dashboard');
-      this.setConfigValue('dashboard.theme', config.dashboard.theme, 'dashboard');
-      this.setConfigValue('dashboard.mobileOptimized', config.dashboard.mobileOptimized, 'dashboard');
-      this.setConfigValue('dashboard.autoRefresh', config.dashboard.autoRefresh, 'dashboard');
+      if (config.dashboard) {
+        if (config.dashboard.refreshInterval !== undefined) this.setConfigValue('dashboard.refreshInterval', config.dashboard.refreshInterval, 'dashboard');
+        if (config.dashboard.theme !== undefined) this.setConfigValue('dashboard.theme', config.dashboard.theme, 'dashboard');
+        if (config.dashboard.mobileOptimized !== undefined) this.setConfigValue('dashboard.mobileOptimized', config.dashboard.mobileOptimized, 'dashboard');
+        if (config.dashboard.autoRefresh !== undefined) this.setConfigValue('dashboard.autoRefresh', config.dashboard.autoRefresh, 'dashboard');
+      }
 
       // Notifications configuration
-      this.setConfigValue('notifications', config.notifications, 'notifications');
+      if (config.notifications) {
+        this.setConfigValue('notifications', config.notifications, 'notifications');
+      }
 
       // Observatory configuration
-      this.setConfigValue('observatory', config.observatory, 'observatory');
+      if (config.observatory) {
+        this.setConfigValue('observatory', config.observatory, 'observatory');
+      }
 
       // Layout configuration
       if (config.layout) {
@@ -321,7 +335,9 @@ class ConfigDatabase {
       }
 
       // Advanced configuration
-      this.setConfigValue('advanced', config.advanced, 'advanced');
+      if (config.advanced) {
+        this.setConfigValue('advanced', config.advanced, 'advanced');
+      }
 
       // Onboarding configuration
       if (config.onboarding) {
