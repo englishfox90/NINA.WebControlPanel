@@ -49,7 +49,7 @@ lerna-debug.log*
 ehthumbs.db
 Thumbs.db
 Desktop.ini
-*.pid
+nina-webcontrol.pid
 
 # Temporary files
 *.tmp
@@ -115,3 +115,4 @@ config.local.json
 
 # TernJS port file
 .tern-port
+nina-webcontrol.pid
