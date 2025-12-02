@@ -143,6 +143,17 @@ async function initializeServer() {
   // Make unifiedStateSystem available to all routes via app.locals
   app.locals.unifiedStateSystem = unifiedStateSystem;
 
+  // Unified State API endpoint
+  app.get('/api/state', (req, res) => {
+    try {
+      const state = unifiedStateSystem.getState();
+      res.json(state);
+    } catch (error) {
+      console.error('Error getting unified state:', error);
+      res.status(500).json({ error: 'Failed to get unified state' });
+    }
+  });
+
   // Initialize API routes with services
   const apiRoutes = new APIRoutes(
     configDatabase,
