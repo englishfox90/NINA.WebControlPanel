@@ -17,6 +17,9 @@ interface ImageStatsProps {
 export const ImageStats: React.FC<ImageStatsProps> = ({ imageStats, hasImage, nextRefreshIn }) => {
   // Filter color coding
   const getFilterColor = (filter: string): 'blue' | 'red' | 'green' | 'yellow' => {
+    // Type guard for runtime safety
+    if (!filter || typeof filter !== 'string') return 'yellow';
+    
     const filterLower = filter.toLowerCase();
     if (filterLower.includes('blue') || filterLower.includes('oiii')) return 'blue';
     if (filterLower.includes('red') || filterLower.includes('ha')) return 'red';
