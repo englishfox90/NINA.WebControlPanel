@@ -10,7 +10,8 @@ import {
   Separator,
   Callout,
   Spinner,
-  TextField
+  TextField,
+  Switch
 } from '@radix-ui/themes';
 import {
   GearIcon,
@@ -118,7 +119,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
     const newConfig = { ...config };
     let current: any = newConfig;
     
+    // Create intermediate objects if they don't exist
     for (let i = 0; i < keys.length - 1; i++) {
+      if (!current[keys[i]]) {
+        current[keys[i]] = {};
+      }
       current = current[keys[i]];
     }
     
@@ -288,6 +293,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
               <Tabs.Trigger value="nina">NINA Connection</Tabs.Trigger>
               <Tabs.Trigger value="database">Database</Tabs.Trigger>
               <Tabs.Trigger value="streams">Live Feeds</Tabs.Trigger>
+              <Tabs.Trigger value="pegasus">Power Devices</Tabs.Trigger>
             </Tabs.List>
 
             {/* NINA Connection Tab */}
@@ -608,6 +614,81 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ open, onClose }) =
                         />
                         <Text size="1" color="gray" mt="1">
                           Timeout for stream connections
+                        </Text>
+                      </Box>
+                    </Flex>
+                  </Box>
+                </Card>
+              </Box>
+            </Tabs.Content>
+
+            {/* Pegasus Power Devices Tab */}
+            <Tabs.Content value="pegasus">
+              <Box pt="4">
+                <Card>
+                  <Box p="4">
+                    <Flex direction="column" gap="4">
+                      <Callout.Root color="blue" size="2">
+                        <Callout.Icon>
+                          <InfoCircledIcon />
+                        </Callout.Icon>
+                        <Callout.Text>
+                          Automatically detects and monitors Pegasus Astro power devices via Pegasus Unity Platform. 
+                          Ensure Pegasus Unity is running locally (port 32000) with your power device connected.
+                        </Callout.Text>
+                      </Callout.Root>
+
+                      <Box>
+                        <Flex align="center" gap="2" mb="3">
+                          <Switch
+                            checked={config?.pegasus?.enabled === true}
+                            onCheckedChange={(checked: boolean) => updateConfig('pegasus.enabled', checked)}
+                          />
+                          <Box>
+                            <Text as="label" size="2" weight="medium">
+                              Enable Pegasus Power Monitoring
+                            </Text>
+                            <Text size="1" color="gray" style={{ display: 'block' }}>
+                              Automatically detect and monitor connected power device
+                            </Text>
+                          </Box>
+                        </Flex>
+                        <Text size="1" color="gray">
+                          The widget will auto-detect your connected Pegasus power device (PPBAdvance, UPBv3, etc.) when enabled.
+                        </Text>
+                      </Box>
+
+                      <Separator />
+
+                      <Box>
+                        <Text as="label" size="2" weight="medium" mb="1">
+                          Refresh Interval (ms)
+                        </Text>
+                        <TextField.Root
+                          type="number"
+                          value={config?.pegasus?.refreshInterval?.toString() || ''}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig('pegasus.refreshInterval', parseInt(e.target.value) || 5000)}
+                          placeholder="5000"
+                        />
+                        <Text size="1" color="gray" mt="1">
+                          How often to poll Pegasus Unity for updates (default: 5000ms)
+                        </Text>
+                      </Box>
+
+                      <Separator />
+
+                      <Box>
+                        <Text as="label" size="2" weight="medium" mb="1">
+                          Max Current (Amps)
+                        </Text>
+                        <TextField.Root
+                          type="number"
+                          value={config?.pegasus?.maxCurrent?.toString() || ''}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig('pegasus.maxCurrent', parseInt(e.target.value) || 10)}
+                          placeholder="10"
+                        />
+                        <Text size="1" color="gray" mt="1">
+                          Device current rating: 10A (PPBAdvance), 20A (UPBv3). Max power = 15V × this value.
                         </Text>
                       </Box>
                     </Flex>

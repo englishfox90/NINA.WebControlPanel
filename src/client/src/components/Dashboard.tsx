@@ -12,6 +12,7 @@ import GuiderGraphWidget from './GuiderGraphWidget';
 import NINALogsWidget from './NINALogsWidget';
 import LiveStackWidget from './LiveStackWidget';
 import UnifiedStateWidget from './UnifiedStateWidget';
+import PegasusPowerWidget from './PegasusPowerWidget';
 import SafetyBanner from './SafetyBanner';
 import { SettingsModal } from './SettingsModal';
 import OnboardingFlow from './OnboardingFlow';
@@ -372,6 +373,8 @@ const Dashboard: React.FC = () => {
       case 'UnifiedStateTestWidget':
       case 'UnifiedStateWidget':
         return <UnifiedStateWidget key={config.id} />;
+      case 'PegasusPowerWidget':
+        return <PegasusPowerWidget key={config.id} widgetId={config.id} />;
       default:
         return <div key={config.id}>Unknown widget: {config.component}</div>;
     }

@@ -90,7 +90,8 @@ class ConfigDatabase {
       { id: 'image-viewer', component: 'ImageViewer', title: 'Recent Images', x: 0, y: 14, w: 8, h: 6, minW: 4, minH: 4 },
       { id: 'nina-logs', component: 'NINALogsWidget', title: 'NINA Logs', x: 0, y: 20, w: 8, h: 6, minW: 4, minH: 4 },
       { id: 'livestack-viewer', component: 'LiveStackWidget', title: 'LiveStack', x: 8, y: 20, w: 8, h: 8, minW: 4, minH: 6 },
-      { id: 'guider-graph', component: 'GuiderGraphWidget', title: 'Guider Graph', x: 8, y: 14, w: 6, h: 8, minW: 4, minH: 6 }
+      { id: 'guider-graph', component: 'GuiderGraphWidget', title: 'Guider Graph', x: 8, y: 14, w: 6, h: 8, minW: 4, minH: 6 },
+      { id: 'pegasus-power', component: 'PegasusPowerWidget', title: 'Pegasus Power', x: 0, y: 26, w: 6, h: 8, minW: 4, minH: 6 }
     ];
   }
 
@@ -239,6 +240,11 @@ class ConfigDatabase {
         enableMockData: true,
         corsEnabled: true
       },
+      pegasus: {
+        enabled: false,
+        refreshInterval: 5000,
+        maxCurrent: 10  // Default 10A (PPBAdvance), set to 20 for UPBv3
+      },
       onboarding: {
         completed: false,
         completedAt: null
@@ -339,6 +345,13 @@ class ConfigDatabase {
         this.setConfigValue('advanced', config.advanced, 'advanced');
       }
 
+      // Pegasus configuration
+      if (config.pegasus) {
+        if (config.pegasus.enabled !== undefined) this.setConfigValue('pegasus.enabled', config.pegasus.enabled, 'pegasus');
+        if (config.pegasus.refreshInterval !== undefined) this.setConfigValue('pegasus.refreshInterval', config.pegasus.refreshInterval, 'pegasus');
+        if (config.pegasus.maxCurrent !== undefined) this.setConfigValue('pegasus.maxCurrent', config.pegasus.maxCurrent, 'pegasus');
+      }
+
       // Onboarding configuration
       if (config.onboarding) {
         this.setConfigValue('onboarding', config.onboarding, 'onboarding');
@@ -411,6 +424,11 @@ class ConfigDatabase {
         enableMockData: true,
         corsEnabled: true
       }),
+      pegasus: {
+        enabled: this.getConfigValue('pegasus.enabled', false),
+        refreshInterval: this.getConfigValue('pegasus.refreshInterval', 5000),
+        maxCurrent: this.getConfigValue('pegasus.maxCurrent', 10)
+      },
       onboarding: this.getConfigValue('onboarding', {
         completed: false,
         completedAt: null

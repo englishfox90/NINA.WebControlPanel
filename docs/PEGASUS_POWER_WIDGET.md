@@ -24,9 +24,9 @@ Add a new tab in `SettingsModal.tsx` alongside NINA Connection, Database, and Li
 
 **Settings Flow:**
 1. **Check Pegasus Unity Status**
-   - Endpoint: `GET http://localhost:32000/Reporting/Device`
+   - Endpoint: `GET http://localhost:32000/Server/DeviceManager/Connected`
    - Purpose: Verify Pegasus Unity Platform is running and get connected devices
-   - Response: Array of connected devices with unique keys
+   - Response: Array of connected devices with unique keys and device details
 
 2. **Device Selection**
    - User selects device from dropdown populated by API response
@@ -39,8 +39,10 @@ interface PegasusConfig {
   enabled: boolean;
   unityBaseUrl: string;  // Default: http://localhost:32000
   deviceType: 'PPBAdvance' | 'PPB' | 'PPBMicro' | 'UPBv3' | 'UPBv2' | 'SaddlePowerBox' | null;
-  deviceId: string;  // UUID from Pegasus Unity
-  deviceName: string;  // Human-readable name
+  uniqueKey: string;  // UUID from Pegasus Unity (e.g., "d003f9bc-6695-4398-9e09-5ccff0bc4b41")
+  deviceID: string;  // Serial number (e.g., "PPBAAYSXQ3A")
+  deviceName: string;  // Human-readable name (e.g., "Pocket PowerBox Advance")
+  firmware: string;  // Firmware version
   refreshInterval: number;  // Default: 5000ms
 }
 ```
@@ -50,84 +52,111 @@ interface PegasusConfig {
 ### Widget Implementation
 
 #### Data Source
-**Primary Endpoint:**
+**Primary Endpoint (Aggregate Report - All Data):**
 ```
-GET /Driver/{DeviceType}/Report?DriverUniqueKey={DeviceId}
+GET /Driver/{DeviceType}/Report?DriverUniqueKey={UniqueKey}
 ```
 
 **Example:**
 ```
-GET http://localhost:32000/Driver/PPBAdvance/Report?DriverUniqueKey=12345678-1234-1234-1234-123456789abc
+GET http://localhost:32000/Driver/PPBAdvance/Report?DriverUniqueKey=d003f9bc-6695-4398-9e09-5ccff0bc4b41
 ```
+
+**Additional Endpoints (Specific Data):**
+- Power Only: `GET /Driver/{DeviceType}/Report/Power?DriverUniqueKey={UniqueKey}`
+- Power Consumption: `GET /Driver/{DeviceType}/Report/PowerConsumption?DriverUniqueKey={UniqueKey}`
+- Connected Devices: `GET /Server/DeviceManager/Connected`
+- Telemetry: `GET /Server/TelemetryDevices`
 
 #### Response Data Model
 
+**Aggregate Report Response (Primary Data Source):**
 ```typescript
-interface PegasusPowerReport {
-  status: string | null;
-  code: RJesCode;  // 200, 201, 202, 204, 400, 401, 403, 404, 500, 501
-  message: string | null;
+interface PegasusAggregateReport {
+  status: string;  // "success"
+  code: number;    // 200, 400, 401, 403, 404, 500, 501
+  message: string; // "Readings report."
   data: {
-    uniqueKey: string;  // UUID
-    name: string | null;
+    uniqueKey: string;  // UUID (e.g., "d003f9bc-6695-4398-9e09-5ccff0bc4b41")
+    name: string;       // Device type (e.g., "PPBAdvance")
     message: {
-      messageType: string | null;
+      messageType: string;  // "AggregateReportPPB"
       
       // Power Metrics
-      voltage: number;           // Volts
-      current: number;           // Amps
-      quadCurrent: number;       // Quad USB current
-      power: number;             // Watts
+      voltage: number;      // Volts (e.g., 13.2)
+      current: number;      // Total Amps (e.g., 0.44)
+      quadCurrent: number;  // Quad USB current in Amps (e.g., 0.3)
+      power: number;        // Watts (e.g., 5)
       
       // Environmental Metrics
-      temperature: number;       // Celsius
-      humidity: number;          // Percentage
-      dewPoint: number;          // Celsius
+      temperature: number;  // Celsius (e.g., 14.4)
+      humidity: number;     // Percentage (e.g., 48)
+      dewPoint: number;     // Celsius (e.g., 3.5)
       
       // Operational Status
       isOverCurrent: boolean;
-      averageAmps: number;
-      ampsPerHour: number;       // Consumption tracking
-      wattPerHour: number;       // Power consumption
-      upTime: string | null;     // Device uptime
+      averageAmps: number;   // Running average (e.g., 0.21)
+      ampsPerHour: number;   // Amp-hour consumption (e.g., 0.34)
+      wattPerHour: number;   // Watt-hour consumption (e.g., 4.45)
+      upTime: string;        // TimeSpan format "HH:MM:SS.mmmmmmm" (e.g., "01:35:28.3530000")
       
       // Dew Heater Hub Status
       dewHubStatus: {
-        messageType: string | null;
+        messageType: string;  // "DewHubStatusPPB"
         hub: Array<{
-          messageType: string | null;
+          messageType: string;  // "DewPortStatus"
           current: {
-            messageType: string | null;
-            value: number;
+            messageType: string;  // "PortCurrentStatus"
+            value: number;        // Current in Amps
             isOverCurrent: boolean;
           };
           port: {
-            messageType: string | null;
-            number: number;       // Port number
+            messageType: string;  // "DewPortState"
+            number: number;       // Port number (1-based)
             power: number;        // Power percentage (0-100)
           };
-        }> | null;
+        }>;
       };
       
       // Power Hub Status
       powerHubStatus: {
-        messageType: string | null;
-        state: string | null;    // "On" | "Off"
+        messageType: string;  // "SwitchState"
+        state: string;        // "ON" | "OFF"
       };
       
       // Variable Voltage Port (PPBAdvance only)
       powerVariablePortStatus: {
-        messageType: string | null;
-        state: string | null;    // "On" | "Off"
+        messageType: string;  // "SwitchState"
+        state: string;        // "ON" | "OFF"
       };
       
       // Dual USB Status (PPBAdvance only)
       ppbA_DualUSB2Status: {
-        messageType: string | null;
-        state: string | null;    // "On" | "Off"
+        messageType: string;  // "SwitchState"
+        state: string;        // "ON" | "OFF"
       };
     };
   };
+}
+
+interface PegasusConnectedDevice {
+  uniqueKey: string;   // "d003f9bc-6695-4398-9e09-5ccff0bc4b41"
+  name: string;        // "PPBAdvance"
+  fullName: string;    // "Pocket PowerBox Advance"
+  deviceID: string;    // "PPBAAYSXQ3A"
+  firmware: string;    // "2.12.3"
+  revision: string;    // "A"
+}
+
+interface PegasusTelemetryData {
+  deviceType: string;        // "PPBAdvance [PPBAAYSXQ3A]"
+  deviceSerialNum: string;   // "PPBAAYSXQ3A"
+  upTime: string;            // Hours as decimal (e.g., "0.45")
+  averageAmps: string;       // Average amps as string (e.g., "0.2")
+  lowestVoltage: string;     // Minimum voltage recorded (e.g., "13.2")
+  highestVoltage: string;    // Maximum voltage recorded (e.g., "13.2")
+  lostPackets: number;       // Packet loss count
+  messageType: string;       // "TelemetryDevice"
 }
 ```
 
@@ -253,9 +282,14 @@ Taking inspiration from Pegasus Unity's dashboard but with unique NINA.WebContro
 // Check if Pegasus Unity is running
 const checkPegasusUnity = async () => {
   try {
-    const response = await fetch('http://localhost:32000/Reporting/Device');
+    const response = await fetch('http://localhost:32000/Server/DeviceManager/Connected');
     if (!response.ok) throw new Error('Pegasus Unity not responding');
-    return await response.json();
+    const result = await response.json();
+    return {
+      available: result.status === 'success',
+      devices: result.data || [],
+      message: result.message
+    };
   } catch (error) {
     return { available: false, error: error.message };
   }
@@ -266,23 +300,47 @@ const checkPegasusUnity = async () => {
 ```javascript
 // Get list of connected devices
 const getConnectedDevices = async () => {
-  const response = await fetch('http://localhost:32000/Reporting/Device');
-  const devices = await response.json();
+  const response = await fetch('http://localhost:32000/Server/DeviceManager/Connected');
+  const result = await response.json();
+  
+  if (result.status !== 'success') {
+    throw new Error(result.message || 'Failed to get connected devices');
+  }
+  
   // Filter for power devices only
-  return devices.filter(device => 
+  return result.data.filter(device => 
     ['PPBAdvance', 'PPB', 'PPBMicro', 'UPBv3', 'UPBv2', 'SaddlePowerBox']
-      .includes(device.deviceType)
+      .includes(device.name)
   );
 };
 ```
 
 ### Report Data Fetching
 ```javascript
-// Fetch device report
-const getPowerReport = async (deviceType: string, deviceId: string) => {
-  const url = `http://localhost:32000/Driver/${deviceType}/Report?DriverUniqueKey=${deviceId}`;
+// Fetch aggregate device report (all data in one call)
+const getPowerReport = async (deviceType: string, uniqueKey: string) => {
+  const url = `http://localhost:32000/Driver/${deviceType}/Report?DriverUniqueKey=${uniqueKey}`;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Failed to fetch report: ${response.status}`);
+  const result = await response.json();
+  
+  if (result.status !== 'success') {
+    throw new Error(result.message || 'Failed to get power report');
+  }
+  
+  return result.data;
+};
+
+// Optional: Fetch specific report types for lighter payloads
+const getPowerOnly = async (deviceType: string, uniqueKey: string) => {
+  const url = `http://localhost:32000/Driver/${deviceType}/Report/Power?DriverUniqueKey=${uniqueKey}`;
+  const response = await fetch(url);
+  return await response.json();
+};
+
+const getPowerConsumption = async (deviceType: string, uniqueKey: string) => {
+  const url = `http://localhost:32000/Driver/${deviceType}/Report/PowerConsumption?DriverUniqueKey=${uniqueKey}`;
+  const response = await fetch(url);
   return await response.json();
 };
 ```
@@ -318,8 +376,10 @@ const getPowerReport = async (deviceType: string, deviceId: string) => {
 pegasus.enabled = true/false
 pegasus.unityBaseUrl = "http://localhost:32000"
 pegasus.deviceType = "PPBAdvance"
-pegasus.deviceId = "12345678-1234-1234-1234-123456789abc"
-pegasus.deviceName = "Main Power Box"
+pegasus.uniqueKey = "d003f9bc-6695-4398-9e09-5ccff0bc4b41"
+pegasus.deviceID = "PPBAAYSXQ3A"
+pegasus.deviceName = "Pocket PowerBox Advance"
+pegasus.firmware = "2.12.3"
 pegasus.refreshInterval = 5000
 ```
 
@@ -429,28 +489,149 @@ No additional packages required - use existing dependencies:
 
 ---
 
-## Open Questions / Pending Sample Data
+## Real API Sample Data
 
-1. **Actual API response structure** - Need real sample data to validate interface definitions
-2. **Device-specific variations** - Do all devices return the same data structure?
-3. **Refresh rate recommendations** - What's optimal for performance vs. real-time updates?
-4. **Maximum dew heater ports** - How many ports do devices support (for UI sizing)?
-5. **Variable voltage range** - What voltages are supported by PPBAdvance?
-6. **Uptime format** - What format is the uptime string? (e.g., "12:34:56" or "12h 34m"?)
+### Connected Devices Response
+```json
+{
+  "status": "success",
+  "code": 200,
+  "message": "Connected Devices :1",
+  "data": [
+    {
+      "uniqueKey": "d003f9bc-6695-4398-9e09-5ccff0bc4b41",
+      "name": "PPBAdvance",
+      "fullName": "Pocket PowerBox Advance",
+      "deviceID": "PPBAAYSXQ3A",
+      "firmware": "2.12.3",
+      "revision": "A"
+    }
+  ]
+}
+```
+
+### Aggregate Report Response (Full Data)
+```json
+{
+  "status": "success",
+  "code": 200,
+  "message": "Readings report.",
+  "data": {
+    "uniqueKey": "d003f9bc-6695-4398-9e09-5ccff0bc4b41",
+    "name": "PPBAdvance",
+    "message": {
+      "voltage": 13.2,
+      "current": 0.44,
+      "quadCurrent": 0.3,
+      "power": 5,
+      "temperature": 14.4,
+      "humidity": 48,
+      "dewPoint": 3.5,
+      "isOverCurrent": false,
+      "averageAmps": 0.21,
+      "ampsPerHour": 0.34,
+      "wattPerHour": 4.45,
+      "upTime": "01:35:28.3530000",
+      "dewHubStatus": {
+        "hub": [
+          {
+            "current": {
+              "value": 0,
+              "isOverCurrent": false,
+              "messageType": "PortCurrentStatus"
+            },
+            "port": {
+              "number": 1,
+              "power": 0,
+              "messageType": "DewPortState"
+            },
+            "messageType": "DewPortStatus"
+          },
+          {
+            "current": {
+              "value": 0,
+              "isOverCurrent": false,
+              "messageType": "PortCurrentStatus"
+            },
+            "port": {
+              "number": 2,
+              "power": 0,
+              "messageType": "DewPortState"
+            },
+            "messageType": "DewPortStatus"
+          }
+        ],
+        "messageType": "DewHubStatusPPB"
+      },
+      "powerHubStatus": {
+        "state": "ON",
+        "messageType": "SwitchState"
+      },
+      "powerVariablePortStatus": {
+        "state": "ON",
+        "messageType": "SwitchState"
+      },
+      "ppbA_DualUSB2Status": {
+        "state": "ON",
+        "messageType": "SwitchState"
+      },
+      "messageType": "AggregateReportPPB"
+    }
+  }
+}
+```
+
+### Telemetry Data Response
+```json
+{
+  "status": "success",
+  "code": 200,
+  "message": "GetTelemetrySessionData",
+  "data": [
+    {
+      "deviceType": "PPBAdvance [PPBAAYSXQ3A]",
+      "deviceSerialNum": "PPBAAYSXQ3A",
+      "upTime": "0.45",
+      "averageAmps": "0.2",
+      "lowestVoltage": "13.2",
+      "highestVoltage": "13.2",
+      "lostPackets": 0,
+      "messageType": "TelemetryDevice"
+    }
+  ]
+}
+```
+
+## Questions Answered
+
+1. ✅ **API response structure** - Validated with real data above
+2. ⏳ **Device-specific variations** - Currently have PPBAdvance data; other models need testing
+3. ✅ **Refresh rate recommendations** - 5000ms (5 seconds) is appropriate for non-critical power monitoring
+4. ✅ **Maximum dew heater ports** - PPBAdvance has 2 ports; varies by device (plan for up to 4 in UI)
+5. ⏳ **Variable voltage range** - Need to query voltage control endpoint (not in report data)
+6. ✅ **Uptime format** - Uses .NET TimeSpan format "HH:MM:SS.mmmmmmm" (e.g., "01:35:28.3530000")
 
 ---
 
 ## Status
-**Current Status:** Design Phase - Awaiting Sample Data
+**Current Status:** Ready for Implementation - Sample Data Validated ✅
+
+**Validated Information:**
+- ✅ API endpoints confirmed and tested
+- ✅ Data structures validated with real responses
+- ✅ Device model identified (PPBAdvance with serial PPBAAYSXQ3A)
+- ✅ All critical metrics available in aggregate report
+- ✅ Uptime format confirmed (TimeSpan)
+- ✅ Dew heater structure validated (2 ports on test device)
 
 **Next Steps:**
-1. Obtain sample API responses from actual Pegasus Unity installation
-2. Validate data structure against API documentation
-3. Create mockups/wireframes for widget layout approval
-4. Begin Phase 1 implementation (Settings Integration)
+1. Create mockups/wireframes for widget layout
+2. Begin Phase 1 implementation (Settings Integration)
+3. Implement Phase 2 (Widget Component with real endpoints)
+4. Test with additional device types (PPB, UPBv3, etc.)
 
 ---
 
-*Last Updated: November 28, 2025*
-*Document Version: 1.0*
-*Author: AI Assistant (based on user requirements)*
+*Last Updated: December 15, 2025*
+*Document Version: 2.0 - Real Data Validated*
+*Validated Against: Pegasus Unity Platform with PPBAdvance (PPBAAYSXQ3A)*

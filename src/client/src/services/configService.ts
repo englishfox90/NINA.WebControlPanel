@@ -65,6 +65,11 @@ export class ConfigService {
         logLevel: "info",
         enableMockData: true,
         corsEnabled: true
+      },
+      pegasus: {
+        enabled: false,
+        refreshInterval: 5000,
+        maxCurrent: 10
       }
     };
   }
