@@ -28,6 +28,8 @@
     "monitor": "node scripts/monitoring/backend-monitor.js",
     "fix-backend": "node scripts/development/backend-stability-fix.js",
     "reset-db": "pwsh -File scripts/database/reset-dashboard-database.ps1",
+    "generate-icons": "node scripts/development/generate-icons.js",
+    "install-imagemagick": "pwsh -File scripts/development/install-imagemagick.ps1",
     "logs": "pwsh -Command \"Get-Content logs/*.log -Tail 50 -Wait\"",
     "logs:backend": "pwsh -Command \"Get-Content logs/backend-*.log -Tail 50 -Wait\"",
     "logs:frontend": "pwsh -Command \"Get-Content logs/frontend-*.log -Tail 50 -Wait\"",
