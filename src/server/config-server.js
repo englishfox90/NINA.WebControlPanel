@@ -5,25 +5,23 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const path = require('path');
-const fs = require('fs');
 const WebSocket = require('ws');
-const { getBackendLogger, requestLoggerMiddleware } = require('./utils/logger');
 
 // Import organized components
 const APIRoutes = require('./api');
 const { getConfigDatabase } = require('./configDatabase');
+const UnifiedStateSystem = require('../services/unifiedState');
 const SystemMonitor = require('../services/systemMonitor');
 const NINAService = require('../services/ninaService');
 const AstronomicalService = require('../services/astronomicalService');
-const UnifiedStateSystem = require('../services/unifiedState');
 
 // Enhanced error handling setup
 process.on('uncaughtException', (error) => {
   console.error('🚨 CRITICAL: Uncaught Exception:', error);
   console.error('Stack:', error.stack);
-  
+
   console.log('⚠️ Attempting graceful recovery...');
-  
+
   setTimeout(() => {
     console.error('💀 Exiting due to uncaught exception');
     process.exit(1);
@@ -33,7 +31,7 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('🚨 CRITICAL: Unhandled Promise Rejection:', reason);
   console.error('Promise:', promise);
-  
+
   console.log('⚠️ Continuing execution after unhandled rejection');
 });
 
@@ -50,19 +48,22 @@ process.on('SIGTERM', () => {
 
 async function gracefulShutdown() {
   try {
+    if (wss) {
+      console.log('✅ WebSocket server closed');
+      wss.close();
+    }
+
     if (server) {
       server.close(() => {
         console.log('✅ HTTP server closed');
       });
     }
-    
-    // Shutdown unified state system
-    if (global.unifiedStateSystem) {
-      console.log('🛑 Stopping unified state system...');
-      global.unifiedStateSystem.stop();
+
+    if (unifiedStateSystem) {
+      console.log('💥 Stopping UnifiedStateSystem...');
+      unifiedStateSystem.stop();
     }
 
-    
     console.log('✅ Configuration API server shutdown complete');
     process.exit(0);
   } catch (error) {
@@ -72,62 +73,86 @@ async function gracefulShutdown() {
 }
 
 async function initializeServer() {
-  const logger = getBackendLogger();
-  
-  logger.info('🔧 Initializing services...');
   console.log('🔧 Initializing services...');
-  
+
   // Initialize database
   const configDatabase = await getConfigDatabase();
-  
+
   // Initialize all services
   const systemMonitor = new SystemMonitor();
   const ninaService = new NINAService();
   const astronomicalService = new AstronomicalService();
-  
-  // Initialize unified state system
-  console.log('🌐 Initializing Unified State System...');
-  const unifiedStateSystem = new UnifiedStateSystem(ninaService);
-  global.unifiedStateSystem = unifiedStateSystem; // Make globally accessible for shutdown
-  
+
   // Initialize target scheduler service with database path from config
   const { TargetSchedulerService } = require('../services/targetSchedulerService');
-  const schedulerPath = configDatabase.getConfigValue('database.targetSchedulerPath', '../../resources/schedulerdb.sqlite');
+  const schedulerPath = configDatabase.getConfigValue('database.targetSchedulerPath', '%LOCALAPPDATA%\\NINA\\SchedulerPlugin\\schedulerdb.sqlite');
   console.log('🔍 Loading Target Scheduler from database config:', schedulerPath);
-  
-  // Resolve path relative to project root
-  const dbPath = path.resolve(__dirname, '../..', schedulerPath);
-  console.log('🔍 Resolved Target Scheduler path:', dbPath);
-  
-  // Check if database exists before trying to connect
-  let targetSchedulerService = null;
-  if (fs.existsSync(dbPath)) {
-    try {
-      targetSchedulerService = new TargetSchedulerService(dbPath);
-      console.log('✅ Target Scheduler database connected successfully');
-    } catch (error) {
-      console.warn('⚠️ Target Scheduler database found but failed to connect:', error.message);
-      console.warn('Target Scheduler features will be unavailable');
+
+  // Resolve path - handle Windows environment variables
+  let dbPath;
+  if (schedulerPath.includes('%LOCALAPPDATA%')) {
+    // Windows environment variable - try to resolve it
+    const localAppData = process.env.LOCALAPPDATA || process.env.APPDATA;
+    if (localAppData) {
+      dbPath = schedulerPath.replace('%LOCALAPPDATA%', localAppData);
+      console.log('🔍 Resolved Windows environment variable:', dbPath);
+    } else {
+      console.warn('⚠️ Could not resolve %LOCALAPPDATA% environment variable');
+      dbPath = schedulerPath;
     }
   } else {
-    console.warn('⚠️ Target Scheduler database not found at:', dbPath);
-    console.warn('Target Scheduler features will be unavailable - this is optional');
-    console.warn('To enable Target Scheduler: Copy your NINA schedulerdb.sqlite to:', dbPath);
+    // Relative or absolute path
+    dbPath = path.resolve(__dirname, '../..', schedulerPath);
+    console.log('🔍 Resolved Target Scheduler path:', dbPath);
   }
-  
+
+  // Initialize scheduler service - it will handle missing database gracefully
+  const targetSchedulerService = new TargetSchedulerService(dbPath);
+
   console.log('🔭 NINA Service configured: ' + ninaService.fullUrl);
+
+  // Initialize UnifiedStateSystem
+  const unifiedStateSystem = new UnifiedStateSystem(ninaService);
+  await unifiedStateSystem.start();
+
+  // Make available globally for API routes
+  global.unifiedStateSystem = unifiedStateSystem;
+
   // Initialize Express app
   const app = express();
   const PORT = process.env.CONFIG_API_PORT || 3001;
 
   // Middleware
   app.use(cors());
-  
+
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Request logging middleware
-  app.use(requestLoggerMiddleware(logger));
+  app.use((req, res, next) => {
+    const start = Date.now();
+
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      console.log(`${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+    });
+
+    next();
+  });
+
+  // Make unifiedStateSystem available to all routes via app.locals
+  app.locals.unifiedStateSystem = unifiedStateSystem;
+
+  // Unified State API endpoint
+  app.get('/api/state', (req, res) => {
+    try {
+      const state = unifiedStateSystem.getState();
+      res.json(state);
+    } catch (error) {
+      console.error('Error getting unified state:', error);
+      res.status(500).json({ error: 'Failed to get unified state' });
+    }
+  });
 
   // Initialize API routes with services
   const apiRoutes = new APIRoutes(
@@ -135,75 +160,12 @@ async function initializeServer() {
     systemMonitor,
     ninaService,
     astronomicalService,
-    targetSchedulerService
+    targetSchedulerService,
+    unifiedStateSystem
   );
-  
+
   // Register all API routes
   apiRoutes.register(app);
-
-  // Add unified state API endpoint
-  app.get('/api/state', (req, res) => {
-    try {
-      const state = unifiedStateSystem.getState();
-      res.json(state);
-    } catch (error) {
-      console.error('❌ Error fetching unified state:', error);
-      res.status(500).json({ error: 'Failed to fetch state' });
-    }
-  });
-
-  // Add unified state status endpoint
-  app.get('/api/state/status', (req, res) => {
-    try {
-      const status = unifiedStateSystem.getStatus();
-      res.json(status);
-    } catch (error) {
-      console.error('❌ Error fetching state status:', error);
-      res.status(500).json({ error: 'Failed to fetch status' });
-    }
-  });
-
-  // Serve local camera image file (updates externally every 30 seconds)
-  app.get('/api/camera/local', (req, res) => {
-    try {
-      // Get the local camera path from config
-      const db = getConfigDatabase();
-      const config = db.getConfig();
-      const localCameraPath = config?.streams?.localCameraPath || 'C:\\Astrophotography\\AllSkEye\\AllSkEye\\LatestImage\\Latest_image.jpg';
-      
-      // Check if file exists
-      if (!fs.existsSync(localCameraPath)) {
-        console.error(`❌ Local camera image not found at: ${localCameraPath}`);
-        return res.status(404).json({ 
-          error: 'Local camera image not found',
-          path: localCameraPath,
-          message: 'Please check the file path in Settings > Live Feeds > Local Camera Path'
-        });
-      }
-
-      // Get file stats to check if it's being updated
-      const stats = fs.statSync(localCameraPath);
-      const fileAge = Date.now() - stats.mtimeMs;
-      
-      // Set cache headers to prevent caching (image updates every 30s)
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.setHeader('Content-Type', 'image/jpeg');
-      res.setHeader('X-File-Age', Math.floor(fileAge / 1000)); // Age in seconds
-      
-      console.log(`📷 Serving local camera image: ${localCameraPath} (${Math.floor(fileAge / 1000)}s old)`);
-      
-      // Send the file
-      res.sendFile(path.resolve(localCameraPath));
-    } catch (error) {
-      console.error('❌ Error serving local camera image:', error);
-      res.status(500).json({ 
-        error: 'Failed to serve local camera image',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
 
   // Serve static files from React build
   const buildPath = path.join(__dirname, '..', '..', 'build');
@@ -212,7 +174,7 @@ async function initializeServer() {
   // Serve React app for all non-API routes
   app.get('*', (req, res) => {
     // Don't serve React app for API routes
-    if (req.path.startsWith('/api/')) {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
       return res.status(404).json({ error: 'Endpoint not found' });
     }
     res.sendFile(path.join(buildPath, 'index.html'));
@@ -221,88 +183,184 @@ async function initializeServer() {
   // Create HTTP server
   const server = http.createServer(app);
 
-  // Create WebSocket server
+  // Initialize WebSocket server (matching original implementation)
   const wss = new WebSocket.Server({ server });
-  
-  console.log('🔌 WebSocket server created');
+  const sessionClients = new Set();
+  const ninaClients = new Set();
+  const unifiedClients = new Set(); // New unified client set
 
-  // Handle WebSocket connections
-  wss.on('connection', (ws) => {
-    console.log('✅ Client connected to unified state WebSocket');
+  // Handle WebSocket connections from frontend
+  wss.on('connection', (ws, req) => {
+    const url = new URL(req.url, `http://${req.headers.host}`);
 
-    // Send initial full sync
-    try {
-      const fullSync = {
-        schemaVersion: 1,
-        timestamp: new Date().toISOString(),
-        updateKind: 'fullSync',
-        updateReason: 'initial-state',
-        changed: null,
-        state: unifiedStateSystem.getState()
-      };
-      
-      ws.send(JSON.stringify(fullSync));
-      console.log('📤 Sent initial state to client');
-    } catch (error) {
-      console.error('❌ Error sending initial state:', error);
-    }
+    if (url.pathname === '/ws/unified') {
+      console.log('🔌 Frontend unified client connected');
+      unifiedClients.add(ws);
 
-    // Subscribe to state changes
-    const unsubscribe = unifiedStateSystem.subscribe((message) => {
-      try {
+      // Send initial connection status
+      ws.send(JSON.stringify({
+        type: 'connection',
+        data: {
+          message: 'Connected to unified event stream',
+          state: unifiedStateSystem.getState(),
+          timestamp: new Date().toISOString()
+        },
+        timestamp: new Date().toISOString()
+      }));
+
+      ws.on('close', () => {
+        console.log('❌ Frontend unified client disconnected');
+        unifiedClients.delete(ws);
+      });
+
+      ws.on('error', (error) => {
+        console.error('❌ Frontend unified WebSocket error:', error);
+        unifiedClients.delete(ws);
+      });
+
+      // Send heartbeat every 20 seconds
+      const heartbeatInterval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify(message));
+          ws.send(JSON.stringify({
+            type: 'heartbeat',
+            data: { timestamp: new Date().toISOString() },
+            timestamp: new Date().toISOString()
+          }));
+        } else {
+          clearInterval(heartbeatInterval);
         }
-      } catch (error) {
-        console.error('❌ Error sending state update to client:', error);
-      }
-    });
+      }, 20000);
 
-    // Handle client disconnection
-    ws.on('close', () => {
-      console.log('🔌 Client disconnected from unified state WebSocket');
-      unsubscribe();
-    });
+    } else if (url.pathname === '/ws/session') {
+      console.log('🔌 Frontend session client connected');
+      sessionClients.add(ws);
 
-    // Handle errors
-    ws.on('error', (error) => {
-      console.error('❌ WebSocket error:', error);
-    });
+      // Send current session state immediately
+      const currentState = unifiedStateSystem.getState();
+      ws.send(JSON.stringify({
+        type: 'sessionUpdate',
+        data: currentState.currentSession || {}
+      }));
 
-    // Optional: Handle heartbeat
-    ws.on('message', (data) => {
-      try {
-        const message = JSON.parse(data.toString());
-        if (message.type === 'ping') {
-          ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
-        }
-      } catch (error) {
-        // Ignore parse errors
-      }
-    });
+      ws.on('close', () => {
+        console.log('❌ Frontend session client disconnected');
+        sessionClients.delete(ws);
+      });
+
+      ws.on('error', (error) => {
+        console.error('❌ Frontend session WebSocket error:', error);
+        sessionClients.delete(ws);
+      });
+    } else if (url.pathname === '/ws/nina') {
+      console.log('� Frontend NINA client connected');
+      ninaClients.add(ws);
+
+      // Send initial connection confirmation
+      ws.send(JSON.stringify({
+        type: 'connection',
+        message: 'Connected to NINA event stream',
+        timestamp: new Date().toISOString()
+      }));
+
+      ws.on('close', () => {
+        console.log('❌ Frontend NINA client disconnected');
+        ninaClients.delete(ws);
+      });
+
+      ws.on('error', (error) => {
+        console.error('❌ Frontend NINA WebSocket error:', error);
+        ninaClients.delete(ws);
+      });
+    }
   });
 
-  // Start unified state system
-  console.log('🚀 Starting unified state system...');
-  await unifiedStateSystem.start();
+  // Subscribe to unified state changes and broadcast to all connected frontend clients
+  unifiedStateSystem.subscribe((message) => {
+    // Broadcast state updates based on message type
+    if (message.type === 'session' || message.type === 'fullSync') {
+      const state = unifiedStateSystem.getState();
+      broadcastSessionUpdate(state.currentSession || {});
+    }
+
+    // Also broadcast as NINA event for backward compatibility
+    if (message.eventType) {
+      broadcastNINAEvent(message.eventType, message.data);
+    }
+  });
+
+  // Broadcast NINA events to all connected frontend clients
+  const broadcastNINAEvent = (eventType, eventData) => {
+    const message = JSON.stringify({
+      type: 'nina-event',
+      data: {
+        Type: eventType,
+        Timestamp: new Date().toISOString(),
+        Source: 'NINA',
+        Data: eventData
+      },
+      timestamp: new Date().toISOString()
+    });
+
+    console.log('📡 Broadcasting NINA event to', (ninaClients.size + unifiedClients.size), 'clients:', eventType);
+
+    // Broadcast to original NINA clients (legacy support)
+    ninaClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      } else {
+        ninaClients.delete(client);
+      }
+    });
+
+    // Broadcast to unified clients (new architecture)
+    unifiedClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      } else {
+        unifiedClients.delete(client);
+      }
+    });
+  };
+
+  // Broadcast session updates to unified clients
+  const broadcastSessionUpdate = (sessionData) => {
+    const message = JSON.stringify({
+      type: 'sessionUpdate',
+      data: sessionData,
+      timestamp: new Date().toISOString()
+    });
+
+    console.log('📡 Broadcasting session update to', (sessionClients.size + unifiedClients.size), 'clients');
+
+    // Broadcast to original session clients (legacy support)
+    sessionClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      } else {
+        sessionClients.delete(client);
+      }
+    });
+
+    // Broadcast to unified clients (new architecture)
+    unifiedClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      } else {
+        unifiedClients.delete(client);
+      }
+    });
+  };
 
   // Start server
   server.listen(PORT, () => {
-    const messages = [
-      '✅ All services initialized successfully',
-      '✅ Event listeners set up successfully',
-      `🚀 Enhanced Configuration API server running on port ${PORT}`,
-      `📊 Health check: http://localhost:${PORT}/api/health`,
-      `⚙️  Configuration endpoint: http://localhost:${PORT}/api/config`,
-      `🌐 Unified state endpoint: http://localhost:${PORT}/api/state`,
-      `🔌 WebSocket endpoint: ws://localhost:${PORT}`,
-      `📝 Logs directory: ${path.join(__dirname, '../../logs')}`
-    ];
-    
-    messages.forEach(msg => {
-      console.log(msg);
-      logger.info(msg);
-    });
+    console.log('✅ All services initialized successfully');
+    console.log('✅ Event listeners set up successfully');
+    console.log(`🚀 Enhanced Configuration API server running on port ${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`⚙️  Configuration endpoint: http://localhost:${PORT}/api/config`);
+    console.log(`📡 Session WebSocket available at ws://localhost:${PORT}/ws/session`);
+    console.log(`🔧 NINA WebSocket available at ws://localhost:${PORT}/ws/nina`);
+    console.log(`👥 Max WebSocket clients: 100`);
   });
 
   // Return server components for cleanup
@@ -310,15 +368,16 @@ async function initializeServer() {
 }
 
 // Global references for cleanup
-let server;
+let server, wss, unifiedStateSystem;
 
 // Initialize server
 initializeServer()
   .then((components) => {
     server = components.server;
+    wss = components.wss;
+    unifiedStateSystem = components.unifiedStateSystem;
   })
   .catch((error) => {
     console.error('💥 Failed to initialize server:', error);
     process.exit(1);
   });
-

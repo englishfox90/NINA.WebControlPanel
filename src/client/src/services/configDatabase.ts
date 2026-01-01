@@ -101,6 +101,11 @@ export class ConfigDatabase {
         logLevel: "info",
         enableMockData: true,
         corsEnabled: true
+      },
+      pegasus: {
+        enabled: false,
+        refreshInterval: 5000,
+        maxCurrent: 10
       }
     };
 
@@ -238,6 +243,11 @@ export class ConfigDatabase {
         logLevel: "info",
         enableMockData: true,
         corsEnabled: true
+      }),
+      pegasus: this.getConfigValue('pegasus', {
+        enabled: false,
+        refreshInterval: 5000,
+        maxCurrent: 10
       })
     };
   }

@@ -6,33 +6,62 @@ const path = require('path');
 
 class TargetSchedulerService {
   constructor(dbPath) {
+    this.dbPath = null;
+    this.db = null;
+    this.connected = false;
+
+    if (dbPath) {
+      this.initialize(dbPath);
+    } else {
+      console.log('⚠️ Target Scheduler Service created without database path - will initialize later');
+    }
+  }
+
+  initialize(dbPath) {
     try {
       this.dbPath = path.resolve(dbPath);
       console.log(`🔍 Attempting to connect to Target Scheduler database: ${this.dbPath}`);
-      
+
       // Check if file exists
       if (!require('fs').existsSync(this.dbPath)) {
-        throw new Error(`Database file does not exist: ${this.dbPath}`);
+        console.warn(`⚠️ Target Scheduler database file not found: ${this.dbPath}`);
+        console.warn(`⚠️ Scheduler features will be unavailable until database is configured`);
+        this.connected = false;
+        return false;
       }
 
       // Try to open database with WAL mode disabled initially
-      this.db = new Database(this.dbPath, { 
+      this.db = new Database(this.dbPath, {
         readonly: true,
         fileMustExist: true
       });
-      
+
       // Test the connection
       this.db.prepare('SELECT name FROM sqlite_master WHERE type=\'table\' LIMIT 1').get();
-      
+
       console.log(`📊 Target Scheduler database connected successfully: ${this.dbPath}`);
+      this.connected = true;
+      return true;
     } catch (error) {
       console.error('Failed to connect to Target Scheduler database:', error.message);
-      throw error;
+      console.warn('⚠️ Scheduler features will be unavailable until database is configured');
+      this.connected = false;
+      return false;
     }
+  }
+
+  // Check if service is connected to database
+  isConnected() {
+    return this.connected && this.db !== null;
   }
 
   // Get comprehensive project progress with targets and filters
   getProjectProgress() {
+    if (!this.isConnected()) {
+      console.warn('⚠️ Target Scheduler database not connected');
+      return [];
+    }
+
     try {
       const query = `
         SELECT 
@@ -65,7 +94,7 @@ class TargetSchedulerService {
 
       return projects.map(project => {
         const targets = this.getProjectTargets(project.id);
-        
+
         // Get last activity timestamp separately to avoid JOIN issues
         const lastActivityQuery = `
           SELECT MAX(ai.acquireddate) as last_activity_timestamp
@@ -73,11 +102,11 @@ class TargetSchedulerService {
           WHERE ai.projectId = ?
         `;
         const lastActivityResult = this.db.prepare(lastActivityQuery).get(project.id);
-        
+
         // Calculate overall completion - give credit for acquired images + full credit for accepted images
         // Formula: (acquired + accepted) / (desired * 2) * 100, capped at 100%
         // This rewards capture progress even before grading is complete
-        const totalCompletion = project.total_desired > 0 
+        const totalCompletion = project.total_desired > 0
           ? Math.min(100, Math.round(((project.total_acquired + project.total_accepted) / (project.total_desired * 2)) * 100 * 10) / 10)
           : 0;
 
@@ -101,6 +130,10 @@ class TargetSchedulerService {
 
   // Get targets for a specific project with filter progress
   getProjectTargets(projectId) {
+    if (!this.isConnected()) {
+      return [];
+    }
+
     try {
       const targetQuery = `
         SELECT 
@@ -120,13 +153,13 @@ class TargetSchedulerService {
 
       return targets.map(target => {
         const filters = this.getTargetFilters(target.id);
-        
+
         // Calculate target completion - give credit for acquired images + full credit for accepted images  
         // Formula: (acquired + accepted) / (desired * 2) * 100, capped at 100%
         const totalDesired = filters.reduce((sum, f) => sum + f.desired, 0);
         const totalAcquired = filters.reduce((sum, f) => sum + f.acquired, 0);
         const totalAccepted = filters.reduce((sum, f) => sum + f.accepted, 0);
-        const totalCompletion = totalDesired > 0 
+        const totalCompletion = totalDesired > 0
           ? Math.min(100, Math.round(((totalAcquired + totalAccepted) / (totalDesired * 2)) * 100 * 10) / 10)
           : 0;
 
@@ -149,6 +182,10 @@ class TargetSchedulerService {
 
   // Get filter progress for a specific target
   getTargetFilters(targetId) {
+    if (!this.isConnected()) {
+      return [];
+    }
+
     try {
       const filterQuery = `
         SELECT 
@@ -176,7 +213,7 @@ class TargetSchedulerService {
         const acceptedIntegrationTime = (filter.accepted || 0) * exposureTime;
         const remainingImages = Math.max(0, (filter.desired || 0) - (filter.accepted || 0));
         const remainingIntegrationTime = remainingImages * exposureTime;
-        
+
         return {
           filtername: filter.filtername,
           desired: filter.desired || 0,
@@ -203,6 +240,10 @@ class TargetSchedulerService {
 
   // Get detailed information for a specific project
   getProjectDetails(projectId) {
+    if (!this.isConnected()) {
+      return null;
+    }
+
     try {
       const projectQuery = `
         SELECT 
@@ -229,7 +270,7 @@ class TargetSchedulerService {
         targets: targets,
         recentImages: recentImages,
         // Updated completion calculation: (acquired + accepted) / (desired * 2) * 100, capped at 100%
-        totalCompletion: project.total_desired > 0 
+        totalCompletion: project.total_desired > 0
           ? Math.min(100, Math.round(((project.total_acquired + project.total_accepted) / (project.total_desired * 2)) * 100 * 10) / 10)
           : 0
       };
@@ -241,6 +282,15 @@ class TargetSchedulerService {
 
   // Get current scheduler status (most recent activity)
   getSchedulerStatus() {
+    if (!this.isConnected()) {
+      return {
+        currentTarget: null,
+        nextTarget: null,
+        timestamp: new Date().toISOString(),
+        error: 'Database not connected'
+      };
+    }
+
     try {
       const statusQuery = `
         SELECT 
@@ -303,6 +353,10 @@ class TargetSchedulerService {
 
   // Get recent imaging activity
   getRecentActivity(days = 7) {
+    if (!this.isConnected()) {
+      return [];
+    }
+
     try {
       const activityQuery = `
         SELECT 
@@ -338,6 +392,10 @@ class TargetSchedulerService {
 
   // Get recent images for a specific project
   getProjectRecentImages(projectId, limit = 10) {
+    if (!this.isConnected()) {
+      return [];
+    }
+
     try {
       const imagesQuery = `
         SELECT 

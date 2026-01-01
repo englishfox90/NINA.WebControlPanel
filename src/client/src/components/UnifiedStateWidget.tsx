@@ -17,6 +17,9 @@ const UnifiedStateWidget: React.FC = () => {
 
   // Filter color coding (same as ImageStats)
   const getFilterColor = (filter: string): 'blue' | 'red' | 'green' | 'yellow' => {
+    // Type guard for runtime safety
+    if (!filter || typeof filter !== 'string') return 'yellow';
+    
     const filterLower = filter.toLowerCase();
     if (filterLower.includes('blue') || filterLower.includes('oiii')) return 'blue';
     if (filterLower.includes('red') || filterLower.includes('ha')) return 'red';
@@ -123,10 +126,10 @@ const UnifiedStateWidget: React.FC = () => {
                             )}
                             <Flex gap="3" mt="1">
                               <Text size="1" color="gray">
-                                RA: {session.target.ra?.toFixed(2)}h
+                                RA: {typeof session.target.ra === 'number' ? session.target.ra.toFixed(2) : 'N/A'}h
                               </Text>
                               <Text size="1" color="gray">
-                                Dec: {session.target.dec?.toFixed(2)}°
+                                Dec: {typeof session.target.dec === 'number' ? session.target.dec.toFixed(2) : 'N/A'}°
                               </Text>
                               {session.target.rotation !== null && (
                                 <Text size="1" color="gray">
@@ -183,7 +186,7 @@ const UnifiedStateWidget: React.FC = () => {
                                 {session.imaging.lastImage.stars !== null && (
                                   <Text size="1" color="gray">
                                     Stars: {session.imaging.lastImage.stars} | 
-                                    HFR: {session.imaging.lastImage.hfr?.toFixed(2)}"
+                                    HFR: {typeof session.imaging.lastImage.hfr === 'number' ? session.imaging.lastImage.hfr.toFixed(2) : 'N/A'}"
                                   </Text>
                                 )}
                               </Flex>
@@ -202,19 +205,19 @@ const UnifiedStateWidget: React.FC = () => {
                               <Flex direction="column">
                                 <Text size="1" color="gray">Total</Text>
                                 <Text size="2" weight="medium">
-                                  {session.guiding.lastRmsTotal?.toFixed(2)}"
+                                  {typeof session.guiding.lastRmsTotal === 'number' ? session.guiding.lastRmsTotal.toFixed(2) : '0.00'}"
                                 </Text>
                               </Flex>
                               {session.guiding.lastRmsRa !== null && (
                                 <Flex direction="column">
                                   <Text size="1" color="gray">RA</Text>
-                                  <Text size="2">{session.guiding.lastRmsRa?.toFixed(2)}"</Text>
+                                  <Text size="2">{typeof session.guiding.lastRmsRa === 'number' ? session.guiding.lastRmsRa.toFixed(2) : '0.00'}"</Text>
                                 </Flex>
                               )}
                               {session.guiding.lastRmsDec !== null && (
                                 <Flex direction="column">
                                   <Text size="1" color="gray">Dec</Text>
-                                  <Text size="2">{session.guiding.lastRmsDec?.toFixed(2)}"</Text>
+                                  <Text size="2">{typeof session.guiding.lastRmsDec === 'number' ? session.guiding.lastRmsDec.toFixed(2) : '0.00'}"</Text>
                                 </Flex>
                               )}
                             </Grid>

@@ -69,6 +69,12 @@ export interface AdvancedConfig {
   corsEnabled: boolean;
 }
 
+export interface PegasusConfig {
+  enabled: boolean;
+  refreshInterval: number;        // Default: 5000ms
+  maxCurrent: number;              // Maximum current rating in Amps (10A for PPBAdvance, 20A for UPBv3)
+}
+
 export interface AppConfig {
   nina: NINAConfig;
   database: DatabaseConfig;
@@ -78,6 +84,7 @@ export interface AppConfig {
   notifications: NotificationsConfig;
   observatory: ObservatoryConfig;
   advanced: AdvancedConfig;
+  pegasus: PegasusConfig;
 }
 
 // Default configuration values
@@ -138,6 +145,11 @@ export const DEFAULT_CONFIG: AppConfig = {
     logLevel: "info",
     enableMockData: true,
     corsEnabled: true
+  },
+  pegasus: {
+    enabled: false,
+    refreshInterval: 5000,
+    maxCurrent: 10
   }
 };
 
@@ -166,4 +178,6 @@ export interface ConfigData {
     liveStackDirectory: string;
     capturedImagesDirectory: string;
   };
+  // Allow dynamic access to config values (for database-stored config like pegasus.*)
+  [key: string]: any;
 }

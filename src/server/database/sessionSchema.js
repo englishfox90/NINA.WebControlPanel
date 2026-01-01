@@ -10,6 +10,20 @@ class SessionSchema {
   }
 
   initializeTables() {
+    // Check if sessions table exists and has correct schema
+    const tableInfo = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'").get();
+
+    if (tableInfo) {
+      // Check if session_uuid column exists
+      const columns = this.db.prepare("PRAGMA table_info(sessions)").all();
+      const hasSessionUuid = columns.some(col => col.name === 'session_uuid');
+
+      if (!hasSessionUuid) {
+        console.log('⚠️ Old sessions table schema detected, recreating...');
+        this.db.exec('DROP TABLE IF EXISTS sessions');
+      }
+    }
+
     // Sessions table - tracks individual imaging sessions
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS sessions (
@@ -128,12 +142,12 @@ class SessionSchema {
   updateState(stateData) {
     const fields = Object.keys(stateData).join(', ');
     const placeholders = Object.keys(stateData).map(key => `@${key}`).join(', ');
-    
+
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO session_state (id, ${fields})
       VALUES (1, ${placeholders})
     `);
-    
+
     return stmt.run(stateData);
   }
 
@@ -143,12 +157,12 @@ class SessionSchema {
       INSERT INTO session_events (session_uuid, event_type, event_time_utc, event_data)
       VALUES (?, ?, ?, ?)
     `);
-    
+
     const result = stmt.run(sessionUuid, eventType, eventTimeUtc, JSON.stringify(eventData));
-    
+
     // Keep only the most recent 100 events (rolling window)
     this.cleanOldEvents(20);
-    
+
     return result;
   }
 
@@ -162,7 +176,7 @@ class SessionSchema {
         LIMIT ?
       )
     `);
-    
+
     return stmt.run(maxEvents);
   }
 
@@ -173,7 +187,7 @@ class SessionSchema {
       ORDER BY event_time_utc DESC 
       LIMIT ?
     `);
-    
+
     return stmt.all(limit);
   }
 
@@ -186,7 +200,7 @@ class SessionSchema {
         ended_at, target_end_time, is_active, is_expired
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    
+
     return stmt.run(
       sessionData.session_uuid,
       sessionData.target_name,
@@ -209,7 +223,7 @@ class SessionSchema {
     const sessionCount = this.db.prepare('SELECT COUNT(*) as count FROM sessions').get();
     const eventCount = this.db.prepare('SELECT COUNT(*) as count FROM session_events').get();
     const activeSession = this.db.prepare('SELECT COUNT(*) as count FROM sessions WHERE is_active = 1').get();
-    
+
     return {
       totalSessions: sessionCount.count,
       totalEvents: eventCount.count,

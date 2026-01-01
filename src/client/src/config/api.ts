@@ -15,6 +15,11 @@ const getCurrentHost = (): string => {
 // API base URL uses same host as website but port 3001
 export const API_BASE_URL = `${getCurrentHost()}:3001`;
 
+// Helper function to get the base API URL
+export const getBaseApiUrl = (): string => {
+  return API_BASE_URL;
+};
+
 // Helper function to get full API URL
 export const getApiUrl = (endpoint: string): string => {
   // Remove leading slash if present
@@ -31,7 +36,10 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-export default {
+const apiConfig = {
   API_BASE_URL,
-  getApiUrl
+  getApiUrl,
+  getBaseApiUrl
 };
+
+export default apiConfig;

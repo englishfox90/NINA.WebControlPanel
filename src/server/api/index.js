@@ -5,6 +5,7 @@ const SchedulerRoutes = require('./scheduler');
 const AstronomicalRoutes = require('./astronomical');
 const NINARoutes = require('./nina');
 const DashboardRoutes = require('./dashboard');
+const PegasusRoutes = require('./pegasus');
 
 class APIRoutes {
   constructor(configDatabase, systemMonitor, ninaService, astronomicalService, targetSchedulerService, sessionStateManager = null) {
@@ -37,6 +38,7 @@ class APIRoutes {
     this.astronomicalRoutes = new AstronomicalRoutes(astronomicalService, configDatabase);
     this.ninaRoutes = new NINARoutes(ninaService, sessionStateManager, configDatabase);
     this.dashboardRoutes = new DashboardRoutes(configDatabase);
+    this.pegasusRoutes = PegasusRoutes; // Pegasus routes don't need dependencies
     
     console.log('🔧 Modular API Routes initialized with all services');
   }
@@ -62,6 +64,9 @@ class APIRoutes {
     
     this.dashboardRoutes.register(app);
     console.log('✅ Dashboard management routes registered');
+    
+    app.use('/api/pegasus', this.pegasusRoutes);
+    console.log('✅ Pegasus Unity Platform routes registered');
     
     console.log('🎯 All API routes registered successfully');
   }

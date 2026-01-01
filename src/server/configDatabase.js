@@ -62,7 +62,7 @@ class ConfigDatabase {
     if (count.count === 0) {
       this.initializeDefaultConfig();
     }
-    
+
     // Initialize default widgets if empty
     const widgetCount = this.db.prepare('SELECT COUNT(*) as count FROM dashboard_widgets').get();
     if (widgetCount.count === 0) {
@@ -90,7 +90,8 @@ class ConfigDatabase {
       { id: 'image-viewer', component: 'ImageViewer', title: 'Recent Images', x: 0, y: 14, w: 8, h: 6, minW: 4, minH: 4 },
       { id: 'nina-logs', component: 'NINALogsWidget', title: 'NINA Logs', x: 0, y: 20, w: 8, h: 6, minW: 4, minH: 4 },
       { id: 'livestack-viewer', component: 'LiveStackWidget', title: 'LiveStack', x: 8, y: 20, w: 8, h: 8, minW: 4, minH: 6 },
-      { id: 'guider-graph', component: 'GuiderGraphWidget', title: 'Guider Graph', x: 8, y: 14, w: 6, h: 8, minW: 4, minH: 6 }
+      { id: 'guider-graph', component: 'GuiderGraphWidget', title: 'Guider Graph', x: 8, y: 14, w: 6, h: 8, minW: 4, minH: 6 },
+      { id: 'pegasus-power', component: 'PegasusPowerWidget', title: 'Pegasus Power', x: 0, y: 26, w: 6, h: 8, minW: 4, minH: 6 }
     ];
   }
 
@@ -107,7 +108,7 @@ class ConfigDatabase {
     // Add missing widgets
     if (missingWidgets.length > 0) {
       console.log(`🔧 Adding ${missingWidgets.length} missing default widgets:`, missingWidgets.map(w => w.id));
-      
+
       const stmt = this.db.prepare(`
         INSERT INTO dashboard_widgets (id, component, title, x, y, w, h, minW, minH)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -150,21 +151,21 @@ class ConfigDatabase {
         guiderExposureDuration: 2.0
       },
       database: {
-        targetSchedulerPath: "./schedulerdb.sqlite",
+        targetSchedulerPath: "%LOCALAPPDATA%\\NINA\\SchedulerPlugin\\schedulerdb.sqlite",
         backupEnabled: true,
         backupInterval: 24
       },
       streams: {
-        liveFeed1: "https://live.starfront.tools/allsky/",
-        liveFeed2: "https://zyssufjepmbhqznfuwcw.supabase.co/storage/v1/object/public/status-assets-public/building-0008/current.jpg",
+        liveFeed1: "",
+        liveFeed2: "",
         liveFeed3: "",
         localCameraPath: "",
         defaultStream: 1,
         connectionTimeout: 10000
       },
       directories: {
-        liveStackDirectory: "D:/Observatory/LiveStacks",
-        capturedImagesDirectory: "D:/Observatory/Captured",
+        liveStackDirectory: "",
+        capturedImagesDirectory: "",
         logsDirectory: "./logs",
         tempDirectory: "./temp"
       },
@@ -203,14 +204,14 @@ class ConfigDatabase {
           },
           {
             id: "system-monitor",
-            component: "SystemStatusWidget", 
+            component: "SystemStatusWidget",
             title: "System Monitor",
             layout: { i: "system-monitor", x: 4, y: 0, w: 4, h: 6, minW: 3, minH: 4 }
           },
           {
             id: "scheduler",
             component: "SchedulerWidget",
-            title: "Target Scheduler", 
+            title: "Target Scheduler",
             layout: { i: "scheduler", x: 8, y: 0, w: 4, h: 8, minW: 3, minH: 6 }
           },
           {
@@ -238,6 +239,15 @@ class ConfigDatabase {
         logLevel: "info",
         enableMockData: true,
         corsEnabled: true
+      },
+      pegasus: {
+        enabled: false,
+        refreshInterval: 5000,
+        maxCurrent: 10  // Default 10A (PPBAdvance), set to 20 for UPBv3
+      },
+      onboarding: {
+        completed: false,
+        completedAt: null
       }
     };
 
@@ -257,7 +267,7 @@ class ConfigDatabase {
   getConfigValue(key, defaultValue) {
     const stmt = this.db.prepare('SELECT value FROM config WHERE key = ?');
     const result = stmt.get(key);
-    
+
     if (result) {
       try {
         return JSON.parse(result.value);
@@ -266,7 +276,7 @@ class ConfigDatabase {
         return defaultValue;
       }
     }
-    
+
     return defaultValue;
   }
 
@@ -274,42 +284,56 @@ class ConfigDatabase {
   setConfig(config) {
     const transaction = this.db.transaction(() => {
       // NINA configuration
-      this.setConfigValue('nina.apiPort', config.nina.apiPort, 'nina');
-      this.setConfigValue('nina.baseUrl', config.nina.baseUrl, 'nina');
-      this.setConfigValue('nina.timeout', config.nina.timeout, 'nina');
-      this.setConfigValue('nina.retryAttempts', config.nina.retryAttempts, 'nina');
-      this.setConfigValue('nina.guiderExposureDuration', config.nina.guiderExposureDuration, 'nina');
+      if (config.nina) {
+        if (config.nina.apiPort !== undefined) this.setConfigValue('nina.apiPort', config.nina.apiPort, 'nina');
+        if (config.nina.baseUrl !== undefined) this.setConfigValue('nina.baseUrl', config.nina.baseUrl, 'nina');
+        if (config.nina.timeout !== undefined) this.setConfigValue('nina.timeout', config.nina.timeout, 'nina');
+        if (config.nina.retryAttempts !== undefined) this.setConfigValue('nina.retryAttempts', config.nina.retryAttempts, 'nina');
+        if (config.nina.guiderExposureDuration !== undefined) this.setConfigValue('nina.guiderExposureDuration', config.nina.guiderExposureDuration, 'nina');
+      }
 
       // Database configuration
-      this.setConfigValue('database.targetSchedulerPath', config.database.targetSchedulerPath, 'database');
-      this.setConfigValue('database.backupEnabled', config.database.backupEnabled, 'database');
-      this.setConfigValue('database.backupInterval', config.database.backupInterval, 'database');
+      if (config.database) {
+        if (config.database.targetSchedulerPath !== undefined) this.setConfigValue('database.targetSchedulerPath', config.database.targetSchedulerPath, 'database');
+        if (config.database.backupEnabled !== undefined) this.setConfigValue('database.backupEnabled', config.database.backupEnabled, 'database');
+        if (config.database.backupInterval !== undefined) this.setConfigValue('database.backupInterval', config.database.backupInterval, 'database');
+      }
 
       // Streams configuration
-      this.setConfigValue('streams.liveFeed1', config.streams.liveFeed1, 'streams');
-      this.setConfigValue('streams.liveFeed2', config.streams.liveFeed2, 'streams');
-      this.setConfigValue('streams.liveFeed3', config.streams.liveFeed3, 'streams');
-      this.setConfigValue('streams.localCameraPath', config.streams.localCameraPath, 'streams');
-      this.setConfigValue('streams.defaultStream', config.streams.defaultStream, 'streams');
-      this.setConfigValue('streams.connectionTimeout', config.streams.connectionTimeout, 'streams');
+      if (config.streams) {
+        if (config.streams.liveFeed1 !== undefined) this.setConfigValue('streams.liveFeed1', config.streams.liveFeed1, 'streams');
+        if (config.streams.liveFeed2 !== undefined) this.setConfigValue('streams.liveFeed2', config.streams.liveFeed2, 'streams');
+        if (config.streams.liveFeed3 !== undefined) this.setConfigValue('streams.liveFeed3', config.streams.liveFeed3, 'streams');
+        if (config.streams.localCameraPath !== undefined) this.setConfigValue('streams.localCameraPath', config.streams.localCameraPath, 'streams');
+        if (config.streams.defaultStream !== undefined) this.setConfigValue('streams.defaultStream', config.streams.defaultStream, 'streams');
+        if (config.streams.connectionTimeout !== undefined) this.setConfigValue('streams.connectionTimeout', config.streams.connectionTimeout, 'streams');
+      }
 
       // Directories configuration
-      this.setConfigValue('directories.liveStackDirectory', config.directories.liveStackDirectory, 'directories');
-      this.setConfigValue('directories.capturedImagesDirectory', config.directories.capturedImagesDirectory, 'directories');
-      this.setConfigValue('directories.logsDirectory', config.directories.logsDirectory, 'directories');
-      this.setConfigValue('directories.tempDirectory', config.directories.tempDirectory, 'directories');
+      if (config.directories) {
+        if (config.directories.liveStackDirectory !== undefined) this.setConfigValue('directories.liveStackDirectory', config.directories.liveStackDirectory, 'directories');
+        if (config.directories.capturedImagesDirectory !== undefined) this.setConfigValue('directories.capturedImagesDirectory', config.directories.capturedImagesDirectory, 'directories');
+        if (config.directories.logsDirectory !== undefined) this.setConfigValue('directories.logsDirectory', config.directories.logsDirectory, 'directories');
+        if (config.directories.tempDirectory !== undefined) this.setConfigValue('directories.tempDirectory', config.directories.tempDirectory, 'directories');
+      }
 
       // Dashboard configuration
-      this.setConfigValue('dashboard.refreshInterval', config.dashboard.refreshInterval, 'dashboard');
-      this.setConfigValue('dashboard.theme', config.dashboard.theme, 'dashboard');
-      this.setConfigValue('dashboard.mobileOptimized', config.dashboard.mobileOptimized, 'dashboard');
-      this.setConfigValue('dashboard.autoRefresh', config.dashboard.autoRefresh, 'dashboard');
+      if (config.dashboard) {
+        if (config.dashboard.refreshInterval !== undefined) this.setConfigValue('dashboard.refreshInterval', config.dashboard.refreshInterval, 'dashboard');
+        if (config.dashboard.theme !== undefined) this.setConfigValue('dashboard.theme', config.dashboard.theme, 'dashboard');
+        if (config.dashboard.mobileOptimized !== undefined) this.setConfigValue('dashboard.mobileOptimized', config.dashboard.mobileOptimized, 'dashboard');
+        if (config.dashboard.autoRefresh !== undefined) this.setConfigValue('dashboard.autoRefresh', config.dashboard.autoRefresh, 'dashboard');
+      }
 
       // Notifications configuration
-      this.setConfigValue('notifications', config.notifications, 'notifications');
+      if (config.notifications) {
+        this.setConfigValue('notifications', config.notifications, 'notifications');
+      }
 
       // Observatory configuration
-      this.setConfigValue('observatory', config.observatory, 'observatory');
+      if (config.observatory) {
+        this.setConfigValue('observatory', config.observatory, 'observatory');
+      }
 
       // Layout configuration
       if (config.layout) {
@@ -317,7 +341,21 @@ class ConfigDatabase {
       }
 
       // Advanced configuration
-      this.setConfigValue('advanced', config.advanced, 'advanced');
+      if (config.advanced) {
+        this.setConfigValue('advanced', config.advanced, 'advanced');
+      }
+
+      // Pegasus configuration
+      if (config.pegasus) {
+        if (config.pegasus.enabled !== undefined) this.setConfigValue('pegasus.enabled', config.pegasus.enabled, 'pegasus');
+        if (config.pegasus.refreshInterval !== undefined) this.setConfigValue('pegasus.refreshInterval', config.pegasus.refreshInterval, 'pegasus');
+        if (config.pegasus.maxCurrent !== undefined) this.setConfigValue('pegasus.maxCurrent', config.pegasus.maxCurrent, 'pegasus');
+      }
+
+      // Onboarding configuration
+      if (config.onboarding) {
+        this.setConfigValue('onboarding', config.onboarding, 'onboarding');
+      }
     });
 
     transaction();
@@ -334,21 +372,21 @@ class ConfigDatabase {
         guiderExposureDuration: this.getConfigValue('nina.guiderExposureDuration', 2)
       },
       database: {
-        targetSchedulerPath: this.getConfigValue('database.targetSchedulerPath', './schedulerdb.sqlite'),
+        targetSchedulerPath: this.getConfigValue('database.targetSchedulerPath', '%LOCALAPPDATA%\\NINA\\SchedulerPlugin\\schedulerdb.sqlite'),
         backupEnabled: this.getConfigValue('database.backupEnabled', true),
         backupInterval: this.getConfigValue('database.backupInterval', 24)
       },
       streams: {
-        liveFeed1: this.getConfigValue('streams.liveFeed1', 'https://live.starfront.tools/allsky/'),
-        liveFeed2: this.getConfigValue('streams.liveFeed2', 'https://zyssufjepmbhqznfuwcw.supabase.co/storage/v1/object/public/status-assets-public/building-0008/current.jpg'),
+        liveFeed1: this.getConfigValue('streams.liveFeed1', ''),
+        liveFeed2: this.getConfigValue('streams.liveFeed2', ''),
         liveFeed3: this.getConfigValue('streams.liveFeed3', ''),
-        localCameraPath: this.getConfigValue('streams.localCameraPath', 'C:\\Astrophotography\\AllSkEye\\AllSkEye\\LatestImage\\Latest_image.jpg'),
+        localCameraPath: this.getConfigValue('streams.localCameraPath', ''),
         defaultStream: this.getConfigValue('streams.defaultStream', 1),
         connectionTimeout: this.getConfigValue('streams.connectionTimeout', 10000)
       },
       directories: {
-        liveStackDirectory: this.getConfigValue('directories.liveStackDirectory', 'D:/Observatory/LiveStacks'),
-        capturedImagesDirectory: this.getConfigValue('directories.capturedImagesDirectory', 'D:/Observatory/Captured'),
+        liveStackDirectory: this.getConfigValue('directories.liveStackDirectory', ''),
+        capturedImagesDirectory: this.getConfigValue('directories.capturedImagesDirectory', ''),
         logsDirectory: this.getConfigValue('directories.logsDirectory', './logs'),
         tempDirectory: this.getConfigValue('directories.tempDirectory', './temp')
       },
@@ -385,6 +423,15 @@ class ConfigDatabase {
         logLevel: "info",
         enableMockData: true,
         corsEnabled: true
+      }),
+      pegasus: {
+        enabled: this.getConfigValue('pegasus.enabled', false),
+        refreshInterval: this.getConfigValue('pegasus.refreshInterval', 5000),
+        maxCurrent: this.getConfigValue('pegasus.maxCurrent', 10)
+      },
+      onboarding: this.getConfigValue('onboarding', {
+        completed: false,
+        completedAt: null
       })
     };
   }
@@ -393,7 +440,7 @@ class ConfigDatabase {
   getConfigByCategory(category) {
     const stmt = this.db.prepare('SELECT key, value FROM config WHERE category = ?');
     const results = stmt.all(category);
-    
+
     const config = {};
     results.forEach(row => {
       try {
@@ -402,7 +449,7 @@ class ConfigDatabase {
         console.error(`Error parsing config value for key ${row.key}:`, error);
       }
     });
-    
+
     return config;
   }
 
@@ -410,7 +457,7 @@ class ConfigDatabase {
   getWidgets() {
     const stmt = this.db.prepare('SELECT * FROM dashboard_widgets WHERE enabled = 1 ORDER BY x, y');
     const widgets = stmt.all();
-    
+
     return widgets.map(widget => ({
       id: widget.id,
       component: widget.component,
@@ -430,7 +477,7 @@ class ConfigDatabase {
   getAllWidgets() {
     const stmt = this.db.prepare('SELECT * FROM dashboard_widgets ORDER BY x, y');
     const widgets = stmt.all();
-    
+
     return widgets.map(widget => ({
       id: widget.id,
       component: widget.component,
